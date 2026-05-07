@@ -194,12 +194,14 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
   const peek3Opacity = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [0, 1, 1, 0]);
   const peek3YBase = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [hiddenOffset, 0, 0, hiddenOffset]);
 
+  if (isMobile) return null;
+
   return (
     <>
       {/* Peek 1: Bottom Right */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-20px', right: '5%', width: isMobile ? '100px' : '180px', zIndex: 50,
+          position: 'fixed', bottom: '-20px', right: '5%', width: '180px', zIndex: 5,
           opacity: peek1Opacity, y: combine(peek1YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -214,7 +216,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 4: Right Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '30%', right: isMobile ? '-20px' : '-30px', width: isMobile ? '80px' : '140px', zIndex: 50,
+          position: 'fixed', top: '30%', right: '-30px', width: '140px', zIndex: 5,
           opacity: peek4Opacity, x: combine(peek4XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -229,7 +231,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 2: Left Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '45%', left: isMobile ? '-15px' : '-20px', width: isMobile ? '90px' : '150px', zIndex: 50,
+          position: 'fixed', top: '45%', left: '-20px', width: '150px', zIndex: 5,
           opacity: peek2Opacity, x: combine(peek2XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -244,7 +246,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 5: Top Right */}
       <motion.div
         style={{
-          position: 'fixed', top: '-40px', right: '15%', width: isMobile ? '100px' : '160px', zIndex: 50,
+          position: 'fixed', top: '-40px', right: '15%', width: '160px', zIndex: 5,
           opacity: peek5Opacity, y: combine(peek5YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -259,7 +261,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 3: Bottom Left */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-30px', left: '10%', width: isMobile ? '110px' : '200px', zIndex: 50,
+          position: 'fixed', bottom: '-30px', left: '10%', width: '200px', zIndex: 5,
           opacity: peek3Opacity, y: combine(peek3YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -589,12 +591,12 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
                   transition={{ duration: 0.8, delay: 1 }}
-                  style={{ display:'flex', gap:'20px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}
+                  style={{ display:'flex', gap:'20px', flexDirection: isMobile ? 'column' : 'row', justifyContent: isMobile ? 'center' : 'flex-start', width: '100%' }}
                 >
-                  <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)' }}>
+                  <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)', textAlign: 'center' }}>
                     Enter Motion
                   </a>
-                  <a href="https://walrus.xyz" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 600 }}>
+                  <a href="https://walrus.xyz" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 600, textAlign: 'center' }}>
                     Explore Walrus
                   </a>
                 </motion.div>
@@ -611,7 +613,7 @@ export default function Home() {
                 <motion.img 
                   src="/walrus-2.png" 
                   alt="Walrus Mascot"
-                  style={{ width: '100%', maxWidth: '480px', height: 'auto', filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.6))' }}
+                  style={{ width: isMobile ? '80%' : '100%', maxWidth: '480px', height: 'auto', filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.6))' }}
                   animate={{ 
                     y: [0, -25, 0],
                     rotate: [0, 2, 0, -2, 0]
@@ -663,9 +665,9 @@ export default function Home() {
                 whileInView={{ opacity: 1, scale: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 1, delay: 0.2 }}
-                style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center' }}
+                style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', order: isMobile ? -1 : 1 }}
               >
-                <img src="/walrus-1.png" alt="Walrus" style={{ width: '100%', maxWidth: '400px', height: 'auto', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))' }} />
+                <img src="/walrus-1.png" alt="Walrus" style={{ width: isMobile ? '80%' : '100%', maxWidth: '400px', height: 'auto', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))' }} />
               </motion.div>
             </div>
           </section>
@@ -719,7 +721,7 @@ export default function Home() {
                   <h4 style={{ fontSize: '22px', fontWeight: 900, marginBottom: '12px', color: '#fff' }}>{step.title}</h4>
                   <p style={{ fontSize: '15px', color: 'var(--text-3)', lineHeight: 1.6 }}>{step.desc}</p>
                   
-                  {i < 3 && (
+                  {i < 3 && !isMobile && (
                     <div className="flow-arrow" style={{ 
                       position: 'absolute', 
                       right: '-16px', 
@@ -905,13 +907,14 @@ export default function Home() {
                     viewport={{ once: true }}
                     transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                     style={{ 
-                      padding: '48px', 
+                      padding: isMobile ? '32px' : '48px', 
                       background: 'rgba(255,255,255,0.02)',
                       backdropFilter: 'blur(24px)',
                       border: '1px solid var(--border)',
                       borderRadius: '40px',
                       display: 'flex',
-                      gap: '56px',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      gap: isMobile ? '32px' : '56px',
                       alignItems: 'center',
                       transition: 'all 0.4s cubic-bezier(0.2, 0, 0, 1)',
                       position: 'relative',
@@ -931,7 +934,7 @@ export default function Home() {
                       <p style={{ fontSize: '13px', color: 'var(--accent-2)', marginTop: '8px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{section.tag}</p>
                     </div>
                     
-                    <div style={{ flex: 1, display: 'grid', gap: '12px', position: 'relative', zIndex: 2 }}>
+                    <div style={{ width: '100%', display: 'grid', gap: '12px', position: 'relative', zIndex: 2 }}>
                       {section.links.map((link, lidx) => (
                         <ReferenceLink key={lidx} href={link.url} label={link.label} />
                       ))}
