@@ -117,9 +117,9 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
 
     for (const adminAddr of adminAddresses) {
       try {
-        const { SuiClient, getFullnodeUrl } = await import('@mysten/sui/client');
+        const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import('@mysten/sui/jsonRpc');
         const { getWalrusClient } = await import('@/lib/walrus-onchain');
-        const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
+        const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('mainnet') });
         const structType = await getWalrusClient().getBlobType();
 
         let hasNextPage = true;
