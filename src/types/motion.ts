@@ -23,6 +23,7 @@ export interface FormConfig {
   admins: string[];
   createdAt: number;
   publishedBlobId?: string;
+  publishedBy?: string;
 }
 
 export interface Submission {
