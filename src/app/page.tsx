@@ -785,11 +785,11 @@ export default function Home() {
           {/* ── PART 3: UNIQUENESS / ADVANTAGES ────────────────────────────── */}
           <section style={{ width: '100%', maxWidth: '1200px', margin: '200px auto 0', padding: '0 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
-              {[
+              {([
                 { title: '100% On-Chain', desc: 'Forms, submissions, and media are stored natively on decentralized infrastructure without relying on centralized databases.', icon: '⚡' },
-                { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', image: '/walrus-official.png', imageStyle: { mixBlendMode: 'screen' } },
+                { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', image: '/walrus-official.png', imageStyle: { mixBlendMode: 'screen' } as any },
                 { title: 'Sui Performance', desc: 'Built on Sui for fast interactions, smooth wallet UX, and scalable Web3 experiences.', image: 'https://cryptologos.cc/logos/sui-sui-logo.png?v=032' }
-              ].map((card, i) => (
+              ] as any[]).map((card, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -883,7 +883,7 @@ export default function Home() {
               gap: '32px',
               justifyContent: 'center'
             }}>
-              {[
+              {([
                 {
                   title: "Walrus Ecosystem",
                   image: "/walrus-official.png",
@@ -892,7 +892,7 @@ export default function Home() {
                     { label: "Documentation", url: "https://docs.wal.app/" },
                     { label: "Official Website", url: "https://www.walrus.xyz/" }
                   ],
-                  imageStyle: { mixBlendMode: 'screen' }
+                  imageStyle: { mixBlendMode: 'screen' } as React.CSSProperties
                 },
                 {
                   title: "Sui Network",
@@ -904,7 +904,7 @@ export default function Home() {
                     { label: "Source Code", url: "https://github.com/MystenLabs/sui" }
                   ]
                 }
-              ].map((section, idx) => {
+              ] as any[]).map((section, idx) => {
                 // Local component for reference links
                 const ReferenceLink = ({ href, label }: { href: string, label: string }) => (
                   <a 
@@ -988,7 +988,7 @@ export default function Home() {
                     </div>
                     
                     <div style={{ width: '100%', display: 'grid', gap: '12px', position: 'relative', zIndex: 2 }}>
-                      {section.links.map((link, lidx) => (
+                      {section.links.map((link: any, lidx: number) => (
                         <ReferenceLink key={lidx} href={link.url} label={link.label} />
                       ))}
                     </div>
@@ -1179,6 +1179,8 @@ export default function Home() {
                                     field={newsletterField} 
                                     value={data[newsletterField.id]??false} 
                                     onChange={v=>setField(newsletterField.id,v)} 
+                                    onFile={async ()=>{}} 
+                                    uploading={false}
                                   />
                                 </div>
                               );
