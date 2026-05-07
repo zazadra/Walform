@@ -156,7 +156,7 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
           </div>
 
           {/* Select options */}
-          {(field.type === 'select' || field.id === 'session_select') && (
+          {field.type === 'select' && (
             <div>
               <label className="input-label">Options (comma-separated)</label>
               <textarea 

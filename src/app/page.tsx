@@ -253,10 +253,10 @@ export default function Home() {
             </p>
             
             <div style={{ display:'flex', gap:'20px', justifyContent:'center', flexWrap: 'wrap' }}>
-              <a href="/admin" className="btn btn-primary btn-lg" style={{ textDecoration:'none', padding:'0 40px', minWidth: '200px' }}>
+              <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', minWidth: '240px' }}>
                 Start Building Free
               </a>
-              <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-lg" style={{ textDecoration:'none', padding:'0 40px', minWidth: '200px' }}>
+              <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', minWidth: '240px' }}>
                 How it Works
               </a>
             </div>
@@ -268,11 +268,44 @@ export default function Home() {
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             style={{ position: 'absolute', top: '20%', right: '10%', width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 1 }}
           />
-          <motion.div 
-            animate={{ y: [0, 20, 0] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            style={{ position: 'absolute', bottom: '20%', left: '10%', width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(34, 211, 238, 0.1) 0%, transparent 70%)', filter: 'blur(50px)', zIndex: 1 }}
-          />
+          <section style={{ padding: '120px 24px 80px', borderTop: '1px solid var(--border)', maxWidth: '1000px', margin: '120px auto 0', position: 'relative', zIndex: 10 }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 800, textAlign: 'center', marginBottom: '60px', letterSpacing: '-0.03em', background: 'linear-gradient(to bottom, #fff, #999)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Official References
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
+              {/* Walrus */}
+              <div className="card" style={{ padding: '32px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px', color: 'var(--accent-2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '24px' }}>🌊</span> Walrus
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <a href="https://docs.wal.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', fontSize: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', transition: 'color 0.2s' }}>
+                    Documentation <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>↗</span>
+                  </a>
+                  <a href="https://www.walrus.xyz/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', fontSize: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', transition: 'color 0.2s' }}>
+                    Official Website <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>↗</span>
+                  </a>
+                </div>
+              </div>
+              {/* Sui */}
+              <div className="card" style={{ padding: '32px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px', color: 'var(--accent-2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '24px' }}>💧</span> Sui
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <a href="https://sui.io/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', fontSize: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', transition: 'color 0.2s' }}>
+                    Official Website <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>↗</span>
+                  </a>
+                  <a href="https://docs.sui.io/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', fontSize: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', transition: 'color 0.2s' }}>
+                    Developer Docs <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>↗</span>
+                  </a>
+                  <a href="https://github.com/MystenLabs/sui" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', fontSize: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', transition: 'color 0.2s' }}>
+                    GitHub Repository <span style={{ color: 'var(--text-3)', fontSize: '12px' }}>↗</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
     );
