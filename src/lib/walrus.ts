@@ -1,16 +1,12 @@
 /**
- * Walrus HTTP API — Mainnet
- * Uploads go through our Next.js proxy (avoids CORS + handles WAL payment via publisher).
- * The SDK (WalrusClient) is server-only; see api/walrus/upload/route.ts for server usage.
+ * Walrus HTTP API — Direct Browser Uploads
+ * We use the public Walrus Publisher for static dApps (no backend needed).
  */
 
 import type { WalrusUploadResponse } from '@/types/motion';
 
-export const WALRUS_AGGREGATOR         = 'https://aggregator.walrus.space';
-export const WALRUS_AGGREGATOR_TESTNET = 'https://aggregator.walrus-testnet.walrus.space';
-
-// All writes go through this proxy (avoids browser CORS, handles epoch limits)
-const UPLOAD_PROXY = '/api/walrus/upload';
+export const WALRUS_AGGREGATOR = 'https://aggregator.walrus.space';
+export const WALRUS_PUBLISHER  = 'https://publisher.walrus.space';
 
 function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadResponse {
   if (result.newlyCreated) {
@@ -32,30 +28,46 @@ function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadRespo
   throw new Error('Unexpected Walrus response: ' + JSON.stringify(result));
 }
 
+/**
+ * Core upload function using the public Publisher
+ */
 export async function uploadBytesToWalrus(
   data: Uint8Array | string,
-  contentType = 'application/octet-stream'
+  epochs = 1
 ): Promise<WalrusUploadResponse> {
+  const url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
   const body = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  const res = await fetch(UPLOAD_PROXY, { method: 'PUT', body, headers: { 'Content-Type': contentType } });
+  
+  const res = await fetch(url, { method: 'PUT', body: body as any });
   if (!res.ok) throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
   return parseWalrusResponse(await res.json());
 }
 
-export async function uploadJsonToWalrus<T>(data: T): Promise<WalrusUploadResponse> {
-  return uploadBytesToWalrus(JSON.stringify(data), 'application/json');
+/**
+ * Upload JSON directly to Walrus
+ */
+export async function uploadJsonToWalrus<T>(data: T, epochs = 1): Promise<WalrusUploadResponse> {
+  return uploadBytesToWalrus(JSON.stringify(data), epochs);
 }
 
-export async function uploadFileToWalrus(file: File): Promise<WalrusUploadResponse> {
-  const body = new Uint8Array(await file.arrayBuffer());
-  const res = await fetch(UPLOAD_PROXY, { method: 'PUT', body, headers: { 'Content-Type': file.type || 'application/octet-stream' } });
-  if (!res.ok) throw new Error(`File upload failed (${res.status}): ${await res.text()}`);
-  return parseWalrusResponse(await res.json());
+/**
+ * Uploads a file directly to the Walrus Publisher from the browser.
+ */
+export async function uploadFileToWalrus(file: File, epochs = 1): Promise<WalrusUploadResponse> {
+  const url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
+  const res = await fetch(url, { method: 'PUT', body: file });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Walrus Upload failed (${res.status}): ${errorText}`);
+  }
+
+  const result = await res.json();
+  return parseWalrusResponse(result);
 }
 
 export async function readBlobFromWalrus(blobId: string): Promise<Uint8Array> {
-  let res = await fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`);
-  if (!res.ok) res = await fetch(`${WALRUS_AGGREGATOR_TESTNET}/v1/blobs/${blobId}`);
+  const res = await fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`);
   if (!res.ok) throw new Error(`Read failed (${res.status}) for ${blobId}`);
   return new Uint8Array(await res.arrayBuffer());
 }
@@ -68,6 +80,7 @@ export async function readJsonFromWalrus<T>(blobId: string): Promise<T> {
 export function getWalrusBlobUrl(blobId: string) {
   return `${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`;
 }
+
 export function getWalrusScanUrl(blobId: string) {
   return `https://walruscan.com/mainnet/blob/${blobId}`;
 }

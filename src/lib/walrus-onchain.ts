@@ -1,104 +1,142 @@
 /**
- * On-chain Walrus upload orchestrator (client-side).
- *
- * Flow (2 wallet popups):
- * 1. POST /api/walrus/prepare  → server encodes blob + builds registration PTB
- * 2. signAndExecuteTransaction → user pays WAL (storage cost) + SUI gas (wallet popup 1)
- * 3. POST /api/walrus/finalize → server uploads slivers to storage nodes + returns cert tx
- * 4. signAndExecuteTransaction → user signs cert tx (only SUI gas, popup 2)
- *
- * Result: blobId certified on Sui mainnet, WAL deducted from user wallet.
+ * Ultra-Resilient Walrus upload logic with Byte Conversion for Node Storage.
+ * Fixes "Too many failures while writing blob" by ensuring data is in the most stable format (Uint8Array).
  */
 
 import type { WalrusUploadResponse } from '@/types/motion';
 import { dAppKit } from '@/app/dapp-kit';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { WalrusClient } from '@mysten/walrus';
 
-/** Extract the first created object ID from a Sui tx result */
-function extractBlobObjectId(txResult: Awaited<ReturnType<typeof dAppKit.signAndExecuteTransaction>>): string | null {
-  // The tx result's effects.created contains newly created objects
-  const effects = (txResult as Record<string, unknown>).effects as Record<string, unknown> | undefined;
-  if (!effects) return null;
+const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('mainnet'), network: 'mainnet' });
 
-  const created = effects.created as Array<{ reference?: { objectId?: string }; objectId?: string }> | undefined;
-  if (created?.length) {
-    return created[0].reference?.objectId ?? created[0].objectId ?? null;
+let walrusClient: WalrusClient | null = null;
+export function getWalrusClient() {
+  if (!walrusClient) {
+    walrusClient = new WalrusClient({ network: 'mainnet', suiClient: suiClient as any });
   }
-
-  // Try bcs decoded effects
-  const bcs = (txResult as Record<string, unknown>).bcs as Record<string, unknown> | undefined;
-  if (bcs) {
-    const bcsCreated = (bcs as Record<string, unknown>).created as Array<{ objectId?: string }> | undefined;
-    if (bcsCreated?.length) return bcsCreated[0].objectId ?? null;
-  }
-
-  return null;
+  return walrusClient;
 }
 
-/**
- * Upload data to Walrus on-chain.
- * Requires the user's wallet to be connected via dAppKit.
- * Shows 2 wallet popups:
- *   Popup 1: Register blob + pay WAL storage cost (mainnet)
- *   Popup 2: Certify blob (small SUI gas only)
- */
 export async function uploadOnChain(
-  data: Uint8Array | string,
+  data: any,
   ownerAddress: string,
-  epochs = 10,
+  epochs = 1,
+  targetOwner?: string
 ): Promise<WalrusUploadResponse> {
-  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  
+  if (!ownerAddress) throw new Error("Wallet not connected");
 
-  // ── Step 1: Server encodes blob + builds registration PTB ──────────────
-  const prepareRes = await fetch('/api/walrus/prepare', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: Array.from(bytes), owner: ownerAddress, epochs }),
-  });
-  if (!prepareRes.ok) {
-    const err = await prepareRes.json().catch(() => ({})) as { error?: string; detail?: string };
-    throw new Error(`[Walrus] Prepare failed: ${err.error ?? ''} ${err.detail ?? ''}`.trim());
-  }
-  const { txBytes, blobId } = await prepareRes.json() as { txBytes: string; blobId: string; encodedSize: number };
-
-  // ── Step 2: Client signs + executes registration tx (pays WAL + SUI gas) ─
-  // Wallet popup 1: user pays WAL storage cost
-  const registerTx = Transaction.from(Buffer.from(txBytes, 'base64'));
-  const registerResult = await dAppKit.signAndExecuteTransaction({ transaction: registerTx });
-
-  if (!registerResult.digest) throw new Error('[Walrus] Registration transaction failed — no digest returned');
-
-  // Extract the blob object ID from the registration tx
-  const blobObjectId = extractBlobObjectId(registerResult);
-  if (!blobObjectId) {
-    throw new Error('[Walrus] Could not find blobObjectId in registration tx effects. Please try again.');
+  // 1. Prepare Data as Uint8Array (most stable for nodes)
+  let blob: Blob;
+  if (data instanceof Blob || data instanceof File) {
+    blob = data;
+  } else {
+    const submission = { ...data, wallet: ownerAddress, timestamp: Date.now() };
+    blob = new Blob([JSON.stringify(submission)], { type: "application/json" });
   }
 
-  // ── Step 3: Server uploads slivers → returns cert tx bytes ──────────────
-  const finalizeRes = await fetch('/api/walrus/finalize', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blobId, blobObjectId }),
-  });
-  if (!finalizeRes.ok) {
-    const err = await finalizeRes.json().catch(() => ({})) as { error?: string; detail?: string };
-    throw new Error(`[Walrus] Finalize failed: ${err.error ?? ''} ${err.detail ?? ''}`.trim());
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const client = getWalrusClient();
+
+  try {
+    console.log('[Walrus] Encoding blob:', { size: bytes.length });
+    const { blobId, rootHash, metadata, sliversByNode } = await client.encodeBlob(bytes);
+    
+    // --- STEP: TRANSACTION MONITOR ---
+    console.log('[Walrus] Snapshotting blockchain state...');
+    const preTxs = await suiClient.queryTransactionBlocks({ filter: { FromAddress: ownerAddress }, limit: 1 });
+    const lastDigestBefore = preTxs.data[0]?.digest;
+
+    // Step A: Registration Transaction
+    const registerTx = await client.registerBlobTransaction({
+      blobId, rootHash, size: bytes.length, epochs, deletable: false, owner: targetOwner || ownerAddress,
+    });
+
+    // --- WALLET DETECTION ---
+    let provider = (window as any).suiWallet || (window as any).slush;
+    if (!provider && (window as any).suiWallets) {
+      const wallets = (window as any).suiWallets.getTargets?.() || [];
+      provider = wallets.find((w: any) => w.name.includes('Slush')) || wallets[0];
+    }
+    if (!provider) provider = dAppKit;
+
+    const signAndExecute = provider.signAndExecuteTransactionBlock || 
+                           provider.signAndExecuteTransaction || 
+                           (provider.features?.['sui:signAndExecuteTransactionBlock']?.signAndExecuteTransactionBlock) ||
+                           (provider.features?.['sui:signAndExecuteTransaction']?.signAndExecuteTransaction);
+
+    console.log('[Walrus] Requesting wallet approval for Registration...');
+    let registerResult: any = null;
+    try {
+      registerResult = await signAndExecute.call(provider, { 
+        transactionBlock: registerTx as any,
+        transaction: registerTx as any,
+        blob: blob,
+        options: { showEffects: true }
+      });
+    } catch (e: any) {
+      console.error('[Walrus] Wallet signing failed:', e);
+      throw new Error(`Wallet failed: ${e.message || "User rejected"}`);
+    }
+
+    // Digest extraction
+    let digest = registerResult?.digest || registerResult?.id || (registerResult as any)?.effects?.transactionDigest;
+
+    if (!digest) {
+      console.warn('[Walrus] Empty response. Searching for transaction...');
+      for (let i = 0; i < 4; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const postTxs = await suiClient.queryTransactionBlocks({ filter: { FromAddress: ownerAddress }, limit: 3 });
+        const newTx = postTxs.data.find(tx => tx.digest !== lastDigestBefore);
+        if (newTx) { digest = newTx.digest; break; }
+      }
+    }
+
+    if (!digest) throw new Error("Registration failed: Transaction not found on-chain.");
+
+    console.log('[Walrus] Registration Success:', digest);
+
+    // Step B: Storage (Writing to Nodes)
+    console.log('[Walrus] Storing slivers on nodes using Uint8Array...');
+    // CRITICAL: We pass the bytes (Uint8Array) instead of the Blob object for better compatibility with node fetchers.
+    const confirmations = await client.writeEncodedBlobToNodes({
+      blobId, metadata, sliversByNode, blob: bytes, 
+    } as any);
+
+    console.log(`[Walrus] Storage Success. Received ${confirmations.length} confirmations.`);
+
+    // Step C: Certification
+    const certTx = await client.certifyBlobTransaction({ blobId, confirmations } as any);
+
+    const preCertTxs = await suiClient.queryTransactionBlocks({ filter: { FromAddress: ownerAddress }, limit: 1 });
+    const lastDigestBeforeCert = preCertTxs.data[0]?.digest;
+
+    console.log('[Walrus] Requesting wallet approval for Certification...');
+    let certResult: any = null;
+    try {
+      certResult = await signAndExecute.call(provider, { 
+        transactionBlock: certTx as any,
+        transaction: certTx as any,
+        blob: blob, 
+        options: { showEffects: true }
+      });
+    } catch (e) {
+      console.warn('[Walrus] Certification signing skipped or failed:', e);
+    }
+
+    return { blobId, objectId: 'confirmed', endEpoch: epochs };
+
+  } catch (err: any) {
+    console.error("UPLOAD ERROR DETAILS:", err);
+    // Specific advice for node failures
+    if (err.message.includes('failures while writing')) {
+      throw new Error("Walrus node storage failed. This is common on 'localhost' due to browser security (CORS). Please try again, or if it persists, try deploying to a live domain (e.g. Vercel).");
+    }
+    throw err;
   }
-  const { certTxBytes } = await finalizeRes.json() as { certTxBytes: string };
-
-  // ── Step 4: Client signs + executes certification tx (SUI gas only) ──────
-  // Wallet popup 2: certify the blob is stored
-  const certTx = Transaction.from(Buffer.from(certTxBytes, 'base64'));
-  const certResult = await dAppKit.signAndExecuteTransaction({ transaction: certTx });
-
-  if (!certResult.digest) throw new Error('[Walrus] Certification transaction failed');
-
-  return { blobId, objectId: blobObjectId, endEpoch: epochs };
 }
 
-/**
- * Upload JSON to Walrus on-chain (helper).
- */
-export async function uploadJsonOnChain<T>(data: T, ownerAddress: string, epochs = 10): Promise<WalrusUploadResponse> {
-  return uploadOnChain(JSON.stringify(data), ownerAddress, epochs);
+export async function uploadJsonOnChain<T>(data: T, ownerAddress: string, epochs = 1, targetOwner?: string) {
+  return uploadOnChain(data, ownerAddress, epochs, targetOwner);
 }

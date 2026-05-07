@@ -1,11 +1,9 @@
 // Sui dApp Kit v2 — Mainnet
-// Uses CoreClient from @mysten/sui/client
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { CoreClient } from '@mysten/sui/client';
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 
 function createSuiClient(network: string) {
-  const url = `https://fullnode.${network}.sui.io:443`;
-  return new CoreClient({ network, url });
+  return new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(network as any), network: 'mainnet' });
 }
 
 export const dAppKit = createDAppKit({

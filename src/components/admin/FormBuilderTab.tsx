@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import type { FormConfig, SessionField, SessionFieldType } from '@/types/motion';
 import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
@@ -53,18 +54,7 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
         />
 
         {/* INLINE Session Count — always visible for session_select */}
-        {field.id === 'session_select' && onSessionCountChange && (
-          <div style={{ display:'flex', alignItems:'center', gap:'6px', flexShrink:0, background:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.3)', borderRadius:'8px', padding:'3px 10px' }}>
-            <span style={{ fontSize:'11px', color:'var(--accent-2)', fontWeight:700, whiteSpace:'nowrap' }}>Sessions:</span>
-            <button onClick={() => onSessionCountChange(Math.max(1, (sessionCount ?? 1) - 1))}
-              style={{ width:'22px', height:'22px', borderRadius:'50%', border:'1px solid rgba(124,58,237,0.4)', background:'none', cursor:'pointer', color:'var(--accent-2)', fontWeight:700, fontSize:'14px', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>−</button>
-            <input type="number" min={1} max={50} value={sessionCount ?? 1}
-              onChange={e => onSessionCountChange(Math.max(1, Math.min(50, +e.target.value)))}
-              style={{ width:'44px', textAlign:'center', padding:'2px 4px', height:'24px', fontSize:'13px', fontWeight:700, borderRadius:'6px', border:'1px solid rgba(124,58,237,0.3)', background:'rgba(0,0,0,0.3)', color:'var(--accent-2)' }} />
-            <button onClick={() => onSessionCountChange(Math.min(50, (sessionCount ?? 1) + 1))}
-              style={{ width:'22px', height:'22px', borderRadius:'50%', border:'1px solid rgba(124,58,237,0.4)', background:'none', cursor:'pointer', color:'var(--accent-2)', fontWeight:700, fontSize:'14px', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>+</button>
-          </div>
-        )}
+        {/* REPLACED: Moved to expanded options below to satisfy user request "biarkan admin mengcustom di dalamnya" */}
 
         {/* Expand for more options */}
         <button
@@ -83,7 +73,7 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
           </button>
         )}
 
-        {/* Remove (custom fields only) */}
+        {/* Remove ANY field */}
         {onRemove && (
           <button onClick={onRemove} title="Remove" style={{ fontSize:'14px', background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:'0 2px', lineHeight:1, flexShrink:0 }}>✕</button>
         )}
@@ -95,6 +85,23 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
       {/* Expanded options */}
       {open && field.enabled && (
         <div style={{ padding:'10px 14px 14px', borderTop:'1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', gap:'8px' }}>
+
+          {/* Session Count Helper (Specific for session_select) */}
+          {field.id === 'session_select' && onSessionCountChange && (
+            <div style={{ display:'flex', flexDirection:'column', gap:'6px', background:'rgba(124,58,237,0.08)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'8px', padding:'10px' }}>
+              <label className="input-label" style={{fontSize:'11px', color:'var(--accent-2)'}}>Quick Set: Number of Sessions</label>
+              <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                <button onClick={() => onSessionCountChange(Math.max(1, (sessionCount ?? 1) - 1))}
+                  className="btn btn-ghost btn-sm" style={{ border:'1px solid rgba(124,58,237,0.3)', color:'var(--accent-2)' }}>−</button>
+                <input type="number" min={1} max={50} value={sessionCount ?? 1}
+                  onChange={e => onSessionCountChange(Math.max(1, Math.min(50, +e.target.value)))}
+                  style={{ width:'60px', textAlign:'center', padding:'4px', fontSize:'14px', fontWeight:700, borderRadius:'6px', border:'1px solid rgba(124,58,237,0.3)', background:'rgba(0,0,0,0.3)', color:'var(--accent-2)' }} />
+                <button onClick={() => onSessionCountChange(Math.min(50, (sessionCount ?? 1) + 1))}
+                  className="btn btn-ghost btn-sm" style={{ border:'1px solid rgba(124,58,237,0.3)', color:'var(--accent-2)' }}>+</button>
+                <span style={{ fontSize:'12px', color:'var(--text-3)' }}>Auto-generates "Session 1", "Session 2", etc.</span>
+              </div>
+            </div>
+          )}
 
           {/* Field type */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
@@ -138,7 +145,7 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
           </div>
 
           {/* Select options */}
-          {field.type === 'select' && (
+          {(field.type === 'select' || field.id === 'session_select') && (
             <div>
               <label className="input-label" style={{fontSize:'11px'}}>Options (comma-separated)</label>
               <input className="input"
@@ -247,6 +254,7 @@ export function FormBuilderTab({ config, onChange }: {
   config: FormConfig;
   onChange: (c: FormConfig) => void;
 }) {
+  const account = useCurrentAccount();
   const [publishing, setPublishing] = useState(false);
   const [pubUrl, setPubUrl]         = useState(config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?form=${config.publishedBlobId}` : '');
   const [pubBlobId, setPubBlobId]   = useState(config.publishedBlobId ?? '');
@@ -256,8 +264,7 @@ export function FormBuilderTab({ config, onChange }: {
   function updateField(id: string, patch: Partial<SessionField>) {
     onChange({ ...config, fields: config.fields.map(f => f.id === id ? { ...f, ...patch } : f) });
   }
-  function removeCustomField(id: string) {
-    if (!id.startsWith('custom_')) return;
+  function removeField(id: string) {
     onChange({ ...config, fields: config.fields.filter(f => f.id !== id) });
   }
   function addCustomField(f: SessionField) {
@@ -265,7 +272,6 @@ export function FormBuilderTab({ config, onChange }: {
   }
 
   async function publish() {
-    // Get connected wallet address from store
     const connection = dAppKit.stores.$connection.get();
     if (!connection.isConnected || !connection.account) {
       alert('Please connect your wallet first.');
@@ -337,9 +343,17 @@ export function FormBuilderTab({ config, onChange }: {
               key={f.id}
               field={f}
               onChange={patch => updateField(f.id, patch)}
-              onRemove={f.id.startsWith('custom_') ? () => removeCustomField(f.id) : undefined}
+              onRemove={() => removeField(f.id)}
               sessionCount={f.id === 'session_select' ? config.sessionCount : undefined}
-              onSessionCountChange={f.id === 'session_select' ? (n) => onChange({ ...config, sessionCount: n }) : undefined}
+              onSessionCountChange={f.id === 'session_select' ? (n) => {
+                const fields = config.fields.map(field => {
+                  if (field.id === 'session_select') {
+                    return { ...field, options: Array.from({ length: n }, (_, i) => `Session ${i + 1}`) };
+                  }
+                  return field;
+                });
+                onChange({ ...config, sessionCount: n, fields });
+              } : undefined}
             />
           ))}
         </div>

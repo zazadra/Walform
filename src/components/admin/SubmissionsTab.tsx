@@ -1,8 +1,10 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import type { Submission, SubmissionStatus } from '@/types/motion';
-import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus } from '@/lib/walrus';
-import { getSubIds, mergeSubIds, getAllSubIds } from '@/lib/fields';
+import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus, getWalrusBlobUrl } from '@/lib/walrus';
+import { getSubIds, getAllSubIds, getAdmins } from '@/lib/fields';
+import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
 
 const STATUS_COLORS: Record<SubmissionStatus, string> = {
   pending: '#fbbf24', approved: '#4ade80', rejected: '#f87171',
@@ -11,116 +13,192 @@ const STATUS_COLORS: Record<SubmissionStatus, string> = {
 function exportCSV(subs: Submission[]) {
   if (!subs.length) return;
   const keys = [...new Set(subs.flatMap(s => Object.keys(s.data)))];
-  const headers = ['ID', 'Time', 'Submitter', 'Status', ...keys];
+  const headers = ['ID', 'Time', 'Submitter', 'Status', ...keys].map(h => `"${h.replace(/"/g, '""')}"`);
   const rows = subs.map(s => [
-    s.id,
-    new Date(s.timestamp).toISOString(),
-    s.submitterAddress ?? '',
-    s.status,
-    ...keys.map(k => `"${String(s.data[k] ?? '').replace(/"/g, '""')}"`)
+    `"${s.id}"`,
+    `"${new Date(s.timestamp).toISOString()}"`,
+    `"${s.submitterAddress ?? ''}"`,
+    `"${s.status}"`,
+    ...keys.map(k => {
+      const v = s.data[k];
+      const str = Array.isArray(v) ? v.join(', ') : String(v ?? '');
+      return `"${str.replace(/"/g, '""')}"`;
+    })
   ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `submissions-${Date.now()}.csv`;
   a.click();
 }
 
 export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: string }) {
-  // Admin can override which form blob ID to query
   const [activeBlobId, setActiveBlobId] = useState(initialFormBlobId);
   const [blobIdInput, setBlobIdInput]   = useState(initialFormBlobId === 'default' ? '' : initialFormBlobId);
 
   const [subs, setSubs]         = useState<Submission[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [syncing, setSyncing]   = useState(false); // background chain sync
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter]     = useState<SubmissionStatus | 'all'>('all');
   const [notes, setNotes]       = useState<Record<string, string>>({});
+  const [updatingId, setUpdatingId] = useState<string | null>(null); // for optimistic updates
+  const loadedIdsRef = useRef<Set<string>>(new Set());
 
-  // Import by single blob ID
-  const [importId, setImportId]   = useState('');
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState('');
+  const account = useCurrentAccount();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // ── Fast load from localStorage first ──────────────────────────────
+  const loadFromIndex = useCallback(async (existingSubs?: Submission[]) => {
     const key = activeBlobId === 'default' ? '' : activeBlobId;
 
-    let allIds: string[] = [];
+    // Collect all known blobIds from localStorage index
+    let allIds: string[] = [
+      ...getIndexedBlobIds(),
+      ...getAllSubIds(),
+      ...(key ? getSubIds(key) : []),
+    ];
+    allIds = [...new Set(allIds)];
 
-    // 1. Backend index (auto) — primary source
-    try {
-      const url = key
-        ? `/api/submissions?formBlobId=${encodeURIComponent(key)}`
-        : `/api/submissions`; // no formBlobId = return ALL submissions
-      const res = await fetch(url);
-      if (res.ok) {
-        const json = await res.json() as { subBlobIds?: string[] };
-        const serverIds = json.subBlobIds ?? [];
-        if (key) mergeSubIds(key, serverIds);
-        allIds = [...new Set([...allIds, ...serverIds])];
-      }
-    } catch {
-      console.warn('[motion] Backend index unreachable, falling back to localStorage.');
-    }
+    // Filter out already-loaded IDs to avoid redundant fetches
+    const newIds = allIds.filter(id => !loadedIdsRef.current.has(id));
+    if (!newIds.length) return;
 
-    // 2. LocalStorage fallback — includes same-browser submissions + the shared ALL bucket
-    if (key) {
-      allIds = [...new Set([...allIds, ...getSubIds(key)])];
-    }
-    // Always also check the local ALL bucket (catches submissions from same browser regardless of key)
-    allIds = [...new Set([...allIds, ...getAllSubIds()])];
-
-    if (!allIds.length) { setSubs([]); setLoading(false); return; }
-
-    const results = await Promise.all(
-      allIds.map(id =>
+    const base = existingSubs ?? subs;
+    const results = await Promise.allSettled(
+      newIds.map(id =>
         readJsonFromWalrus<Submission>(id)
           .then(s => ({ ...s, blobId: s.blobId ?? id }))
-          .catch(() => null)
       )
     );
-    setSubs((results.filter(Boolean) as Submission[]).sort((a, b) => b.timestamp - a.timestamp));
+
+    const fetched: Submission[] = [];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        loadedIdsRef.current.add(newIds[i]);
+        fetched.push(r.value);
+      }
+    });
+
+    if (!fetched.length) return;
+
+    const merged = [...base, ...fetched];
+    // Filter to valid submissions only (has status + formBlobId)
+    let valid = merged.filter(s => s && s.status !== undefined && s.formBlobId);
+    // Deduplicate by id
+    const seen = new Set<string>();
+    valid = valid.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
+    // Filter by form if not "show all"
+    if (key) valid = valid.filter(s => s.formBlobId === key);
+
+    setSubs(valid.sort((a, b) => b.timestamp - a.timestamp));
+  }, [activeBlobId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Background on-chain sync via getOwnedObjects ───────────────────
+  const syncFromChain = useCallback(async () => {
+    setSyncing(true);
+    const adminAddresses = [...new Set([account?.address, ...getAdmins()])].filter(Boolean) as string[];
+    const chainIds: string[] = [];
+
+    for (const adminAddr of adminAddresses) {
+      try {
+        const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import('@mysten/sui/jsonRpc');
+        const { getWalrusClient } = await import('@/lib/walrus-onchain');
+        const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('mainnet'), network: 'mainnet' });
+        const structType = await getWalrusClient().getBlobType();
+
+        let hasNextPage = true;
+        let cursor: any = null;
+
+        while (hasNextPage) {
+          const res: any = await client.getOwnedObjects({
+            owner: adminAddr,
+            filter: { StructType: structType as string },
+            options: { showContent: true },
+            cursor
+          });
+
+          for (const obj of (res.data ?? [])) {
+            if (obj.data?.content?.dataType === 'moveObject') {
+              const fields = obj.data.content.fields as any;
+              if (fields?.blob_id) {
+                const hex = BigInt(fields.blob_id).toString(16).padStart(64, '0');
+                const bytes = new Uint8Array(32);
+                for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+                const blobId = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                chainIds.push(blobId);
+              }
+            }
+          }
+          hasNextPage = res.hasNextPage;
+          cursor = res.nextCursor;
+        }
+      } catch (e) {
+        console.warn(`[SubmissionsTab] Chain sync failed for ${adminAddr}:`, e);
+      }
+    }
+
+    if (chainIds.length) {
+      // Persist any newly discovered chain IDs into the local index
+      const { publishSubmission } = await import('@/lib/submission-index');
+      chainIds.forEach(id => publishSubmission(id, activeBlobId === 'default' ? '' : activeBlobId));
+      await loadFromIndex();
+    }
+
+    setSyncing(false);
+  }, [account?.address, activeBlobId, loadFromIndex]);
+
+  // ── Initial load ────────────────────────────────────────────────────
+  const fullLoad = useCallback(async () => {
+    setLoading(true);
+    loadedIdsRef.current = new Set();
+    setSubs([]);
+    await loadFromIndex([]);
     setLoading(false);
+    // Run chain sync in background (don't block UI)
+    syncFromChain();
+  }, [loadFromIndex, syncFromChain]);
+
+  useEffect(() => { fullLoad(); }, [fullLoad]);
+
+  // ── BroadcastChannel: instant new submission from same-browser tabs ─
+  useEffect(() => {
+    const unsub = onNewSubmission(async (blobId) => {
+      if (loadedIdsRef.current.has(blobId)) return;
+      try {
+        const s = await readJsonFromWalrus<Submission>(blobId);
+        if (!s?.status) return;
+        const sub = { ...s, blobId: s.blobId ?? blobId };
+        loadedIdsRef.current.add(blobId);
+        const key = activeBlobId === 'default' ? '' : activeBlobId;
+        if (key && sub.formBlobId !== key) return;
+        setSubs(prev => {
+          if (prev.some(x => x.id === sub.id)) return prev;
+          return [sub, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+        });
+      } catch { /* ignore */ }
+    });
+    return unsub;
   }, [activeBlobId]);
 
-  useEffect(() => { load(); }, [load]);
-
-  async function importSingleBlob() {
-    const id = importId.trim();
-    if (!id) return;
-    setImporting(true); setImportMsg('');
-    try {
-      const sub = await readJsonFromWalrus<Submission>(id);
-      if (sub?.timestamp) {
-        const fid = sub.formBlobId ?? activeBlobId;
-        mergeSubIds(fid, [id]);
-        // Also register with backend
-        await fetch('/api/submissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ formBlobId: fid, subBlobId: id }),
-        }).catch(() => {});
-        setImportMsg(`✓ Imported: "${(sub.data.project_name as string) || id.slice(0, 12)}…"`);
-        setImportId('');
-        load();
-      } else {
-        setImportMsg('⚠ Not a valid submission blob.');
-      }
-    } catch { setImportMsg('✕ Could not read this Blob ID.'); }
-    setImporting(false);
-  }
-
+  // ── Optimistic status update ────────────────────────────────────────
   async function updateStatus(sub: Submission, status: SubmissionStatus) {
     const updated = { ...sub, status, adminNotes: notes[sub.id] ?? sub.adminNotes ?? '' };
+    // Optimistic: update UI immediately
+    setSubs(prev => prev.map(s => s.id === sub.id ? updated : s));
+    setUpdatingId(sub.id);
     try {
+      // Upload updated blob in background (Walrus is immutable — creates a new blob)
       await uploadJsonToWalrus(updated);
-      setSubs(prev => prev.map(s => s.id === sub.id ? updated : s));
-    } catch { alert('Failed to update status'); }
+    } catch {
+      // Revert on failure
+      setSubs(prev => prev.map(s => s.id === sub.id ? sub : s));
+      alert('Failed to save status update. Please try again.');
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   const filtered = subs.filter(s => filter === 'all' || s.status === filter);
-
   const isDefaultQuery = activeBlobId === 'default' || !activeBlobId;
 
   return (
@@ -128,9 +206,9 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
 
       {/* ── Active form query ─────────────────────────── */}
       <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Showing submissions for form
+            Submissions
           </p>
           {!isDefaultQuery && (
             <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(124,58,237,0.12)', color: 'var(--accent-2)', border: '1px solid rgba(124,58,237,0.25)' }}>
@@ -138,7 +216,12 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
             </span>
           )}
           {isDefaultQuery && (
-            <span style={{ fontSize: '12px', color: '#fbbf24' }}>⚠ No form selected — showing all</span>
+            <span style={{ fontSize: '12px', color: '#fbbf24' }}>showing all forms</span>
+          )}
+          {syncing && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-3)', marginLeft: 'auto' }}>
+              <span className="spinner" style={{ width: '11px', height: '11px' }} /> syncing chain…
+            </span>
           )}
         </div>
 
@@ -146,7 +229,7 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
         <div style={{ display: 'flex', gap: '8px' }}>
           <input
             className="input"
-            placeholder="Paste Form Blob ID to filter (or leave empty for all)"
+            placeholder="Filter by Form Blob ID (empty = show all)"
             value={blobIdInput}
             onChange={e => setBlobIdInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && setActiveBlobId(blobIdInput.trim() || 'default')}
@@ -163,32 +246,6 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
             </button>
           )}
         </div>
-
-        <p style={{ fontSize: '11px', color: 'var(--text-3)', lineHeight: 1.5 }}>
-          The Form Blob ID is shown after publishing in the Form Builder tab.
-          Submissions are automatically fetched from the backend index when a user submits.
-        </p>
-      </div>
-
-      {/* ── Import single blob ─────────────────────────── */}
-      <div className="card" style={{ padding: '14px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <p style={{ fontSize: '12px', color: 'var(--text-2)', fontWeight: 500, flexShrink: 0 }}>Manual import:</p>
-        <input
-          className="input"
-          placeholder="Paste a submission Blob ID"
-          value={importId} onChange={e => setImportId(e.target.value)}
-          style={{ flex: 1, minWidth: '200px', fontSize: '12px', fontFamily: 'var(--mono)' }}
-          onKeyDown={e => e.key === 'Enter' && importSingleBlob()}
-        />
-        <button className="btn btn-secondary btn-sm" onClick={importSingleBlob}
-          disabled={importing || !importId.trim()}>
-          {importing ? <span className="spinner" /> : '+ Import'}
-        </button>
-        {importMsg && (
-          <p style={{ width: '100%', fontSize: '12px', color: importMsg.startsWith('✓') ? '#4ade80' : '#f87171' }}>
-            {importMsg}
-          </p>
-        )}
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────── */}
@@ -203,21 +260,24 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
           </button>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          <button className="btn btn-ghost btn-sm" onClick={load}>↻ Refresh</button>
+          <button className="btn btn-ghost btn-sm" onClick={fullLoad} disabled={loading || syncing}>
+            {loading ? <><span className="spinner" style={{ width: '11px', height: '11px' }} /> Loading…</> : '↻ Refresh'}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(filtered)}>Export CSV</button>
         </div>
       </div>
 
       {/* ── List ─────────────────────────────────────────── */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: 'var(--text-3)', gap: '10px' }}>
-          <span className="spinner" style={{ width: '18px', height: '18px' }} /> Loading from Walrus…
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: 'var(--text-3)', gap: '10px', flexDirection: 'column', alignItems: 'center' }}>
+          <span className="spinner" style={{ width: '22px', height: '22px' }} />
+          <span style={{ fontSize: '13px' }}>Loading submissions…</span>
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-3)', fontSize: '14px', lineHeight: 2 }}>
           📭 No submissions yet.<br />
           <span style={{ fontSize: '12px' }}>
-            Submissions appear automatically after users submit the form.
+            Submissions appear automatically when users submit the form.
           </span>
         </div>
       ) : filtered.map(s => (
@@ -261,6 +321,13 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
                         : Array.isArray(v) ? v.join(', ')
                         : v.toString().startsWith('http')
                           ? <a href={v.toString()} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-2)', textDecoration: 'none' }}>{v.toString()} ↗</a>
+                          : (typeof v === 'string' && /^[A-Za-z0-9_-]{43}$/.test(v))
+                            ? <div>
+                                <a href={getWalrusBlobUrl(v)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-2)', textDecoration: 'none', display: 'block', marginBottom: '8px' }}>
+                                  {v} ↗
+                                </a>
+                                <img src={getWalrusBlobUrl(v)} style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--border)' }} onError={(e) => e.currentTarget.style.display = 'none'} />
+                              </div>
                           : v.toString() || <em style={{ color: 'var(--text-3)' }}>—</em>}
                     </span>
                   </div>
@@ -279,10 +346,22 @@ export function SubmissionsTab({ formBlobId: initialFormBlobId }: { formBlobId: 
                   value={notes[s.id] ?? s.adminNotes ?? ''}
                   onChange={e => setNotes(n => ({ ...n, [s.id]: e.target.value }))} />
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn btn-sm" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', flex: 1 }}
-                    onClick={() => updateStatus(s, 'approved')}>✓ Approve</button>
-                  <button className="btn btn-sm" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', flex: 1 }}
-                    onClick={() => updateStatus(s, 'rejected')}>✕ Reject</button>
+                  <button
+                    className="btn btn-sm"
+                    style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', flex: 1 }}
+                    onClick={() => updateStatus(s, 'approved')}
+                    disabled={updatingId === s.id}
+                  >
+                    {updatingId === s.id ? <><span className="spinner" style={{ width: '12px', height: '12px' }} /> Saving…</> : '✓ Approve'}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', flex: 1 }}
+                    onClick={() => updateStatus(s, 'rejected')}
+                    disabled={updatingId === s.id}
+                  >
+                    {updatingId === s.id ? <><span className="spinner" style={{ width: '12px', height: '12px' }} /> Saving…</> : '✕ Reject'}
+                  </button>
                   {s.blobId && (
                     <a href={getWalrusScanUrl(s.blobId)} target="_blank" rel="noopener noreferrer"
                       className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>Walruscan ↗</a>
