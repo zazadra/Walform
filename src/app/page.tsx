@@ -262,10 +262,18 @@ export default function Home() {
       <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         <header style={{ padding:'32px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', maxWidth:'1200px', margin:'0 auto', width:'100%', zIndex: 10 }}>
           <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--accent-shadow)' }}>
-              <svg width={20} height={20} viewBox="0 0 32 32" fill="none"><path d="M10 22V14l6-4 6 4v8" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/><path d="M13 22v-5h6v5" stroke="rgba(255,255,255,0.7)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--accent-shadow)', position: 'relative', overflow: 'hidden' }}>
+              {/* COMBINED WALRUS + SUI LOGO */}
+              <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                {/* Sui Drop */}
+                <path d="M12 21C12 21 6 14 6 9.5C6 6.5 8.7 4 12 4C15.3 4 18 6.5 18 9.5C18 14 12 21 12 21Z" fill="white" fillOpacity="0.2" />
+                <path d="M12 19C12 19 8 13.5 8 9.5C8 7.5 9.8 6 12 6C14.2 6 16 7.5 16 9.5C16 13.5 12 19 12 19Z" fill="white" />
+                {/* Walrus Wave Base */}
+                <path d="M4 17C6 19 9 19 12 17C15 15 18 15 20 17" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)', animation: 'logo-shimmer 2.5s infinite ease-in-out' }} />
             </div>
-            <span style={{ fontSize:'20px', fontWeight:800, letterSpacing:'-0.04em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Motion</span>
+            <span style={{ fontSize:'22px', fontWeight:900, letterSpacing:'-0.05em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Motion</span>
           </div>
           <div style={{ display:'flex', gap:'16px' }}>
             <a href="/admin" className="btn btn-secondary btn-sm">Sign In</a>
@@ -310,6 +318,126 @@ export default function Home() {
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             style={{ position: 'absolute', top: '20%', right: '10%', width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 1 }}
           />
+
+          {/* ── PART 1: MOTION EXPLANATION ────────────────────────────────── */}
+          <section style={{ width: '100%', maxWidth: '1200px', margin: '160px auto 0', padding: '0 24px', position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 70%)', opacity: 0.5, filter: 'blur(60px)', zIndex: 0 }} />
+            
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              style={{ position: 'relative', zIndex: 2 }}
+            >
+              <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px' }}>
+                Forms owned by users,<br/>
+                <span style={{ color: 'var(--accent-2)' }}>not platforms.</span>
+              </h2>
+              <p style={{ fontSize: '20px', color: 'var(--text-2)', maxWidth: '700px', margin: '0 auto 48px', lineHeight: 1.6 }}>
+                Motion is a decentralized form ecosystem built on Walrus and Sui where submissions, media, and workflows live fully on-chain. No centralized database. No hidden control. Full ownership by default.
+              </p>
+              
+              <div style={{ display: 'flex', gap: '40px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                {['Secure', 'Permanent', 'Composable', 'Censorship-Resistant'].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-3)', fontSize: '14px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-2)' }} />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </section>
+
+          {/* ── PART 2: FLOW SECTION ──────────────────────────────────────── */}
+          <section style={{ width: '100%', maxWidth: '1000px', margin: '200px auto 0', padding: '0 24px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--accent-2)', marginBottom: '64px' }}>How it works</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '32px', position: 'relative' }}>
+              {[
+                { title: 'Connect', desc: 'Authenticate instantly using Sui wallets.', icon: '🔑' },
+                { title: 'Build', desc: 'Create forms, surveys, and applications with flexible customization.', icon: '🛠️' },
+                { title: 'Store', desc: 'All submissions and media are stored permanently on Walrus.', icon: '📦' },
+                { title: 'Analyze', desc: 'Review submissions, manage admins, and export insights seamlessly.', icon: '📊' }
+              ].map((step, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.2, duration: 0.6 }}
+                  style={{ 
+                    padding: '32px', 
+                    borderRadius: '24px', 
+                    background: 'rgba(255,255,255,0.03)', 
+                    border: '1px solid var(--border)',
+                    textAlign: 'left',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '24px' }}>{step.icon}</div>
+                  <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px' }}>{step.title}</h4>
+                  <p style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: 1.5 }}>{step.desc}</p>
+                  
+                  {i < 3 && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      right: '-24px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)', 
+                      zIndex: 10,
+                      opacity: 0.5,
+                      animation: 'arrow-flow 2s infinite ease-in-out',
+                      animationDelay: `${i * 0.5}s`,
+                      fontSize: '24px',
+                      color: 'var(--accent-2)',
+                      display: 'block' // Ensure it shows for grid
+                    }}>
+                      →
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── PART 3: UNIQUENESS / ADVANTAGES ────────────────────────────── */}
+          <section style={{ width: '100%', maxWidth: '1200px', margin: '200px auto 0', padding: '0 24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+              {[
+                { title: '100% On-Chain', desc: 'Forms, submissions, and media are stored natively on decentralized infrastructure without relying on centralized databases.', icon: '⚡' },
+                { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', icon: '🌊' },
+                { title: 'Sui Performance', desc: 'Built on Sui for fast interactions, smooth wallet UX, and scalable Web3 experiences.', icon: '💧' }
+              ].map((card, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.5 }}
+                  whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                  style={{
+                    padding: '48px',
+                    borderRadius: '32px',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)',
+                    border: '1px solid var(--border)',
+                    textAlign: 'left',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                    backdropFilter: 'blur(10px)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, transparent, var(--accent-2), transparent)' }} />
+                  <div style={{ fontSize: '40px', marginBottom: '32px', display: 'inline-flex', width: 64, height: 64, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', alignItems: 'center', justifyContent: 'center' }}>
+                    {card.icon}
+                  </div>
+                  <h4 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '16px' }}>{card.title}</h4>
+                  <p style={{ fontSize: '16px', color: 'var(--text-2)', lineHeight: 1.6 }}>{card.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </section>
           {/* OFFICIAL REFERENCES */}
           <section style={{ 
             marginTop: '120px', 
