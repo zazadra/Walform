@@ -194,14 +194,12 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
   const peek3Opacity = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [0, 1, 1, 0]);
   const peek3YBase = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [hiddenOffset, 0, 0, hiddenOffset]);
 
-  if (isMobile) return null;
-
   return (
     <>
       {/* Peek 1: Bottom Right */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-20px', right: '5%', width: '180px', zIndex: 5,
+          position: 'fixed', bottom: '-20px', right: '5%', width: isMobile ? '100px' : '180px', zIndex: 999,
           opacity: peek1Opacity, y: combine(peek1YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -216,7 +214,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 4: Right Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '30%', right: '-30px', width: '140px', zIndex: 5,
+          position: 'fixed', top: '30%', right: isMobile ? '-15px' : '-30px', width: isMobile ? '80px' : '140px', zIndex: 999,
           opacity: peek4Opacity, x: combine(peek4XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -231,7 +229,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 2: Left Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '45%', left: '-20px', width: '150px', zIndex: 5,
+          position: 'fixed', top: '45%', left: isMobile ? '-10px' : '-20px', width: isMobile ? '90px' : '150px', zIndex: 999,
           opacity: peek2Opacity, x: combine(peek2XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -246,7 +244,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 5: Top Right */}
       <motion.div
         style={{
-          position: 'fixed', top: '-40px', right: '15%', width: '160px', zIndex: 5,
+          position: 'fixed', top: '-40px', right: '15%', width: isMobile ? '100px' : '160px', zIndex: 999,
           opacity: peek5Opacity, y: combine(peek5YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -261,7 +259,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 3: Bottom Left */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-30px', left: '10%', width: '200px', zIndex: 5,
+          position: 'fixed', bottom: '-30px', left: '10%', width: isMobile ? '110px' : '200px', zIndex: 999,
           opacity: peek3Opacity, y: combine(peek3YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -642,7 +640,7 @@ export default function Home() {
                 transition={{ duration: 0.8 }}
                 style={{ flex: '1 1 600px' }}
               >
-                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px', lineHeight: 1.1 }}>
+                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px', lineHeight: 1.1, textAlign: isMobile ? 'center' : 'left' }}>
                   Built for ownership,<br/>
                   <span style={{ color: 'var(--accent-2)' }}>not platforms.</span>
                 </h2>
