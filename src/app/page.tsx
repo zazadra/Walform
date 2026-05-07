@@ -305,17 +305,19 @@ export default function Home() {
           </div>
         </header>
 
-        <main style={{ 
-          position: 'relative',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          overflow: 'hidden',
-          padding: '0 24px'
-        }}>
+        <main style={{ position: 'relative', width: '100%' }}>
+          {/* Hero Section Container */}
+          <div style={{ 
+            position: 'relative',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            overflow: 'hidden',
+            padding: '0 24px'
+          }}>
           {/* Animated Background Layers */}
           <motion.div 
             style={{
@@ -409,6 +411,7 @@ export default function Home() {
               </a>
             </motion.div>
           </motion.div>
+        </div>
 
 
           {/* ── PART 1: MOTION EXPLANATION ────────────────────────────────── */}
