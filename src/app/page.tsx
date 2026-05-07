@@ -128,10 +128,11 @@ function ReferenceLink({ href, label }: { href: string; label: string }) {
 }
 
 // ── Interactive Visual Components ────────────────────────────────
-function BackgroundParticles() {
+function BackgroundParticles({ isMobile }: { isMobile: boolean }) {
+  const count = isMobile ? 8 : 20;
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 1 }}>
-      {[...Array(20)].map((_, i) => (
+      {[...Array(count)].map((_, i) => (
         <motion.div
           key={i}
           initial={{ 
@@ -163,7 +164,7 @@ function BackgroundParticles() {
   );
 }
 
-function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
+function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: number }, isMobile: boolean }) {
   const { scrollYProgress } = useScroll();
   
   const smoothX = useSpring(mousePos.x, { damping: 20, stiffness: 100 });
@@ -171,32 +172,34 @@ function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
 
   const combine = (base: any, wiggle: any) => useTransform([base, wiggle], ([b, w]) => (b as number) + (w as number));
 
+  const hiddenOffset = isMobile ? 80 : 150;
+
   // 1. Bottom Right (0.12 - 0.30)
   const peek1Opacity = useTransform(scrollYProgress, [0.12, 0.15, 0.27, 0.30], [0, 1, 1, 0]);
-  const peek1YBase = useTransform(scrollYProgress, [0.12, 0.15, 0.27, 0.30], [100, 0, 0, 100]);
+  const peek1YBase = useTransform(scrollYProgress, [0.12, 0.15, 0.27, 0.30], [hiddenOffset, 0, 0, hiddenOffset]);
   
   // 4. Right Side (0.30 - 0.48) - Tilted
   const peek4Opacity = useTransform(scrollYProgress, [0.30, 0.33, 0.45, 0.48], [0, 1, 1, 0]);
-  const peek4XBase = useTransform(scrollYProgress, [0.30, 0.33, 0.45, 0.48], [150, 0, 0, 150]);
+  const peek4XBase = useTransform(scrollYProgress, [0.30, 0.33, 0.45, 0.48], [hiddenOffset, 0, 0, hiddenOffset]);
   
   // 2. Left Side (0.50 - 0.68) - Tilted
   const peek2Opacity = useTransform(scrollYProgress, [0.50, 0.53, 0.65, 0.68], [0, 1, 1, 0]);
-  const peek2XBase = useTransform(scrollYProgress, [0.50, 0.53, 0.65, 0.68], [-150, 0, 0, -150]);
+  const peek2XBase = useTransform(scrollYProgress, [0.50, 0.53, 0.65, 0.68], [-hiddenOffset, 0, 0, -hiddenOffset]);
 
   // 5. Top Right (0.70 - 0.88)
   const peek5Opacity = useTransform(scrollYProgress, [0.70, 0.73, 0.85, 0.88], [0, 1, 1, 0]);
-  const peek5YBase = useTransform(scrollYProgress, [0.70, 0.73, 0.85, 0.88], [-150, 0, 0, -150]);
+  const peek5YBase = useTransform(scrollYProgress, [0.70, 0.73, 0.85, 0.88], [-hiddenOffset, 0, 0, -hiddenOffset]);
 
   // 3. Bottom Left (0.88 - 0.99)
   const peek3Opacity = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [0, 1, 1, 0]);
-  const peek3YBase = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [100, 0, 0, 100]);
+  const peek3YBase = useTransform(scrollYProgress, [0.88, 0.91, 0.96, 0.99], [hiddenOffset, 0, 0, hiddenOffset]);
 
   return (
     <>
       {/* Peek 1: Bottom Right */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-20px', right: '5%', width: '180px', zIndex: 50,
+          position: 'fixed', bottom: '-20px', right: '5%', width: isMobile ? '100px' : '180px', zIndex: 50,
           opacity: peek1Opacity, y: combine(peek1YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -211,7 +214,7 @@ function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
       {/* Peek 4: Right Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '30%', right: '-30px', width: '140px', zIndex: 50,
+          position: 'fixed', top: '30%', right: isMobile ? '-20px' : '-30px', width: isMobile ? '80px' : '140px', zIndex: 50,
           opacity: peek4Opacity, x: combine(peek4XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -226,7 +229,7 @@ function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
       {/* Peek 2: Left Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '45%', left: '-20px', width: '150px', zIndex: 50,
+          position: 'fixed', top: '45%', left: isMobile ? '-15px' : '-20px', width: isMobile ? '90px' : '150px', zIndex: 50,
           opacity: peek2Opacity, x: combine(peek2XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -241,7 +244,7 @@ function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
       {/* Peek 5: Top Right */}
       <motion.div
         style={{
-          position: 'fixed', top: '-40px', right: '15%', width: '160px', zIndex: 50,
+          position: 'fixed', top: '-40px', right: '15%', width: isMobile ? '100px' : '160px', zIndex: 50,
           opacity: peek5Opacity, y: combine(peek5YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -256,7 +259,7 @@ function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
       {/* Peek 3: Bottom Left */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-30px', left: '10%', width: '200px', zIndex: 50,
+          position: 'fixed', bottom: '-30px', left: '10%', width: isMobile ? '110px' : '200px', zIndex: 50,
           opacity: peek3Opacity, y: combine(peek3YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
@@ -276,6 +279,15 @@ export default function Home() {
   const account = useCurrentAccount();
   const disconnect = () => dAppKit.disconnectWallet();
   const address = account?.address;
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const [config, setConfig]     = useState<FormConfig>(DEFAULT_CONFIG);
   const [formBlobId, setFormBlobId] = useState<string>('default');
@@ -417,9 +429,9 @@ export default function Home() {
   // ── No form ──────────────────────────────────────────────────
   if (!new URLSearchParams(window.location.search).get('form') && formBlobId === 'default') {
     return (
-      <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <BackgroundParticles />
-        <FloatingWalrus mousePos={mousePos} />
+      <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column', position: 'relative', overflowX: 'hidden' }}>
+        <BackgroundParticles isMobile={isMobile} />
+        <FloatingWalrus mousePos={mousePos} isMobile={isMobile} />
         <header style={{ 
           padding:'32px 24px', 
           display:'flex', 
@@ -507,9 +519,9 @@ export default function Home() {
               zIndex: 10, 
               position: 'relative',
               display: 'flex',
-              flexDirection: 'row',
+              flexDirection: isMobile ? 'column' : 'row',
               alignItems: 'center',
-              gap: '40px',
+              gap: isMobile ? '60px' : '40px',
               flexWrap: 'wrap',
               justifyContent: 'center'
             }}>
@@ -518,7 +530,7 @@ export default function Home() {
                 initial={{ opacity: 0, x: -40 }} 
                 animate={{ opacity: 1, x: 0 }} 
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{ flex: '1 1 600px', textAlign: 'left' }}
+                style={{ flex: '1 1 600px', textAlign: isMobile ? 'center' : 'left' }}
               >
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -577,7 +589,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
                   transition={{ duration: 0.8, delay: 1 }}
-                  style={{ display:'flex', gap:'20px', flexWrap: 'wrap' }}
+                  style={{ display:'flex', gap:'20px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}
                 >
                   <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)' }}>
                     Enter Motion
@@ -593,7 +605,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.8, x: 40 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
-                style={{ flex: '1 1 400px', display: 'flex', justifyContent: 'center', position: 'relative' }}
+                style={{ flex: '1 1 400px', display: 'flex', justifyContent: 'center', position: 'relative', order: isMobile ? -1 : 1 }}
               >
                 <div style={{ position: 'absolute', inset: '-10%', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', zIndex: -1, opacity: 0.6 }} />
                 <motion.img 
@@ -620,7 +632,7 @@ export default function Home() {
           <section style={{ width: '100%', maxWidth: '1200px', margin: '160px auto 0', padding: '0 24px', position: 'relative' }}>
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 70%)', opacity: 0.5, filter: 'blur(60px)', zIndex: 0 }} />
             
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '80px', flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? '40px' : '80px', position: 'relative', zIndex: 2 }}>
               <motion.div
                 initial={{ opacity: 0, x: -40 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -632,11 +644,11 @@ export default function Home() {
                   Built for ownership,<br/>
                   <span style={{ color: 'var(--accent-2)' }}>not platforms.</span>
                 </h2>
-                <p style={{ fontSize: '20px', color: 'var(--text-2)', lineHeight: 1.6, maxWidth: '540px', marginBottom: '40px', fontWeight: 500 }}>
+                <p style={{ fontSize: isMobile ? '18px' : '20px', color: 'var(--text-2)', lineHeight: 1.6, maxWidth: '540px', marginBottom: '40px', fontWeight: 500, textAlign: isMobile ? 'center' : 'left' }}>
                   Motion eliminates centralized control. By leveraging Walrus, we ensure your feedback loops are permanent, composable, and censorship-resistant from day one.
                 </p>
                 
-                <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                   {['Secure', 'Permanent', 'Composable', 'Censorship-Resistant'].map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-3)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-2)' }} />
