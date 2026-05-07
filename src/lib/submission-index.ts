@@ -1,8 +1,8 @@
 /**
- * Submission Index — decentralized local index for Motion submissions.
+ * Submission Index — decentralized local index for Walform submissions.
  *
  * Strategy:
- * 1. When a user submits, we store the blobId in localStorage under 'motion:subs:ALL'.
+ * 1. When a user submits, we store the blobId in localStorage under 'walform:subs:ALL'.
  * 2. We also broadcast it via BroadcastChannel so any open admin tab picks it up instantly.
  * 3. On admin dashboard load, we read from localStorage AND poll the Sui blockchain
  *    for blobs owned by all known admin addresses.
@@ -11,8 +11,8 @@
  * cross-device case via on-chain ownership (if blob transfer works) + manual refresh.
  */
 
-const CHANNEL_NAME = 'motion:submissions';
-const ALL_KEY = 'motion:subs:ALL';
+const CHANNEL_NAME = 'walform:submissions';
+const ALL_KEY = 'walform:subs:ALL';
 
 /** Push a new blobId into the shared index and broadcast it to all open tabs */
 export function publishSubmission(blobId: string, formBlobId: string) {
@@ -24,7 +24,7 @@ export function publishSubmission(blobId: string, formBlobId: string) {
     }
 
     // Also store under form-specific key
-    const formKey = `motion:subs:${formBlobId}`;
+    const formKey = `walform:subs:${formBlobId}`;
     const formIds: string[] = JSON.parse(localStorage.getItem(formKey) ?? '[]');
     if (!formIds.includes(blobId)) {
       localStorage.setItem(formKey, JSON.stringify([...formIds, blobId]));

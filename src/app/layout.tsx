@@ -3,7 +3,7 @@ import './globals.css';
 import { ClientProviders } from '@/components/providers/ClientProviders';
 
 export const metadata: Metadata = {
-  title: 'Motion — Decentralized Feedback Platform',
+  title: 'Walform — Decentralized Feedback Platform',
   description: 'Create forms, collect feedback, and store everything on Walrus. Built for the Sui ecosystem.',
 };
 

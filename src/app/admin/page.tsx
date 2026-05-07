@@ -4,7 +4,7 @@ import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { isAdmin, loadAdminConfig, saveAdminConfig, DEFAULT_CONFIG } from '@/lib/fields';
-import type { FormConfig } from '@/types/motion';
+import type { FormConfig } from '@/types/walform';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 
@@ -72,11 +72,9 @@ export default function AdminPage() {
       {/* Header */}
       <header style={{ position:'sticky', top:0, zIndex:100, borderBottom:'1px solid var(--border)', backdropFilter:'blur(24px)', background:'rgba(5,6,11,0.8)' }}>
         <div style={{ maxWidth:'1200px', margin:'0 auto', padding:'0 24px', height:'64px', display:'flex', alignItems:'center', gap:'24px' }}>
-          <a href="/" style={{ display:'flex', alignItems:'center', gap:'10px', textDecoration:'none' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--accent-shadow)' }}>
-              <svg width={16} height={16} viewBox="0 0 32 32" fill="none"><path d="M10 22V14l6-4 6 4v8" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/><path d="M13 22v-5h6v5" stroke="rgba(255,255,255,0.7)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
-            <span style={{ fontSize:'16px', fontWeight:800, letterSpacing:'-0.03em', color: '#fff' }}>Motion</span>
+          <a href="/" style={{ display:'flex', alignItems:'center', gap:'12px', textDecoration:'none' }}>
+            <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '36px', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(124,58,237,0.3))' }} />
+            <span style={{ fontSize:'18px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
           </a>
           
           <div style={{ padding: '2px 10px', borderRadius: '6px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid var(--accent-soft)', color: 'var(--accent-2)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>

@@ -13,7 +13,7 @@ export const dAppKit = createDAppKit({
   networks: ['mainnet'],
   defaultNetwork: 'mainnet',
   createClient: createSuiClient,
-  slushWalletConfig: { appName: 'Motion — Walrus Feedback Platform' },
+  slushWalletConfig: { appName: 'Walform — Walrus Feedback Platform' },
 });
 
 // Register types for hook type inference

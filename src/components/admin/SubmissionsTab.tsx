@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import type { Submission, SubmissionStatus } from '@/types/motion';
+import type { Submission, SubmissionStatus } from '@/types/walform';
 import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus, getWalrusBlobUrl } from '@/lib/walrus';
 import { getSubIds, getAllSubIds, getAdmins } from '@/lib/fields';
 import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
@@ -42,7 +42,7 @@ function exportCSV(subs: Submission[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `motion-submissions-${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `walform-submissions-${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

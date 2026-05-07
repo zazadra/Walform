@@ -1,4 +1,4 @@
-import type { SessionField, FormConfig } from '@/types/motion';
+import type { SessionField, FormConfig } from '@/types/walform';
 
 // ── Admin addresses ────────────────────────────────────────────────
 export const INITIAL_ADMINS = [
@@ -9,7 +9,7 @@ export const INITIAL_ADMINS = [
 
 export function getAdmins(): string[] {
   try {
-    const stored = JSON.parse(localStorage.getItem('motion:admins') ?? '[]') as string[];
+    const stored = JSON.parse(localStorage.getItem('walform:admins') ?? '[]') as string[];
     return [...new Set([...INITIAL_ADMINS, ...stored])];
   } catch { return [...INITIAL_ADMINS]; }
 }
@@ -23,14 +23,14 @@ export function addAdmin(address: string) {
   const current = getAdmins();
   if (!isAdmin(address)) {
     const extra = current.filter(a => !INITIAL_ADMINS.includes(a));
-    localStorage.setItem('motion:admins', JSON.stringify([...extra, address]));
+    localStorage.setItem('walform:admins', JSON.stringify([...extra, address]));
   }
 }
 
 export function removeAdmin(address: string) {
   if (INITIAL_ADMINS.includes(address)) return;
   const extra = getAdmins().filter(a => !INITIAL_ADMINS.includes(a) && a !== address);
-  localStorage.setItem('motion:admins', JSON.stringify(extra));
+  localStorage.setItem('walform:admins', JSON.stringify(extra));
 }
 
 // ── Submission index ──────────────────────────────────────────────
@@ -39,7 +39,7 @@ export function removeAdmin(address: string) {
 // config so that when admin exports/re-imports, IDs travel with the config.
 
 export function getSubIds(formId: string): string[] {
-  try { return JSON.parse(localStorage.getItem(`motion:subs:${formId}`) ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem(`walform:subs:${formId}`) ?? '[]'); }
   catch { return []; }
 }
 
@@ -47,17 +47,17 @@ export function addSubId(formId: string, blobId: string) {
   const ids = getSubIds(formId);
   if (!ids.includes(blobId)) {
     const next = [...ids, blobId];
-    localStorage.setItem(`motion:subs:${formId}`, JSON.stringify(next));
+    localStorage.setItem(`walform:subs:${formId}`, JSON.stringify(next));
     // Also merge into the shared "all submissions" bucket so cross-form admin views work
     const all = getAllSubIds();
     if (!all.includes(blobId)) {
-      localStorage.setItem('motion:subs:ALL', JSON.stringify([...all, blobId]));
+      localStorage.setItem('walform:subs:ALL', JSON.stringify([...all, blobId]));
     }
   }
 }
 
 export function getAllSubIds(): string[] {
-  try { return JSON.parse(localStorage.getItem('motion:subs:ALL') ?? '[]'); }
+  try { return JSON.parse(localStorage.getItem('walform:subs:ALL') ?? '[]'); }
   catch { return []; }
 }
 
@@ -66,16 +66,16 @@ export function mergeSubIds(formId: string, incoming: string[]) {
   const existing = new Set(getSubIds(formId));
   incoming.forEach(id => existing.add(id));
   const merged = [...existing];
-  localStorage.setItem(`motion:subs:${formId}`, JSON.stringify(merged));
+  localStorage.setItem(`walform:subs:${formId}`, JSON.stringify(merged));
   return merged;
 }
 
 // ── Form config storage ───────────────────────────────────────────
 export function saveAdminConfig(config: FormConfig) {
-  localStorage.setItem('motion:admin:config', JSON.stringify(config));
+  localStorage.setItem('walform:admin:config', JSON.stringify(config));
 }
 export function loadAdminConfig(): FormConfig | null {
-  try { const s = localStorage.getItem('motion:admin:config'); return s ? JSON.parse(s) : null; }
+  try { const s = localStorage.getItem('walform:admin:config'); return s ? JSON.parse(s) : null; }
   catch { return null; }
 }
 

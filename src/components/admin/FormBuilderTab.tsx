@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import type { FormConfig, SessionField, SessionFieldType } from '@/types/motion';
+import type { FormConfig, SessionField, SessionFieldType } from '@/types/walform';
 import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
 import { dAppKit } from '@/app/dapp-kit';

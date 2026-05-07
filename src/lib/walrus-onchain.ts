@@ -3,7 +3,7 @@
  * Fixes "Too many failures while writing blob" by ensuring data is in the most stable format (Uint8Array).
  */
 
-import type { WalrusUploadResponse } from '@/types/motion';
+import type { WalrusUploadResponse } from '@/types/walform';
 import { dAppKit } from '@/app/dapp-kit';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { WalrusClient } from '@mysten/walrus';

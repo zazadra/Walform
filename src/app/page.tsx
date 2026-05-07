@@ -7,7 +7,7 @@ import { readJsonFromWalrus, getWalrusScanUrl } from '@/lib/walrus';
 import { uploadOnChain, uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { addSubId, DEFAULT_CONFIG } from '@/lib/fields';
 import { publishSubmission } from '@/lib/submission-index';
-import type { FormConfig, SessionField, Submission } from '@/types/motion';
+import type { FormConfig, SessionField, Submission } from '@/types/walform';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
@@ -199,13 +199,13 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 1: Bottom Right */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-20px', right: '5%', width: isMobile ? '100px' : '180px', zIndex: 999,
+          position: 'fixed', bottom: '-20px', right: '5%', width: isMobile ? '100px' : '180px', zIndex: 10000,
           opacity: peek1Opacity, y: combine(peek1YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
       >
         <motion.img 
-          src="/logo.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          src="/walform-mascot.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
           transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 4 }}
           style={{ width: '100%', height: 'auto', transform: 'rotate(-20deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.4))' }} 
         />
@@ -214,13 +214,13 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 4: Right Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '30%', right: isMobile ? '-15px' : '-30px', width: isMobile ? '80px' : '140px', zIndex: 999,
+          position: 'fixed', top: '30%', right: isMobile ? '-15px' : '-30px', width: isMobile ? '80px' : '140px', zIndex: 10000,
           opacity: peek4Opacity, x: combine(peek4XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
       >
         <motion.img 
-          src="/logo.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          src="/walform-mascot.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
           transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 3.5 }}
           style={{ width: '100%', height: 'auto', transform: 'rotate(-110deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.3))' }} 
         />
@@ -229,13 +229,13 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 2: Left Side (Tilted) */}
       <motion.div
         style={{
-          position: 'fixed', top: '45%', left: isMobile ? '-10px' : '-20px', width: isMobile ? '90px' : '150px', zIndex: 999,
+          position: 'fixed', top: '45%', left: isMobile ? '-10px' : '-20px', width: isMobile ? '90px' : '150px', zIndex: 10000,
           opacity: peek2Opacity, x: combine(peek2XBase, useTransform(smoothX, [-500, 500], [-5, 5])), y: useTransform(smoothY, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
       >
         <motion.img 
-          src="/logo.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          src="/walform-mascot.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
           transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 5 }}
           style={{ width: '100%', height: 'auto', transform: 'rotate(110deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.4))' }} 
         />
@@ -244,13 +244,13 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 5: Top Right */}
       <motion.div
         style={{
-          position: 'fixed', top: '-40px', right: '15%', width: isMobile ? '100px' : '160px', zIndex: 999,
+          position: 'fixed', top: '-40px', right: '15%', width: isMobile ? '100px' : '160px', zIndex: 10000,
           opacity: peek5Opacity, y: combine(peek5YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
       >
         <motion.img 
-          src="/logo.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          src="/walform-mascot.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
           transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 4.5 }}
           style={{ width: '100%', height: 'auto', transform: 'rotate(160deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.3))' }} 
         />
@@ -259,13 +259,13 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
       {/* Peek 3: Bottom Left */}
       <motion.div
         style={{
-          position: 'fixed', bottom: '-30px', left: '10%', width: isMobile ? '110px' : '200px', zIndex: 999,
+          position: 'fixed', bottom: '-30px', left: '10%', width: isMobile ? '110px' : '200px', zIndex: 10000,
           opacity: peek3Opacity, y: combine(peek3YBase, useTransform(smoothY, [-500, 500], [-5, 5])), x: useTransform(smoothX, [-500, 500], [-10, 10]),
           pointerEvents: 'none'
         }}
       >
         <motion.img 
-          src="/logo.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          src="/walform-mascot.png" alt="Walrus Peek" animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
           transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 6 }}
           style={{ width: '100%', height: 'auto', transform: 'rotate(25deg)', filter: 'drop-shadow(0 0 40px rgba(124,58,237,0.5))' }} 
         />
@@ -302,6 +302,7 @@ export default function Home() {
   const [errMsg, setErrMsg]     = useState('');
   const [wCopied, setWCopied]   = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Track mouse for hero parallax
   useEffect(() => {
@@ -314,6 +315,48 @@ export default function Home() {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  const enabledFields = config.fields.filter(f => f.enabled && f.id !== 'newsletter');
+
+  function handleNext() {
+    // If we are at intro or field steps, check validation for current field
+    if (currentStep > 0 && currentStep <= enabledFields.length) {
+      const field = enabledFields[currentStep - 1];
+      if (field.required) {
+        const v = data[field.id];
+        const empty = v===undefined||v===''||v===false||(Array.isArray(v)&&v.length===0);
+        if (empty) {
+          setErrors(e => ({ ...e, [field.id]: 'This field is required.' }));
+          return;
+        }
+      }
+    }
+    if (currentStep <= enabledFields.length) {
+      setCurrentStep(s => s + 1);
+    }
+  }
+
+  function handleBack() {
+    if (currentStep > 0) setCurrentStep(s => s - 1);
+  }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Prevent enter on textareas unless shift is held
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'TEXTAREA') return;
+        
+        // If we are on a field step, try to go next
+        if (status === 'idle' || status === 'error') {
+           handleNext();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, data, enabledFields, status]);
 
   // Load form config from ?form=blobId
   useEffect(() => {
@@ -413,11 +456,7 @@ export default function Home() {
       setErrMsg(e instanceof Error ? e.message : 'Upload failed.');
       setStatus('error');
     }
-
   }
-
-  const enabledFields = config.fields.filter(f => f.enabled);
-
 
   // ── Loading ──────────────────────────────────────────────────
   if (configLoading) return (
@@ -448,8 +487,8 @@ export default function Home() {
         }}>
           <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
             <motion.img 
-              src="/logo.png" 
-              alt="Motion Logo" 
+              src="/walform-mascot.png" 
+              alt="Walform Logo" 
               style={{ 
                 height: '54px', 
                 width: 'auto',
@@ -457,7 +496,7 @@ export default function Home() {
               }}
               whileHover={{ scale: 1.05, rotate: -2 }}
             />
-            <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.05em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Motion</span>
+            <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.05em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Walform</span>
           </div>
           <div style={{ display:'flex', gap:'16px' }}>
             <a href="/admin" className="btn btn-primary btn-sm" style={{ padding: '10px 24px' }}>Launch App</a>
@@ -592,7 +631,7 @@ export default function Home() {
                   style={{ display:'flex', gap:'20px', flexDirection: isMobile ? 'column' : 'row', justifyContent: isMobile ? 'center' : 'flex-start', width: '100%' }}
                 >
                   <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)', textAlign: 'center' }}>
-                    Enter Motion
+                    Enter Walform
                   </a>
                   <a href="https://walrus.xyz" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 600, textAlign: 'center' }}>
                     Explore Walrus
@@ -609,8 +648,8 @@ export default function Home() {
               >
                 <div style={{ position: 'absolute', inset: '-10%', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', zIndex: -1, opacity: 0.6 }} />
                 <motion.img 
-                  src="/walrus-2.png" 
-                  alt="Walrus Mascot"
+                  src="/walform-mascot.png" 
+                  alt="Walform Mascot"
                   style={{ width: isMobile ? '80%' : '100%', maxWidth: '480px', height: 'auto', filter: 'drop-shadow(0 30px 60px rgba(0,0,0,0.6))' }}
                   animate={{ 
                     y: [0, -25, 0],
@@ -640,12 +679,12 @@ export default function Home() {
                 transition={{ duration: 0.8 }}
                 style={{ flex: '1 1 600px' }}
               >
-                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px', lineHeight: 1.1, textAlign: isMobile ? 'center' : 'left' }}>
+                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px', lineHeight: 1.1, textAlign: isMobile ? 'center' : 'left', width: '100%' }}>
                   Built for ownership,<br/>
                   <span style={{ color: 'var(--accent-2)' }}>not platforms.</span>
                 </h2>
                 <p style={{ fontSize: isMobile ? '18px' : '20px', color: 'var(--text-2)', lineHeight: 1.6, maxWidth: '540px', marginBottom: '40px', fontWeight: 500, textAlign: isMobile ? 'center' : 'left' }}>
-                  Motion eliminates centralized control. By leveraging Walrus, we ensure your feedback loops are permanent, composable, and censorship-resistant from day one.
+                  Walform eliminates centralized control. By leveraging Walrus, we ensure your feedback loops are permanent, composable, and censorship-resistant from day one.
                 </p>
                 
                 <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
@@ -665,7 +704,11 @@ export default function Home() {
                 transition={{ duration: 1, delay: 0.2 }}
                 style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', order: isMobile ? -1 : 1 }}
               >
-                <img src="/walrus-1.png" alt="Walrus" style={{ width: isMobile ? '80%' : '100%', maxWidth: '400px', height: 'auto', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))' }} />
+                <img 
+                  src="/walrus-1.png" 
+                  alt="Walform Mascot" 
+                  style={{ width: '100%', maxWidth: '450px', height: 'auto', mixBlendMode: 'screen', filter: 'drop-shadow(0 20px 40px rgba(124,58,237,0.4))' }} 
+                />
               </motion.div>
             </div>
           </section>
@@ -744,8 +787,8 @@ export default function Home() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
               {[
                 { title: '100% On-Chain', desc: 'Forms, submissions, and media are stored natively on decentralized infrastructure without relying on centralized databases.', icon: '⚡' },
-                { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', icon: '🌊' },
-                { title: 'Sui Performance', desc: 'Built on Sui for fast interactions, smooth wallet UX, and scalable Web3 experiences.', icon: '💧' }
+                { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', image: '/walrus-official.png', imageStyle: { mixBlendMode: 'screen' } },
+                { title: 'Sui Performance', desc: 'Built on Sui for fast interactions, smooth wallet UX, and scalable Web3 experiences.', image: 'https://cryptologos.cc/logos/sui-sui-logo.png?v=032' }
               ].map((card, i) => (
                 <motion.div
                   key={i}
@@ -779,8 +822,12 @@ export default function Home() {
                   }}
                 >
                   <div className="border-beam" />
-                  <div style={{ fontSize: '40px', marginBottom: '32px', display: 'inline-flex', width: 64, height: 64, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
-                    {card.icon}
+                  <div style={{ fontSize: '40px', marginBottom: '32px', display: 'inline-flex', width: 64, height: 64, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                    {card.image ? (
+                      <img src={card.image} alt={card.title} style={{ width: '70%', height: '70%', objectFit: 'contain', ...card.imageStyle }} />
+                    ) : (
+                      card.icon
+                    )}
                   </div>
                   <h4 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '16px' }}>{card.title}</h4>
                   <p style={{ fontSize: '16px', color: 'var(--text-2)', lineHeight: 1.6 }}>{card.desc}</p>
@@ -826,7 +873,7 @@ export default function Home() {
                 transition={{ delay: 0.1 }}
                 style={{ fontSize: '15px', color: 'var(--text-3)', fontWeight: 500 }}
               >
-                Learn more about the ecosystem powering Motion.
+                Learn more about the ecosystem powering Walform.
               </motion.p>
             </div>
 
@@ -839,16 +886,17 @@ export default function Home() {
               {[
                 {
                   title: "Walrus Ecosystem",
-                  icon: "🌊",
+                  image: "/walrus-official.png",
                   tag: "Storage Protocol",
                   links: [
                     { label: "Documentation", url: "https://docs.wal.app/" },
                     { label: "Official Website", url: "https://www.walrus.xyz/" }
-                  ]
+                  ],
+                  imageStyle: { mixBlendMode: 'screen' }
                 },
                 {
                   title: "Sui Network",
-                  icon: "💧",
+                  image: "https://cryptologos.cc/logos/sui-sui-logo.png?v=032",
                   tag: "Layer 1 Blockchain",
                   links: [
                     { label: "Main Website", url: "https://sui.io/" },
@@ -926,8 +974,15 @@ export default function Home() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px',
                         border: '1px solid rgba(124,58,237,0.2)',
                         boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                        marginBottom: '24px'
-                      }}>{section.icon}</div>
+                        marginBottom: '24px',
+                        overflow: 'hidden'
+                      }}>
+                        {section.image ? (
+                          <img src={section.image} alt={section.title} style={{ width: '70%', height: '70%', objectFit: 'contain', ...section.imageStyle }} />
+                        ) : (
+                          section.icon
+                        )}
+                      </div>
                       <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>{section.title}</h3>
                       <p style={{ fontSize: '13px', color: 'var(--accent-2)', marginTop: '8px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{section.tag}</p>
                     </div>
@@ -1020,9 +1075,9 @@ export default function Home() {
         {/* Header */}
         <header style={{ position:'sticky', top:0, zIndex:40, backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(7,9,15,0.85)' }}>
           <div style={{ maxWidth:'720px', margin:'0 auto', padding:'0 24px', height:'56px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
-              <svg width={24} height={24} viewBox="0 0 32 32" fill="none"><rect width={32} height={32} rx={8} fill="rgba(124,58,237,0.18)"/><path d="M10 22V14l6-4 6 4v8" stroke="#a78bfa" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><path d="M13 22v-5h6v5" stroke="#7c3aed" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span style={{ fontSize:'15px', fontWeight:700, letterSpacing:'-0.03em' }}>Motion</span>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+              <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '28px', height: 'auto', filter: 'drop-shadow(0 0 8px rgba(124,58,237,0.3))' }} />
+              <span style={{ fontSize:'16px', fontWeight:800, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
               {account ? (
@@ -1040,66 +1095,166 @@ export default function Home() {
         </header>
 
         {/* Form */}
-        <main style={{ maxWidth:'720px', margin:'0 auto', padding:'48px 24px 80px' }}>
-          <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:0.4,ease:[0.16,1,0.3,1]}}>
-            <h1 style={{ fontSize:'26px', fontWeight:800, letterSpacing:'-0.03em', marginBottom:'8px' }}>{config.title}</h1>
-            <p style={{ fontSize:'14px', color:'var(--text-2)', lineHeight:1.6, marginBottom:'40px' }}>{config.description}</p>
-
-            <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
-              {enabledFields.map((f, i) => (
-                <motion.div key={f.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:i*0.03,duration:0.3}}>
-                  {f.type === 'checkbox' ? (
-                    // Checkbox: label is inside the input
-                    <div>
-                      <FieldInput field={f} value={data[f.id]??false} onChange={v=>setField(f.id,v)} onFile={file=>handleFile(f.id,file)} uploading={!!fileUploading[f.id]} />
-                      {errors[f.id] && <p style={{ fontSize:'12px', color:'#f87171', marginTop:'5px' }}>{errors[f.id]}</p>}
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="input-label" style={{ fontSize:'14px', color:'var(--text-1)', marginBottom:'8px' }}>
-                        {f.label} {f.required && <span className="input-required">*</span>}
-                      </label>
-                      {f.helpText && (
-                        <p style={{ fontSize:'12px', color:'var(--text-3)', marginBottom:'8px', lineHeight:1.5 }}>
-                          {f.helpText}{' '}
-                          {f.linkUrl && <a href={f.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{f.linkText||f.linkUrl} ↗</a>}
-                        </p>
-                      )}
-                      <FieldInput field={f} value={data[f.id]??''} onChange={v=>setField(f.id,v)} onFile={file=>handleFile(f.id,file)} uploading={!!fileUploading[f.id]} />
-                      {errors[f.id] && <p style={{ fontSize:'12px', color:'#f87171', marginTop:'5px' }}>{errors[f.id]}</p>}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+        <main style={{ maxWidth:'720px', margin:'0 auto', padding:'80px 24px 120px', minHeight: 'calc(100dvh - 56px)', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Progress Bar */}
+          {currentStep > 0 && currentStep <= enabledFields.length + 1 && (
+            <div style={{ position: 'fixed', top: '56px', left: 0, width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', zIndex: 30 }}>
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentStep / (enabledFields.length + 1)) * 100}%` }}
+                style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--accent-2))', boxShadow: '0 0 12px var(--accent)' }}
+              />
             </div>
+          )}
 
-            {/* Error */}
-            {errMsg && <div className="alert-error" style={{ marginTop:'24px' }}>{errMsg}</div>}
-
-            {/* Submit */}
-            <div style={{ marginTop:'36px', paddingTop:'24px', borderTop:'1px solid var(--border)' }}>
-              {account ? (
-                <button className="btn btn-primary btn-lg" style={{ width:'100%' }}
-                  onClick={handleSubmit} disabled={status==='signing'||status==='submitting'}>
-                  {status==='signing'   ? <><span className="spinner"/> Waiting for wallet approval…</>
-                   :status==='submitting'? <><span className="spinner"/> Storing on Walrus…</>
-                   : 'Sign & Submit'}
-                </button>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'16px', padding:'24px', background:'rgba(124,58,237,0.06)', border:'1px solid rgba(124,58,237,0.2)', borderRadius:'16px' }}>
-                  <div style={{ fontSize:'24px' }}>🛡️</div>
-                  <p style={{ fontSize:'14px', color:'var(--text-1)', fontWeight:600 }}>Wallet Required</p>
-                  <p style={{ fontSize:'12px', color:'var(--text-3)', textAlign:'center', lineHeight:1.5 }}>
-                    To ensure data integrity and pay for decentralized storage on Walrus Mainnet, please connect your Sui wallet.
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <AnimatePresence mode="wait">
+              {currentStep === 0 && (
+                <motion.div 
+                  key="intro"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ textAlign: 'center' }}
+                >
+                  <div style={{ width: '80px', height: '80px', background: 'rgba(124,58,237,0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', margin: '0 auto 32px', border: '1px solid rgba(124,58,237,0.2)' }}>
+                    📝
+                  </div>
+                  <h1 style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '16px', lineHeight: 1.1 }}>
+                    {config.title}
+                  </h1>
+                  <p style={{ fontSize: '18px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '48px', maxWidth: '540px', margin: '0 auto 48px' }}>
+                    {config.description}
                   </p>
-                  <ConnectButton instance={dAppKit} />
-                </div>
+                  <button className="btn btn-primary btn-lg" onClick={handleNext} style={{ padding: '16px 40px', fontSize: '18px' }}>
+                    Start Application
+                  </button>
+                  <p style={{ marginTop: '24px', fontSize: '12px', color: 'var(--text-3)' }}>
+                    Press <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: '1px solid var(--border)' }}>Enter ↵</span> to start
+                  </p>
+                </motion.div>
               )}
-              <p style={{ marginTop:'12px', fontSize:'12px', color:'var(--text-3)', textAlign:'center' }}>
-                Stored on <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-2)',textDecoration:'none'}}>Walrus</a> · Decentralised · No server · No database
-              </p>
-            </div>
-          </motion.div>
+
+              {currentStep > 0 && currentStep <= enabledFields.length && (
+                <motion.div 
+                  key={enabledFields[currentStep - 1].id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {(() => {
+                    const f = enabledFields[currentStep - 1];
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--accent-2)', fontFamily: 'var(--mono)' }}>
+                            {currentStep.toString().padStart(2, '0')} →
+                          </span>
+                        </div>
+                        
+                        <div>
+                          <h2 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '12px', lineHeight: 1.2 }}>
+                            {f.label} {f.required && <span style={{ color: '#f87171' }}>*</span>}
+                          </h2>
+                          {f.helpText && (
+                            <p style={{ fontSize: '16px', color: 'var(--text-2)', marginBottom: '24px', lineHeight: 1.5 }}>
+                              {f.helpText}{' '}
+                              {f.linkUrl && <a href={f.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{f.linkText||f.linkUrl} ↗</a>}
+                            </p>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: '20px' }}>
+                          <FieldInput field={f} value={data[f.id]??(f.type==='checkbox'?false:'')} onChange={v=>setField(f.id,v)} onFile={file=>handleFile(f.id,file)} uploading={!!fileUploading[f.id]} />
+                          
+                          {f.id === 'leader_email' && (() => {
+                            const newsletterField = config.fields.find(field => field.id === 'newsletter' && field.enabled);
+                            if (newsletterField) {
+                              return (
+                                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+                                  <FieldInput 
+                                    field={newsletterField} 
+                                    value={data[newsletterField.id]??false} 
+                                    onChange={v=>setField(newsletterField.id,v)} 
+                                  />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
+                          {errors[f.id] && (
+                            <motion.p initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} style={{ fontSize:'14px', color:'#f87171', marginTop:'12px', fontWeight: 500 }}>
+                              ⚠️ {errors[f.id]}
+                            </motion.p>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+                          <button className="btn btn-primary" onClick={handleNext} style={{ padding: '12px 32px' }}>
+                            Next
+                          </button>
+                          <button className="btn btn-ghost" onClick={handleBack} style={{ color: 'var(--text-3)' }}>
+                            Back
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+              )}
+
+              {currentStep === enabledFields.length + 1 && (
+                <motion.div 
+                  key="submit"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div style={{ textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '24px' }}>🛡️</div>
+                    <h2 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.03em' }}>Ready to submit?</h2>
+                    <p style={{ fontSize: '16px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '40px' }}>
+                      All fields are filled. To store your application permanently on Walrus Mainnet, please connect your wallet and sign the submission.
+                    </p>
+
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '24px', padding: '32px' }}>
+                      {account ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          <button className="btn btn-primary btn-lg" style={{ width:'100%' }}
+                            onClick={handleSubmit} disabled={status==='signing'||status==='submitting'}>
+                            {status==='signing'   ? <><span className="spinner"/> Signing…</>
+                             :status==='submitting'? <><span className="spinner"/> Storing on Walrus…</>
+                             : 'Sign & Submit Application'}
+                          </button>
+                          <button className="btn btn-ghost" onClick={handleBack} style={{ color: 'var(--text-3)' }}>
+                            Review Answers
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+                          <ConnectButton instance={dAppKit} />
+                          <button className="btn btn-ghost btn-sm" onClick={handleBack} style={{ color: 'var(--text-3)' }}>
+                            Go Back
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {errMsg && <div className="alert-error" style={{ marginTop:'24px' }}>{errMsg}</div>}
+
+                    <p style={{ marginTop:'32px', fontSize:'12px', color:'var(--text-3)' }}>
+                      Stored on <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-2)',textDecoration:'none'}}>Walrus</a> · Decentralised · No server
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </main>
       </div>
     </ClientOnly>

@@ -3,7 +3,7 @@
  * We use the public Walrus Publisher for static dApps (no backend needed).
  */
 
-import type { WalrusUploadResponse } from '@/types/motion';
+import type { WalrusUploadResponse } from '@/types/walform';
 
 export const NETWORK = 'mainnet';
 export const WALRUS_AGGREGATOR = 'https://aggregator.mainnet.walrus.space';
