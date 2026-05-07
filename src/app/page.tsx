@@ -8,7 +8,7 @@ import { uploadOnChain, uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { addSubId, DEFAULT_CONFIG } from '@/lib/fields';
 import { publishSubmission } from '@/lib/submission-index';
 import type { FormConfig, SessionField, Submission } from '@/types/motion';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
 const ClientOnly = dynamic(() => Promise.resolve(({ children }: { children: React.ReactNode }) => <>{children}</>), { ssr: false });
@@ -124,6 +124,133 @@ function ReferenceLink({ href, label }: { href: string; label: string }) {
       {label}
       <span className="arrow" style={{ color: 'var(--text-3)', fontSize: '12px', transition: 'transform 0.2s' }}>→</span>
     </a>
+  );
+}
+
+// ── Interactive Visual Components ────────────────────────────────
+function BackgroundParticles() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 1 }}>
+      {[...Array(20)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ 
+            x: Math.random() * 100 + '%', 
+            y: Math.random() * 100 + '%', 
+            opacity: Math.random() * 0.5,
+            scale: Math.random() * 0.5 + 0.5
+          }}
+          animate={{ 
+            y: [null, '-=100', '+=100'],
+            opacity: [0.2, 0.5, 0.2],
+          }}
+          transition={{ 
+            duration: Math.random() * 10 + 10, 
+            repeat: Infinity, 
+            ease: "linear" 
+          }}
+          style={{
+            position: 'absolute',
+            width: '2px',
+            height: '2px',
+            borderRadius: '50%',
+            background: 'var(--accent-2)',
+            boxShadow: '0 0 10px var(--accent-2)',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FloatingWalrus({ mousePos }: { mousePos: { x: number, y: number } }) {
+  const { scrollYProgress } = useScroll();
+  
+  // Spring for smoother cursor reaction
+  const smoothX = useSpring(mousePos.x, { damping: 20, stiffness: 100 });
+  const smoothY = useSpring(mousePos.y, { damping: 20, stiffness: 100 });
+
+  // Hide and Seek logic: Appear at specific scroll ranges
+  const peek1Opacity = useTransform(scrollYProgress, [0.12, 0.15, 0.25, 0.28], [0, 1, 1, 0]);
+  const peek1Y = useTransform(scrollYProgress, [0.12, 0.15, 0.25, 0.28], [100, 0, 0, 100]);
+  
+  const peek2Opacity = useTransform(scrollYProgress, [0.42, 0.45, 0.55, 0.58], [0, 1, 1, 0]);
+  const peek2X = useTransform(scrollYProgress, [0.42, 0.45, 0.55, 0.58], [-100, 0, 0, -100]);
+  
+  const peek3Opacity = useTransform(scrollYProgress, [0.72, 0.75, 0.85, 0.88], [0, 1, 1, 0]);
+  const peek3Y = useTransform(scrollYProgress, [0.72, 0.75, 0.85, 0.88], [100, 0, 0, 100]);
+
+  return (
+    <>
+      {/* Peek 1: Bottom Right */}
+      <motion.div
+        style={{
+          position: 'fixed',
+          bottom: '-20px',
+          right: '5%',
+          width: '180px',
+          zIndex: 50,
+          opacity: peek1Opacity,
+          y: peek1Y,
+          x: useTransform(smoothX, [-500, 500], [-10, 10]),
+          pointerEvents: 'none'
+        }}
+      >
+        <motion.img 
+          src="/logo.png" 
+          alt="Walrus Peek" 
+          animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 4 }}
+          style={{ width: '100%', height: 'auto', transform: 'rotate(-10deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.4))' }} 
+        />
+      </motion.div>
+
+      {/* Peek 2: Left Side */}
+      <motion.div
+        style={{
+          position: 'fixed',
+          top: '40%',
+          left: '-40px',
+          width: '150px',
+          zIndex: 50,
+          opacity: peek2Opacity,
+          x: useTransform(smoothX, [-500, 500], [-110, -90]), // offset by -100 (peek2X)
+          y: useTransform(smoothY, [-500, 500], [-10, 10]),
+          pointerEvents: 'none'
+        }}
+      >
+        <motion.img 
+          src="/walrus-1.png" 
+          alt="Walrus Peek" 
+          animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 5 }}
+          style={{ width: '100%', height: 'auto', transform: 'rotate(90deg)', filter: 'drop-shadow(0 0 30px rgba(124,58,237,0.4))' }} 
+        />
+      </motion.div>
+
+      {/* Peek 3: Bottom Left */}
+      <motion.div
+        style={{
+          position: 'fixed',
+          bottom: '-30px',
+          left: '10%',
+          width: '200px',
+          zIndex: 50,
+          opacity: peek3Opacity,
+          y: peek3Y,
+          x: useTransform(smoothX, [-500, 500], [-10, 10]),
+          pointerEvents: 'none'
+        }}
+      >
+        <motion.img 
+          src="/walrus-2.png" 
+          alt="Walrus Peek" 
+          animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
+          transition={{ duration: 0.2, repeat: Infinity, repeatDelay: 6 }}
+          style={{ width: '100%', height: 'auto', transform: 'rotate(15deg)', filter: 'drop-shadow(0 0 40px rgba(124,58,237,0.5))' }} 
+        />
+      </motion.div>
+    </>
   );
 }
 
@@ -273,7 +400,9 @@ export default function Home() {
   // ── No form ──────────────────────────────────────────────────
   if (!new URLSearchParams(window.location.search).get('form') && formBlobId === 'default') {
     return (
-      <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <BackgroundParticles />
+        <FloatingWalrus mousePos={mousePos} />
         <header style={{ 
           padding:'32px 24px', 
           display:'flex', 
@@ -302,8 +431,7 @@ export default function Home() {
             <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.05em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Motion</span>
           </div>
           <div style={{ display:'flex', gap:'16px' }}>
-            <a href="/admin" className="btn btn-secondary btn-sm" style={{ backdropFilter: 'blur(10px)', background: 'rgba(255,255,255,0.03)' }}>Sign In</a>
-            <a href="/admin" className="btn btn-primary btn-sm">Get Started</a>
+            <a href="/admin" className="btn btn-primary btn-sm" style={{ padding: '10px 24px' }}>Launch App</a>
           </div>
         </header>
 
@@ -320,14 +448,32 @@ export default function Home() {
           }}>
             {/* Animated Background Layers */}
             <motion.div 
+              animate={{ 
+                x: [mousePos.x * -0.3, mousePos.x * -0.4, mousePos.x * -0.3],
+                y: [mousePos.y * -0.3, mousePos.y * -0.4, mousePos.y * -0.3]
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               style={{
                 position: 'absolute',
                 width: '120%',
                 height: '120%',
-                background: 'radial-gradient(circle at 50% 50%, rgba(124,58,237,0.15) 0%, transparent 60%)',
+                background: 'radial-gradient(circle at 50% 50%, rgba(124,58,237,0.12) 0%, transparent 60%)',
                 filter: 'blur(80px)',
-                x: mousePos.x * -0.5,
-                y: mousePos.y * -0.5,
+                zIndex: 1
+              }}
+            />
+            <motion.div 
+              animate={{ 
+                x: [mousePos.x * 0.2, mousePos.x * 0.3, mousePos.x * 0.2],
+                y: [mousePos.y * 0.2, mousePos.y * 0.3, mousePos.y * 0.2]
+              }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                background: 'radial-gradient(circle at 30% 70%, rgba(34,211,238,0.08) 0%, transparent 50%)',
+                filter: 'blur(100px)',
                 zIndex: 1
               }}
             />
@@ -389,7 +535,7 @@ export default function Home() {
                     transition={{ duration: 0.8, delay: 0.4 }}
                     style={{ display: 'block' }}
                   >
-                    Forms owned by
+                    Your forms should
                   </motion.span>
                   <motion.span 
                     initial={{ opacity: 0, x: -20 }} 
@@ -397,7 +543,7 @@ export default function Home() {
                     transition={{ duration: 0.8, delay: 0.6 }}
                     style={{ background: 'linear-gradient(135deg, var(--accent-2) 0%, var(--cyan) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'block' }}
                   >
-                    users, not platforms.
+                    belong to you.
                   </motion.span>
                 </h1>
                 
@@ -407,7 +553,7 @@ export default function Home() {
                   transition={{ duration: 1, delay: 0.8 }}
                   style={{ fontSize:'clamp(18px, 2vw, 20px)', color:'var(--text-2)', lineHeight:1.6, maxWidth:'600px', marginBottom:'48px', fontWeight: 500 }}
                 >
-                  The first truly decentralized form ecosystem where every submission is an immutable asset on the Walrus storage protocol.
+                  Decentralized workflows for the next internet. Build, collect, and own your data—powered by Walrus and Sui.
                 </motion.p>
                 
                 <motion.div 
@@ -416,11 +562,11 @@ export default function Home() {
                   transition={{ duration: 0.8, delay: 1 }}
                   style={{ display:'flex', gap:'20px', flexWrap: 'wrap' }}
                 >
-                  <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 36px', borderRadius: '14px', fontSize: '18px', boxShadow: '0 20px 40px rgba(124,58,237,0.3)' }}>
-                    Launch Dashboard
+                  <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)' }}>
+                    Enter Motion
                   </a>
-                  <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 36px', borderRadius: '14px', fontSize: '18px' }}>
-                    Explore Protocol
+                  <a href="https://walrus.xyz" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 600 }}>
+                    Explore Walrus
                   </a>
                 </motion.div>
               </motion.div>
@@ -442,10 +588,11 @@ export default function Home() {
                     rotate: [0, 2, 0, -2, 0]
                   }}
                   transition={{ 
-                    duration: 5, 
+                    duration: 6, 
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
+                  whileHover={{ scale: 1.02, filter: 'drop-shadow(0 40px 80px rgba(124,58,237,0.4))' }}
                 />
               </motion.div>
             </div>
@@ -464,12 +611,12 @@ export default function Home() {
                 transition={{ duration: 0.8 }}
                 style={{ flex: '1 1 600px' }}
               >
-                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px' }}>
-                  Forms owned by users,<br/>
+                <h2 style={{ fontSize: 'clamp(32px, 6vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '24px', lineHeight: 1.1 }}>
+                  Built for ownership,<br/>
                   <span style={{ color: 'var(--accent-2)' }}>not platforms.</span>
                 </h2>
-                <p style={{ fontSize: '20px', color: 'var(--text-2)', lineHeight: 1.6, maxWidth: '540px', marginBottom: '40px' }}>
-                  Motion is a decentralized form ecosystem built on Walrus and Sui where submissions, media, and workflows live fully on-chain. No centralized database. No hidden control. Full ownership by default.
+                <p style={{ fontSize: '20px', color: 'var(--text-2)', lineHeight: 1.6, maxWidth: '540px', marginBottom: '40px', fontWeight: 500 }}>
+                  Motion eliminates centralized control. By leveraging Walrus, we ensure your feedback loops are permanent, composable, and censorship-resistant from day one.
                 </p>
                 
                 <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -524,17 +671,19 @@ export default function Home() {
                     border: '1px solid var(--border)',
                     textAlign: 'left',
                     position: 'relative',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    transition: 'border-color 0.3s ease, background 0.3s ease'
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    transition: 'all 0.4s cubic-bezier(0.2, 0, 0, 1)'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)';
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(124,58,237,0.5)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(124,58,237,0.1)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = 'var(--border)';
                     e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <div style={{ fontSize: '36px', marginBottom: '24px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}>{step.icon}</div>
@@ -583,9 +732,21 @@ export default function Home() {
                     border: '1px solid var(--border)',
                     textAlign: 'left',
                     boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                    backdropFilter: 'blur(10px)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    transition: 'all 0.4s cubic-bezier(0.2, 0, 0, 1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(124,58,237,0.5)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    e.currentTarget.style.boxShadow = '0 30px 60px rgba(0,0,0,0.5), 0 0 30px rgba(124,58,237,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                    e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2)';
                   }}
                 >
                   <div className="border-beam" />
