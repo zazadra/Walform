@@ -639,10 +639,8 @@ export default function Home() {
         ...(walletSignature ? { walletSignature, signedMessage: messageText } : {}),
       };
 
-      const { uploadJsonToWalrus } = await import('@/lib/walrus');
-      // send_object_to = admin wallet → blob object lands in admin's Sui wallet
-      // → scanOwnedBlobs(adminAddress) finds it cross-browser automatically
-      const { blobId } = await uploadJsonToWalrus(submission, 5, adminWallet || undefined);
+      const { uploadOnChain } = await import('@/lib/walrus-onchain');
+      const { blobId } = await uploadOnChain(JSON.stringify(submission), address, 5, adminWallet || undefined);
       submission.blobId = blobId;
 
       // Also index in localStorage for same-browser instant discovery
