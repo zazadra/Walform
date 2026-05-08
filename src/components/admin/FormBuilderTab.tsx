@@ -326,17 +326,18 @@ export function FormBuilderTab({ config, onChange }: {
 
       console.log("📦 Cloned Fields with Options:", clonedFields.filter(f => f.options).map(f => ({ id:f.id, opts:f.options })));
 
-      const cfg = { 
+      const cfg: FormConfig = { 
         ...config, 
         id: uid(), 
         createdAt: Date.now(), 
         publishedBy: ownerAddress, 
         fields: clonedFields,
-        publishedBlobId: undefined // Reset this so it's fresh
+        publishedBlobId: undefined 
       };
 
       console.log("📤 Final JSON payload:", cfg);
       const { blobId } = await uploadJsonOnChain(cfg, ownerAddress);
+      
       cfg.publishedBlobId = blobId;
       onChange(cfg);
       saveAdminConfig(cfg);
