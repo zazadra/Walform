@@ -402,7 +402,8 @@ export default function Home() {
     // Performance optimization: If we have the exact same config in localStorage, use it instantly
     const local = loadAdminConfig();
     if (local && local.publishedBlobId === fid) {
-      console.log("⚡ Instant load: Using local cache for published form");
+      console.log("⚡ Instant load: Using local cache for published form", fid);
+      console.log("📦 Form Config:", local);
       setConfig(local);
       setConfigLoading(false);
       return;
@@ -411,14 +412,17 @@ export default function Home() {
     let attempts = 0;
     const fetchConfig = async () => {
       try {
+        console.log(`🌐 Fetching form from Walrus (Attempt ${attempts + 1}):`, fid);
         const cfg = await readJsonFromWalrus<FormConfig>(fid);
         if (cfg && cfg.fields) {
+          console.log("✅ Form loaded successfully from Walrus:", fid);
+          console.log("📦 Form Config:", cfg);
           setConfig(cfg);
           setConfigLoading(false);
           return true;
         }
       } catch (err) {
-        console.warn(`Attempt ${attempts + 1} failed to load form:`, err);
+        console.warn(`⚠️ Attempt ${attempts + 1} failed to load form:`, err);
       }
       return false;
     };
@@ -427,13 +431,19 @@ export default function Home() {
       const success = await fetchConfig();
       if (!success && attempts < 3) {
         attempts++;
-        setTimeout(run, 2000); // Retry faster (2s)
+        setTimeout(run, 2000); 
       } else {
+        if (!success) {
+          console.error("❌ Failed to load form configuration after 3 attempts.");
+        }
         setConfigLoading(false);
       }
     };
     run();
   }, []);
+
+  // --- Banner for local preview ---
+  const isLocalPreview = !formBlobId && config.id !== 'default';
 
   function setField(id: string, v: string|string[]|boolean) {
     setData(d => ({ ...d, [id]: v }));
@@ -1162,7 +1172,13 @@ export default function Home() {
         {/* Form */}
         <main style={{ maxWidth:'720px', margin:'0 auto', padding:'80px 24px 120px', minHeight: 'calc(100dvh - 56px)', display: 'flex', flexDirection: 'column' }}>
           
-          {/* Progress Bar */}
+          {isLocalPreview && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:1000, background:'var(--accent)', color:'#fff', padding:'8px', textAlign:'center', fontSize:'12px', fontWeight:700, letterSpacing:'0.05em' }}>
+          ✨ LIVE PREVIEW MODE — Changes saved locally but not published yet
+        </div>
+      )}
+
+      {/* Progress Bar */}
           {currentStep > 0 && currentStep <= enabledFields.length + 1 && (
             <div style={{ position: 'fixed', top: '56px', left: 0, width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', zIndex: 30 }}>
               <motion.div 

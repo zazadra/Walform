@@ -304,17 +304,37 @@ export function FormBuilderTab({ config, onChange }: {
     setPublishing(true);
     try {
       // Deep-clone fields and ensure options are preserved
-      const clonedFields = config.fields.map(f => ({
-        ...f,
-        options: f.options ? [...f.options] : undefined
-      }));
-      const cfg = { ...config, id: uid(), createdAt: Date.now(), publishedBy: ownerAddress, fields: clonedFields };
+      // Detailed logging for verification
+      console.log("🚀 PUBLISHING FORM...");
+      console.log("📦 Base Config:", config);
+      
+      const clonedFields = config.fields.map(f => {
+        let options = f.options;
+        
+        // Safety check for session_select if it's supposed to be a list but has none
+        if (f.id === 'session_select' && f.type === 'checkbox' && (!options || options.length === 0)) {
+          console.warn("⚠️ session_select has no options! Adding default fallback.");
+          options = ['Session 1', 'Session 2'];
+        }
 
-      // Removing hardcoded session override so custom options typed by the user are preserved when published.
+        return {
+          ...f,
+          options: options ? [...options] : undefined
+        };
+      });
 
-      // On-chain upload (2 wallet popups):
-      // Popup 1: register form blob + pay WAL storage cost
-      // Popup 2: certify the blob is durably stored
+      console.log("📦 Cloned Fields with Options:", clonedFields.filter(f => f.options).map(f => ({ id:f.id, opts:f.options })));
+
+      const cfg = { 
+        ...config, 
+        id: uid(), 
+        createdAt: Date.now(), 
+        publishedBy: ownerAddress, 
+        fields: clonedFields,
+        publishedBlobId: undefined // Reset this so it's fresh
+      };
+
+      console.log("📤 Final JSON payload:", cfg);
       const { blobId } = await uploadJsonOnChain(cfg, ownerAddress);
       cfg.publishedBlobId = blobId;
       onChange(cfg);
