@@ -116,7 +116,7 @@ export function toMetadata(sub: Submission, blobId: string): SubmissionMetadata 
   return {
     blobId,
     formId: sub.formId || sub.formBlobId || '',
-    ownerWallet: sub.wallet,
+    ownerWallet: sub.submitterAddress || '',
     createdAt: sub.timestamp || Date.now(),
     status: sub.status || 'pending',
   };
