@@ -377,7 +377,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
 // -- Main page ------------------------------------------------------
 export default function Home() {
   const account = useCurrentAccount();
-  const { currentWallet: wallet } = useCurrentWallet();
+  const wallet = useCurrentWallet();
   const disconnect = () => dAppKit.disconnectWallet();
   const address = account?.address;
 
