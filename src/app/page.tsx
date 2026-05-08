@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentWallet, useSignPersonalMessage } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus, getWalrusScanUrl } from '@/lib/walrus';
@@ -377,7 +377,8 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
 // -- Main page ------------------------------------------------------
 export default function Home() {
   const account = useCurrentAccount();
-  const wallet = useCurrentWallet();
+  const { currentWallet: wallet } = useCurrentWallet();
+  const { mutateAsync: signMessage } = useSignPersonalMessage();
   const disconnect = () => dAppKit.disconnectWallet();
   const address = account?.address;
 
@@ -606,7 +607,7 @@ export default function Home() {
       const messageBytes = new TextEncoder().encode(messageText);
       let walletSignature = '';
       try {
-        const signResult = await wallet.signPersonalMessage(messageBytes);
+        const signResult = await signMessage({ message: messageBytes });
         // signResult is { signature: string (base64), bytes: string (base64) }
         walletSignature = typeof signResult === 'object' && signResult !== null
           ? (signResult as any).signature ?? ''
