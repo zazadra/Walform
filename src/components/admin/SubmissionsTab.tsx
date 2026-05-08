@@ -302,6 +302,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
               onClick={() => { setBlobIdInput(''); setFilterBlobId(''); }}>
               Show All
             </button>
+          )}
         </div>
       </div>
 
