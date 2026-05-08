@@ -537,14 +537,13 @@ export default function Home() {
     }
     setFileUploading(u => ({ ...u, [fieldId]: true }));
     try {
-      const { uploadBytesToWalrus } = await import('@/lib/walrus');
+      const { uploadOnChain } = await import('@/lib/walrus-onchain');
       
       const fileArray = Array.isArray(files) ? files : [files];
       const newBlobIds: string[] = [];
       
       for (const file of fileArray) {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        const { blobId } = await uploadBytesToWalrus(bytes, 5, address);
+        const { blobId } = await uploadOnChain(file, address, 1);
         newBlobIds.push(blobId);
       }
       
