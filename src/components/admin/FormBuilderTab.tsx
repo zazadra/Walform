@@ -385,16 +385,11 @@ export function FormBuilderTab({ config, onChange }: {
           Uploads the form config to Walrus and generates a shareable link.
           <strong style={{color:'var(--text-1)'}}> Your wallet will ask for approval first.</strong>
         </p>
-        <div style={{ display:'flex', gap:'12px' }}>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={publish} disabled={publishing}>
-            {publishing
-              ? <><span className="spinner" /> Publishing...</>
-              : '🚀 Sign & Publish Form'}
-          </button>
-          <a href="/" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ flex: 1, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            👁️ Preview Locally
-          </a>
-        </div>
+        <button className="btn btn-primary btn-lg" onClick={publish} disabled={publishing}>
+          {publishing
+            ? <><span className="spinner" /> Publishing to Walrus…</>
+            : '🚀 Sign & Publish Form'}
+        </button>
 
         {pubUrl && (
           <div style={{ marginTop:'12px', display:'flex', flexDirection:'column', gap:'12px' }}>
