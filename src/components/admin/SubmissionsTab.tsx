@@ -114,11 +114,11 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     console.log('[Sync] Scanning blobs owned by wallet:', ownerAddress);
 
     try {
-      // Use correct Sui client import
-      const { SuiClient, getFullnodeUrl } = await import('@mysten/sui/client');
+      // @mysten/sui v2.x uses SuiJsonRpcClient from @mysten/sui/jsonRpc
+      const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import('@mysten/sui/jsonRpc');
       const { readJsonFromWalrus: fetchBlob } = await import('@/lib/walrus');
 
-      const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
+      const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('mainnet') });
 
       let hasNextPage = true;
       let cursor: string | null = null;
