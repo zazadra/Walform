@@ -107,60 +107,104 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     setSubs(valid.sort((a, b) => b.timestamp - a.timestamp));
   }, [filterBlobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // -- Fix #2: Background on-chain sync - only scan CURRENT WALLET ------
+  // -- On-chain sync: scan blobs owned by admin wallet ----------------
   const syncFromChain = useCallback(async () => {
     if (typeof window === 'undefined' || !ownerAddress) return;
     setSyncing(true);
-    console.log('[Sync] Scanning blobs owned by current wallet:', ownerAddress);
-    const chainIds: string[] = [];
+    console.log('[Sync] Scanning blobs owned by wallet:', ownerAddress);
 
     try {
-      const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import('@mysten/sui/jsonRpc');
-      const { NETWORK } = await import('@/lib/walrus');
-      
-      const client = new SuiJsonRpcClient({ 
-        url: getJsonRpcFullnodeUrl(NETWORK as any),
-        network: NETWORK as any
-      });
+      // Use correct Sui client import
+      const { SuiClient, getFullnodeUrl } = await import('@mysten/sui/client');
+      const { readJsonFromWalrus: fetchBlob } = await import('@/lib/walrus');
+
+      const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
 
       let hasNextPage = true;
-      let cursor: any = null;
+      let cursor: string | null = null;
+      const newBlobIds: string[] = [];
 
       while (hasNextPage) {
-        const res: any = await client.getOwnedObjects({
+        const res = await client.getOwnedObjects({
           owner: ownerAddress,
-          filter: { StructType: '0x9f992cc2430a1f442ca7a5ca7638169f5d5c00e0221b5bcef8678cb5cef23516::blob::Blob' },
-          options: { showContent: true, showType: true },
-          cursor
+          filter: {
+            StructType: '0x9f992cc2430a1f442ca7a5ca7638169f5d5c00e0221b5bcef8678cb5cef23516::blob::Blob'
+          },
+          options: { showContent: true },
+          cursor: cursor ?? undefined,
+          limit: 50,
         });
 
         for (const obj of (res.data ?? [])) {
-          const fields = obj.data?.content?.fields as any;
-          if (fields?.blob_id) {
-            try {
-              const hex = BigInt(fields.blob_id).toString(16).padStart(64, '0');
-              const bytes = new Uint8Array(32);
-              for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-              const blobId = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-              chainIds.push(blobId);
-            } catch { /* skip malformed blob_id */ }
+          const fields = (obj.data?.content as any)?.fields;
+          if (!fields?.blob_id) continue;
+          try {
+            // blob_id is stored as a u256 decimal integer - convert to base64url
+            const hex = BigInt(fields.blob_id).toString(16).padStart(64, '0');
+            const bytes = new Uint8Array(32);
+            for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+            const blobId = btoa(String.fromCharCode(...bytes))
+              .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+            if (!loadedIdsRef.current.has(blobId)) {
+              newBlobIds.push(blobId);
+            }
+          } catch {
+            // skip malformed entries
           }
         }
+
         hasNextPage = res.hasNextPage;
-        cursor = res.nextCursor;
+        cursor = res.nextCursor ?? null;
+      }
+
+      console.log(`[Sync] Found ${newBlobIds.length} new blob(s) on-chain.`);
+
+      if (newBlobIds.length === 0) {
+        setSyncing(false);
+        return;
+      }
+
+      // Fetch each blob and validate: must have 'status' field to be a submission
+      const results = await Promise.allSettled(
+        newBlobIds.map(id =>
+          fetchBlob<Submission>(id).then(s => ({ ...s, blobId: s.blobId ?? id }))
+        )
+      );
+
+      const fetched: Submission[] = [];
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value?.status !== undefined) {
+          loadedIdsRef.current.add(newBlobIds[i]);
+          fetched.push(r.value);
+          // Also index in localStorage for future page loads
+          const fid = r.value.formBlobId || r.value.formId || '';
+          import('@/lib/fields').then(({ addSubId }) => addSubId(fid, newBlobIds[i]));
+          import('@/lib/submission-index').then(({ publishSubmission }) =>
+            publishSubmission(newBlobIds[i], fid)
+          );
+        }
+      });
+
+      if (fetched.length > 0) {
+        console.log(`[Sync] ${fetched.length} valid submission(s) found on-chain.`);
+        setSubs(prev => {
+          const combined = [...prev, ...fetched];
+          const seen = new Set<string>();
+          const deduped = combined.filter(s => {
+            if (seen.has(s.id)) return false;
+            seen.add(s.id);
+            return true;
+          });
+          return deduped.sort((a, b) => b.timestamp - a.timestamp);
+        });
       }
     } catch (e) {
       console.error('[Sync] Chain scan failed:', e);
     }
 
-    if (chainIds.length) {
-      console.log(`[Sync] Found ${chainIds.length} blobs on-chain for this wallet.`);
-      const { publishSubmission } = await import('@/lib/submission-index');
-      chainIds.forEach(id => publishSubmission(id, filterBlobId || ''));
-      await loadFromIndex();
-    }
     setSyncing(false);
-  }, [ownerAddress, filterBlobId, loadFromIndex]);
+  }, [ownerAddress]);
 
   // -- Initial load ----------------------------------------------------
   const fullLoad = useCallback(async () => {

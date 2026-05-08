@@ -14,9 +14,9 @@ import dynamic from 'next/dynamic';
 const ClientOnly = dynamic(() => Promise.resolve(({ children }: { children: React.ReactNode }) => <>{children}</>), { ssr: false });
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
-function shorten(a: string) { return `${a.slice(0,6)}…${a.slice(-4)}`; }
+function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
 
-// ── Single field renderer ──────────────────────────────────────────
+// -- Single field renderer ------------------------------------------
 function FieldInput({ field, value, onChange, onFile, uploading }: {
   field: SessionField;
   value: string | string[] | boolean;
@@ -36,7 +36,7 @@ function FieldInput({ field, value, onChange, onFile, uploading }: {
     case 'select':
       return (
         <select className="select" value={base||''} onChange={e=>onChange(e.target.value)} style={{ background:'var(--card)', color:'var(--text-1)' }}>
-          <option value="">Select…</option>
+          <option value="">Select-</option>
           {field.options?.map(o=><option key={o} value={o}>{o}</option>)}
         </select>
       );
@@ -68,7 +68,7 @@ function FieldInput({ field, value, onChange, onFile, uploading }: {
         <label style={{ display:'flex', alignItems:'flex-start', gap:'10px', cursor:'pointer', fontSize:'14px', color:'var(--text-2)' }}>
           <input type="checkbox" checked={!!value} onChange={e=>onChange(e.target.checked)}
             style={{ width:'16px', height:'16px', accentColor:'var(--accent)', cursor:'pointer', marginTop:'2px', flexShrink:0 }} />
-          <span>{field.label}{field.linkUrl && <> · <a href={field.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{field.linkText||field.linkUrl}</a></>}</span>
+          <span>{field.label}{field.linkUrl && <> - <a href={field.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{field.linkText||field.linkUrl}</a></>}</span>
         </label>
       );
     case 'file':
@@ -99,16 +99,16 @@ function FieldInput({ field, value, onChange, onFile, uploading }: {
               }
             }} 
           />
-          {uploading ? <><span className="spinner"/> Uploading to Walrus…</>
-           : base ? <span style={{color:'#4ade80'}}>✓ Uploaded — click to replace</span>
-           : <>📎 Click or drop file</>}
+          {uploading ? <><span className="spinner"/> Uploading to Walrus-</>
+           : base ? <span style={{color:'#4ade80'}}>- Uploaded - click to replace</span>
+           : <>-- Click or drop file</>}
         </div>
       );
     default: return null;
   }
 }
 
-// ── Reference Link ────────────────────────────────────────────────
+// -- Reference Link ------------------------------------------------
 function ReferenceLink({ href, label }: { href: string; label: string }) {
   return (
     <a 
@@ -145,12 +145,12 @@ function ReferenceLink({ href, label }: { href: string; label: string }) {
       }}
     >
       {label}
-      <span className="arrow" style={{ color: 'var(--text-3)', fontSize: '12px', transition: 'transform 0.2s' }}>→</span>
+      <span className="arrow" style={{ color: 'var(--text-3)', fontSize: '12px', transition: 'transform 0.2s' }}>-</span>
     </a>
   );
 }
 
-// ── Interactive Visual Components ────────────────────────────────
+// -- Interactive Visual Components --------------------------------
 function BackgroundParticles({ isMobile }: { isMobile: boolean }) {
   const count = isMobile ? 8 : 20;
   return (
@@ -297,7 +297,7 @@ function FloatingWalrus({ mousePos, isMobile }: { mousePos: { x: number, y: numb
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────
+// -- Main page ------------------------------------------------------
 export default function Home() {
   const account = useCurrentAccount();
   const disconnect = () => dAppKit.disconnectWallet();
@@ -404,8 +404,8 @@ export default function Home() {
     // Performance optimization: If we have the exact same config in localStorage, use it instantly
     const local = loadAdminConfig();
     if (local && local.publishedBlobId === fid) {
-      console.log("⚡ Instant load: Using local cache for published form", fid);
-      console.log("📦 Form Config:", local);
+      console.log("- Instant load: Using local cache for published form", fid);
+      console.log("-- Form Config:", local);
       setConfig(local);
       setConfigLoading(false);
       return;
@@ -414,17 +414,17 @@ export default function Home() {
     let attempts = 0;
     const fetchConfig = async () => {
       try {
-        console.log(`🌐 Fetching form from Walrus (Attempt ${attempts + 1}):`, fid);
+        console.log(`-- Fetching form from Walrus (Attempt ${attempts + 1}):`, fid);
         const cfg = await readJsonFromWalrus<FormConfig>(fid);
         if (cfg && cfg.fields) {
-          console.log("✅ Form loaded successfully from Walrus:", fid);
-          console.log("📦 Form Config:", cfg);
+          console.log("- Form loaded successfully from Walrus:", fid);
+          console.log("-- Form Config:", cfg);
           setConfig(cfg);
           setConfigLoading(false);
           return true;
         }
       } catch (err) {
-        console.warn(`⚠️ Attempt ${attempts + 1} failed to load form:`, err);
+        console.warn(`-- Attempt ${attempts + 1} failed to load form:`, err);
       }
       return false;
     };
@@ -436,7 +436,7 @@ export default function Home() {
         setTimeout(run, 2000); 
       } else {
         if (!success) {
-          console.error("❌ Failed to load form configuration after 3 attempts.");
+          console.error("- Failed to load form configuration after 3 attempts.");
         }
         setConfigLoading(false);
       }
@@ -462,7 +462,7 @@ export default function Home() {
       const { blobId } = await uploadOnChain(file, address);
       setField(fieldId, blobId);
     } catch (err: any) { 
-      setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed — try again.' })); 
+      setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed - try again.' })); 
     }
     setFileUploading(u => ({ ...u, [fieldId]: false }));
   }
@@ -499,16 +499,18 @@ export default function Home() {
         status: 'pending',
       };
 
-      console.log("📝 Submitting to form:", formBlobId);
-      console.log("📦 Submission data:", submission);
+      console.log("-- Submitting to form:", formBlobId);
+      console.log("-- Submission data:", submission);
 
-      // Upload submission to Walrus HTTP API (no wallet pop-up needed for data storage)
-      // The submitter's wallet signature is embedded in the submission JSON itself
+      // Upload submission to Walrus HTTP API.
+      // send_object_to = form creator's wallet => blob object goes to admin's Sui address.
+      // This means getOwnedObjects(admin_wallet) will find it automatically.
       setStatus('submitting');
       const { uploadJsonToWalrus } = await import('@/lib/walrus');
-      const { blobId } = await uploadJsonToWalrus(submission);
+      const adminWallet = config.publishedBy;  // wallet that published the form
+      const { blobId } = await uploadJsonToWalrus(submission, 5, adminWallet || undefined);
       submission.blobId = blobId;
-      console.log("✅ Submission uploaded, blobId:", blobId);
+      console.log("- Submission uploaded, blobId:", blobId);
 
       // Index the blobId in localStorage so admin can discover it (same-browser)
       addSubId(formBlobId, blobId);
@@ -523,14 +525,14 @@ export default function Home() {
     }
   }
 
-  // ── Loading ──────────────────────────────────────────────────
+  // -- Loading --------------------------------------------------
   if (configLoading) return (
     <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', color:'var(--text-3)', gap:'10px' }}>
-      <span className="spinner" style={{width:'20px',height:'20px'}}/> Loading form…
+      <span className="spinner" style={{width:'20px',height:'20px'}}/> Loading form-
     </div>
   );
 
-  // ── No form ──────────────────────────────────────────────────
+  // -- No form --------------------------------------------------
   if (!new URLSearchParams(window.location.search).get('form') && formBlobId === 'default') {
     return (
       <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', display: 'flex', flexDirection: 'column', position: 'relative', overflowX: 'hidden' }}>
@@ -686,7 +688,7 @@ export default function Home() {
                   transition={{ duration: 1, delay: 0.8 }}
                   style={{ fontSize:'clamp(18px, 2vw, 20px)', color:'var(--text-2)', lineHeight:1.6, maxWidth:'600px', marginBottom:'48px', fontWeight: 500 }}
                 >
-                  Decentralized workflows for the next internet. Build, collect, and own your data—powered by Walrus and Sui.
+                  Decentralized workflows for the next internet. Build, collect, and own your data-powered by Walrus and Sui.
                 </motion.p>
                 
                 <motion.div 
@@ -732,7 +734,7 @@ export default function Home() {
           </div>
 
 
-          {/* ── PART 1: MOTION EXPLANATION ────────────────────────────────── */}
+          {/* -- PART 1: MOTION EXPLANATION ---------------------------------- */}
           <section style={{ width: '100%', maxWidth: '1200px', margin: '160px auto 0', padding: '0 24px', position: 'relative' }}>
             <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 70%)', opacity: 0.5, filter: 'blur(60px)', zIndex: 0 }} />
             
@@ -778,7 +780,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── PART 2: FLOW SECTION ──────────────────────────────────────── */}
+          {/* -- PART 2: FLOW SECTION ---------------------------------------- */}
           <section style={{ width: '100%', maxWidth: '1000px', margin: '200px auto 0', padding: '0 24px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--accent-2)', marginBottom: '64px' }}>How it works</h3>
             
@@ -789,10 +791,10 @@ export default function Home() {
               position: 'relative' 
             }}>
               {[
-                { title: 'Connect', desc: 'Authenticate instantly using Sui wallets.', icon: '🔑' },
-                { title: 'Build', desc: 'Create forms and surveys with flexible customization.', icon: '🛠️' },
-                { title: 'Store', desc: 'All data and media are stored permanently on Walrus.', icon: '📦' },
-                { title: 'Analyze', desc: 'Manage admins and export insights seamlessly.', icon: '📊' }
+                { title: 'Connect', desc: 'Authenticate instantly using Sui wallets.', icon: '--' },
+                { title: 'Build', desc: 'Create forms and surveys with flexible customization.', icon: '---' },
+                { title: 'Store', desc: 'All data and media are stored permanently on Walrus.', icon: '--' },
+                { title: 'Analyze', desc: 'Manage admins and export insights seamlessly.', icon: '--' }
               ].map((step, i) => (
                 <motion.div
                   key={i}
@@ -839,7 +841,7 @@ export default function Home() {
                       color: 'var(--accent-2)',
                       pointerEvents: 'none'
                     }}>
-                      →
+                      -
                     </div>
                   )}
                 </motion.div>
@@ -847,11 +849,11 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── PART 3: UNIQUENESS / ADVANTAGES ────────────────────────────── */}
+          {/* -- PART 3: UNIQUENESS / ADVANTAGES ------------------------------ */}
           <section style={{ width: '100%', maxWidth: '1200px', margin: '200px auto 0', padding: '0 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
               {([
-                { title: '100% On-Chain', desc: 'Forms, submissions, and media are stored natively on decentralized infrastructure without relying on centralized databases.', icon: '⚡' },
+                { title: '100% On-Chain', desc: 'Forms, submissions, and media are stored natively on decentralized infrastructure without relying on centralized databases.', icon: '-' },
                 { title: 'Walrus Durability', desc: 'Powered by Walrus for resilient, permanent, and scalable decentralized storage.', image: '/walrus-official.png', imageStyle: { mixBlendMode: 'screen' } as any },
                 { title: 'Sui Performance', desc: 'Built on Sui for fast interactions, smooth wallet UX, and scalable Web3 experiences.', image: 'https://cryptologos.cc/logos/sui-sui-logo.png?v=032' }
               ] as any[]).map((card, i) => (
@@ -1005,7 +1007,7 @@ export default function Home() {
                     }}
                   >
                     {label}
-                    <span style={{ opacity: 0.7, fontSize: '14px', transition: 'transform 0.25s' }}>↗</span>
+                    <span style={{ opacity: 0.7, fontSize: '14px', transition: 'transform 0.25s' }}>-</span>
                   </a>
                 );
 
@@ -1085,7 +1087,7 @@ export default function Home() {
           borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
           fontSize: '40px', margin: '0 auto 24px', boxShadow: '0 0 30px rgba(74,222,128,0.3)' 
         }}>
-          ✓
+          -
         </div>
         
         <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '12px', letterSpacing: '-0.02em', color: '#fff' }}>
@@ -1098,7 +1100,7 @@ export default function Home() {
         {/* Premium Blob ID Section */}
         <div style={{ background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '16px', padding: '20px', marginBottom: '32px', textAlign: 'left' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '14px' }}>📋</span> Decentralized Proof (Blob ID)
+            <span style={{ fontSize: '14px' }}>--</span> Decentralized Proof (Blob ID)
           </p>
           <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'rgba(255,255,255,0.7)', wordBreak: 'break-all', lineHeight: 1.6, background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '10px', marginBottom: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
             {submittedBlobId}
@@ -1110,7 +1112,7 @@ export default function Home() {
               navigator.clipboard.writeText(submittedBlobId);
               const btn = e.currentTarget;
               const oldText = btn.innerText;
-              btn.innerText = '✓ Copied to Clipboard!';
+              btn.innerText = '- Copied to Clipboard!';
               btn.style.color = '#4ade80';
               setTimeout(() => { btn.innerText = oldText; btn.style.color = ''; }, 2000);
             }}
@@ -1122,7 +1124,7 @@ export default function Home() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <a href={getWalrusScanUrl(submittedBlobId)} target="_blank" rel="noopener noreferrer"
             className="btn btn-primary" style={{ display: 'flex', textDecoration: 'none', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-            View on Walruscan ↗
+            View on Walruscan -
           </a>
           <button onClick={() => window.location.reload()} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}>
             Submit another application
@@ -1133,7 +1135,7 @@ export default function Home() {
   );
 
 
-  // ── Form ──────────────────────────────────────────────────────
+  // -- Form ------------------------------------------------------
   return (
     <ClientOnly>
       <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', backgroundImage:'radial-gradient(ellipse 80% 35% at 50% 0%, rgba(124,58,237,0.13) 0%, transparent 60%)' }}>
@@ -1150,7 +1152,7 @@ export default function Home() {
                   <button className="addr-chip" onClick={() => { navigator.clipboard.writeText(account.address); setWCopied(true); setTimeout(()=>setWCopied(false),1800); }} style={{ border:'none' }}>
                     <span className="addr-dot anim-pulse"/>
                     <span className="mono">{shorten(account.address)}</span>
-                    {wCopied && <span style={{ fontSize:'10px', color:'#4ade80' }}>✓</span>}
+                    {wCopied && <span style={{ fontSize:'10px', color:'#4ade80' }}>-</span>}
                   </button>
                   <button onClick={() => disconnect()} style={{ fontSize:'11px', color:'var(--text-3)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:'2px' }}>Disconnect</button>
                 </>
@@ -1164,7 +1166,7 @@ export default function Home() {
           
           {isLocalPreview && (
         <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:1000, background:'var(--accent)', color:'#fff', padding:'8px', textAlign:'center', fontSize:'12px', fontWeight:700, letterSpacing:'0.05em' }}>
-          ✨ LIVE PREVIEW MODE — Changes saved locally but not published yet
+          - LIVE PREVIEW MODE - Changes saved locally but not published yet
         </div>
       )}
 
@@ -1191,7 +1193,7 @@ export default function Home() {
                   style={{ textAlign: 'center' }}
                 >
                   <div style={{ width: '80px', height: '80px', background: 'rgba(124,58,237,0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', margin: '0 auto 32px', border: '1px solid rgba(124,58,237,0.2)' }}>
-                    📝
+                    --
                   </div>
                   <h1 style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '16px', lineHeight: 1.1 }}>
                     {config.title}
@@ -1203,7 +1205,7 @@ export default function Home() {
                     Start Application
                   </button>
                   <p style={{ marginTop: '24px', fontSize: '12px', color: 'var(--text-3)' }}>
-                    Press <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: '1px solid var(--border)' }}>Enter ↵</span> to start
+                    Press <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', border: '1px solid var(--border)' }}>Enter -</span> to start
                   </p>
                 </motion.div>
               )}
@@ -1222,7 +1224,7 @@ export default function Home() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--accent-2)', fontFamily: 'var(--mono)' }}>
-                            {currentStep.toString().padStart(2, '0')} →
+                            {currentStep.toString().padStart(2, '0')} -
                           </span>
                         </div>
                         
@@ -1233,7 +1235,7 @@ export default function Home() {
                           {f.helpText && (
                             <p style={{ fontSize: '16px', color: 'var(--text-2)', marginBottom: '24px', lineHeight: 1.5 }}>
                               {f.helpText}{' '}
-                              {f.linkUrl && <a href={f.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{f.linkText||f.linkUrl} ↗</a>}
+                              {f.linkUrl && <a href={f.linkUrl} target="_blank" rel="noopener noreferrer" style={{color:'var(--accent-2)'}}>{f.linkText||f.linkUrl} -</a>}
                             </p>
                           )}
                         </div>
@@ -1261,7 +1263,7 @@ export default function Home() {
 
                           {errors[f.id] && (
                             <motion.p initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} style={{ fontSize:'14px', color:'#f87171', marginTop:'12px', fontWeight: 500 }}>
-                              ⚠️ {errors[f.id]}
+                              -- {errors[f.id]}
                             </motion.p>
                           )}
                         </div>
@@ -1289,7 +1291,7 @@ export default function Home() {
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <div style={{ textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
-                    <div style={{ fontSize: '48px', marginBottom: '24px' }}>🛡️</div>
+                    <div style={{ fontSize: '48px', marginBottom: '24px' }}>---</div>
                     <h2 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.03em' }}>Ready to submit?</h2>
                     <p style={{ fontSize: '16px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '40px' }}>
                       All fields are filled. To store your application permanently on Walrus Mainnet, please connect your wallet and sign the submission.
@@ -1300,8 +1302,8 @@ export default function Home() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                           <button className="btn btn-primary btn-lg" style={{ width:'100%' }}
                             onClick={handleSubmit} disabled={status==='signing'||status==='submitting'}>
-                            {status==='signing'   ? <><span className="spinner"/> Signing…</>
-                             :status==='submitting'? <><span className="spinner"/> Storing on Walrus…</>
+                            {status==='signing'   ? <><span className="spinner"/> Signing-</>
+                             :status==='submitting'? <><span className="spinner"/> Storing on Walrus-</>
                              : 'Sign & Submit Application'}
                           </button>
                           <button className="btn btn-ghost" onClick={handleBack} style={{ color: 'var(--text-3)' }}>
@@ -1321,7 +1323,7 @@ export default function Home() {
                     {errMsg && <div className="alert-error" style={{ marginTop:'24px' }}>{errMsg}</div>}
 
                     <p style={{ marginTop:'32px', fontSize:'12px', color:'var(--text-3)' }}>
-                      Stored on <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-2)',textDecoration:'none'}}>Walrus</a> · Decentralised · No server
+                      Stored on <a href="https://walrus.space" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-2)',textDecoration:'none'}}>Walrus</a> - Decentralised - No server
                     </p>
                   </div>
                 </motion.div>

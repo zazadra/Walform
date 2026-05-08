@@ -1,5 +1,5 @@
 /**
- * Walrus HTTP API — Direct Browser Uploads
+ * Walrus HTTP API - Direct Browser Uploads
  * We use the public Walrus Publisher for static dApps (no backend needed).
  */
 
@@ -34,25 +34,32 @@ function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadRespo
 }
 
 /**
- * Core upload function using the public Publisher
+ * Core upload function using the public Publisher.
+ * @param sendObjectTo - Sui address to send the resulting Blob object to (for on-chain ownership)
  */
 export async function uploadBytesToWalrus(
   data: Uint8Array | string,
-  epochs = 1
+  epochs = 5,
+  sendObjectTo?: string
 ): Promise<WalrusUploadResponse> {
-  const url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
+  let url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
+  if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
   const body = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  
   const res = await fetch(url, { method: 'PUT', body: body as any });
   if (!res.ok) throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
   return parseWalrusResponse(await res.json());
 }
 
 /**
- * Upload JSON directly to Walrus
+ * Upload JSON directly to Walrus.
+ * @param sendObjectTo - Sui address to send the resulting Blob object to (for on-chain ownership)
  */
-export async function uploadJsonToWalrus<T>(data: T, epochs = 1): Promise<WalrusUploadResponse> {
-  return uploadBytesToWalrus(JSON.stringify(data), epochs);
+export async function uploadJsonToWalrus<T>(
+  data: T,
+  epochs = 5,
+  sendObjectTo?: string
+): Promise<WalrusUploadResponse> {
+  return uploadBytesToWalrus(JSON.stringify(data), epochs, sendObjectTo);
 }
 
 /**
