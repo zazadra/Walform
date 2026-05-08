@@ -387,11 +387,13 @@ export default function Home() {
     const fid = params.get('form');
     
     if (!fid) { 
-      // Try loading from admin config in localStorage for "live preview"
-      const local = loadAdminConfig();
-      if (local) {
-        setConfig(local);
-        setFormBlobId('local'); // Trigger form view instead of landing page
+      const isPreview = params.get('preview') === 'true';
+      if (isPreview) {
+        const local = loadAdminConfig();
+        if (local) {
+          setConfig(local);
+          setFormBlobId('local');
+        }
       }
       setConfigLoading(false); 
       return; 
@@ -443,7 +445,7 @@ export default function Home() {
   }, []);
 
   // --- Banner for local preview ---
-  const isLocalPreview = !formBlobId && config.id !== 'default';
+  const isLocalPreview = formBlobId === 'local';
 
   function setField(id: string, v: string|string[]|boolean) {
     setData(d => ({ ...d, [id]: v }));
