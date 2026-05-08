@@ -3,121 +3,109 @@ import { uploadJsonOnChain, getSuiClient } from './walrus-onchain';
 import { decodeBlobId } from './form-registry';
 import type { Submission } from '@/types/walform';
 
-export interface SubmissionMetadata {
-  blobId: string;
+export interface FormRegistryData {
+  type: 'form_registry';
   formId: string;
-  ownerWallet: string;
-  createdAt: number;
-  status: 'pending' | 'reviewed' | 'approved' | 'rejected';
-}
-
-export interface RegistryData {
-  type: 'walform_registry';
   owner: string;
   version: number;
-  submissions: SubmissionMetadata[];
+  submissionBlobIds: string[];
   lastUpdated: number;
 }
 
 const WALRUS_BLOB_TYPE = '0xfdc88f7d7cf30afab2f82e8380d11ee8f70efb90e863d1de8616fae1bb09ea77::blob::Blob';
 
+// In-memory cache to avoid repeated scans in same session
+const registryCache = new Map<string, string>(); 
+
 /**
- * Finds the latest Walform Registry blob for a given wallet.
- * Scans owned objects and picks the one with the highest version.
+ * Finds the latest Form Registry blob for a specific form owned by a wallet.
  */
-export async function getLatestRegistry(wallet: string): Promise<RegistryData | null> {
+export async function getFormRegistry(owner: string, formId: string): Promise<FormRegistryData | null> {
+  const cacheKey = `${owner}:${formId}`;
+  const cachedBlobId = registryCache.get(cacheKey);
+  
+  if (cachedBlobId) {
+    try {
+      const data = await readJsonFromWalrus<FormRegistryData>(cachedBlobId);
+      if (data?.type === 'form_registry') return data;
+    } catch {
+      registryCache.delete(cacheKey); // Stale cache
+    }
+  }
+
   const client = getSuiClient();
-  console.log(`[Registry] Scanning for registry owned by ${wallet}...`);
+  console.log(`[Registry] Scanning for registry of form ${formId} owned by ${owner}...`);
 
   try {
     const res = await client.getOwnedObjects({
-      owner: wallet,
+      owner,
       filter: { StructType: WALRUS_BLOB_TYPE },
       options: { showContent: true },
-      limit: 20, // Check recent 20 objects for registry
+      limit: 50,
     });
 
-    const registryBlobs: { blobId: string; version: number; data: RegistryData }[] = [];
-
-    const candidates = res.data.map(async (obj) => {
+    const candidates = await Promise.all(res.data.map(async (obj) => {
       const fields = (obj.data?.content as any)?.fields;
       if (!fields?.blob_id) return null;
       try {
         const blobId = decodeBlobId(String(fields.blob_id));
         const data = await readJsonFromWalrus<any>(blobId);
-        if (data?.type === 'walform_registry' && data.owner === wallet) {
-          return { blobId, version: data.version || 0, data };
+        if (data?.type === 'form_registry' && data.formId === formId && data.owner === owner) {
+          return { blobId, version: data.version || 0, data: data as FormRegistryData };
         }
       } catch { return null; }
       return null;
-    });
+    }));
 
-    const results = await Promise.all(candidates);
-    const valid = results.filter((r): r is NonNullable<typeof r> => r !== null);
-
+    const valid = candidates.filter((r): r is NonNullable<typeof r> => r !== null);
     if (valid.length === 0) return null;
 
-    // Sort by version descending
     valid.sort((a, b) => b.version - a.version);
-    console.log(`[Registry] Found latest version: ${valid[0].version}`);
-    return valid[0].data;
+    const best = valid[0];
+    registryCache.set(cacheKey, best.blobId);
+    return best.data;
   } catch (err) {
-    console.error('[Registry] Failed to fetch registry:', err);
+    console.error('[Registry] Fetch failed:', err);
     return null;
   }
 }
 
 /**
- * Updates the registry for a form owner.
- * If no registry exists, creates one.
+ * Appends a submission to the form's registry.
  */
-export async function updateRegistry(
-  ownerAddress: string,
-  newSubmission: SubmissionMetadata,
-  senderAddress: string
+export async function updateFormRegistry(
+  owner: string,
+  formId: string,
+  submissionBlobId: string,
+  sender: string
 ): Promise<string | null> {
-  console.log(`[Registry] Updating registry for ${ownerAddress}...`);
+  if (!owner || !formId) return null;
+  
+  console.log(`[Registry] Updating registry for form ${formId}...`);
   
   // 1. Fetch current
-  let current = await getLatestRegistry(ownerAddress);
+  const current = await getFormRegistry(owner, formId);
   
-  // 2. Prepare new data
-  const submissions = current?.submissions || [];
-  
-  // Check for duplicates
-  if (submissions.some(s => s.blobId === newSubmission.blobId)) {
-    console.log('[Registry] Submission already in registry.');
-    return null;
-  }
+  // 2. Prepare update
+  const ids = current?.submissionBlobIds || [];
+  if (ids.includes(submissionBlobId)) return null;
 
-  const updated: RegistryData = {
-    type: 'walform_registry',
-    owner: ownerAddress,
+  const updated: FormRegistryData = {
+    type: 'form_registry',
+    formId,
+    owner,
     version: (current?.version || 0) + 1,
-    submissions: [...submissions, newSubmission],
+    submissionBlobIds: [...ids, submissionBlobId],
     lastUpdated: Date.now(),
   };
 
   // 3. Upload and send to owner
   try {
-    const { blobId } = await uploadJsonOnChain(updated, senderAddress, 5, ownerAddress);
-    console.log(`[Registry] Registry updated to v${updated.version}. New BlobId: ${blobId}`);
+    const { blobId } = await uploadJsonOnChain(updated, sender, 5, owner);
+    console.log(`[Registry] Form registry updated to v${updated.version}`);
     return blobId;
   } catch (err) {
     console.error('[Registry] Update failed:', err);
     return null;
   }
-}
-
-/**
- * Helper to convert a Submission to SubmissionMetadata
- */
-export function toMetadata(sub: Submission, blobId: string): SubmissionMetadata {
-  return {
-    blobId,
-    formId: sub.formId || sub.formBlobId || '',
-    ownerWallet: sub.submitterAddress || '',
-    createdAt: sub.timestamp || Date.now(),
-    status: sub.status || 'pending',
-  };
 }

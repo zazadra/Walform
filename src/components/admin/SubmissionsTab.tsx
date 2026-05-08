@@ -4,8 +4,8 @@ import type { Submission, SubmissionStatus } from '@/types/walform';
 import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus, getWalrusBlobUrl } from '@/lib/walrus';
 import { getSubIds, getAllSubIds } from '@/lib/fields';
 import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
-import { getCachedSubIds } from '@/lib/form-registry';
-import { getLatestRegistry, type SubmissionMetadata } from '@/lib/registry';
+import { getCachedSubIds, getCachedFormIds } from '@/lib/form-registry';
+import { getFormRegistry } from '@/lib/registry';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
@@ -114,55 +114,50 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     if (typeof window === 'undefined' || !ownerAddress) return;
     if (!isAuto) setSyncing(true);
     
-    console.log('[Sync] Fetching registry for wallet:', ownerAddress);
-
     try {
-      // 1. Try Registry First (Fast)
-      const registry = await getLatestRegistry(ownerAddress);
+      // 1. Get all forms we care about
+      let formIds = getCachedFormIds(ownerAddress);
+      if (filterBlobId && !formIds.includes(filterBlobId)) formIds.push(filterBlobId);
       
-      if (registry && registry.submissions.length > 0) {
-        console.log(`[Sync] Registry found with ${registry.submissions.length} entries.`);
-        
-        // Find new IDs not yet in loadedIdsRef
-        const newMetas = registry.submissions.filter(m => !loadedIdsRef.current.has(m.blobId));
-        
-        if (newMetas.length > 0) {
-          console.log(`[Sync] Fetching ${newMetas.length} new submissions from registry...`);
-          
-          const results = await Promise.allSettled(
-            newMetas.map(m => readJsonFromWalrus<Submission>(m.blobId).then(s => ({ ...s, blobId: m.blobId })))
-          );
-
-          const fetched: Submission[] = [];
-          results.forEach((r, i) => {
-            if (r.status === 'fulfilled') {
-              loadedIdsRef.current.add(newMetas[i].blobId);
-              fetched.push(r.value);
-            }
-          });
-
-          if (fetched.length > 0) {
-            setSubs(prev => {
-              const combined = [...prev, ...fetched];
-              const seen = new Set<string>();
-              const deduped = combined.filter(s => {
-                if (seen.has(s.id)) return false;
-                seen.add(s.id);
-                return true;
-              });
-              return deduped.sort((a, b) => b.timestamp - a.timestamp);
-            });
-          }
-        }
-      } else {
-        // 2. Fallback to full scan if no registry or forced refresh
-        console.log('[Sync] No registry found or empty, falling back to blockchain scan...');
+      if (formIds.length === 0) {
+        // Quick scan for forms if cache is empty
         const { scanOwnedBlobs } = await import('@/lib/form-registry');
-        const { submissions } = await scanOwnedBlobs(ownerAddress);
+        const { forms } = await scanOwnedBlobs(ownerAddress);
+        formIds = forms.map(f => f.publishedBlobId!).filter(Boolean);
+      }
 
-        if (submissions.length > 0) {
+      console.log(`[Sync] Fetching registries for ${formIds.length} forms...`);
+
+      // 2. Fetch registries in parallel
+      const registries = await Promise.all(
+        formIds.map(fid => getFormRegistry(ownerAddress, fid))
+      );
+
+      const allSubIds = new Set<string>();
+      registries.forEach(r => {
+        r?.submissionBlobIds.forEach(id => allSubIds.add(id));
+      });
+
+      // 3. Filter for new ones
+      const newIds = Array.from(allSubIds).filter(id => !loadedIdsRef.current.has(id));
+      
+      if (newIds.length > 0) {
+        console.log(`[Sync] Fetching ${newIds.length} new submissions...`);
+        const results = await Promise.allSettled(
+          newIds.map(id => readJsonFromWalrus<Submission>(id).then(s => ({ ...s, blobId: id })))
+        );
+
+        const fetched: Submission[] = [];
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') {
+            loadedIdsRef.current.add(newIds[i]);
+            fetched.push(r.value);
+          }
+        });
+
+        if (fetched.length > 0) {
           setSubs(prev => {
-            const combined = [...prev, ...submissions];
+            const combined = [...prev, ...fetched];
             const seen = new Set<string>();
             const deduped = combined.filter(s => {
               if (seen.has(s.id)) return false;
@@ -171,15 +166,14 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
             });
             return deduped.sort((a, b) => b.timestamp - a.timestamp);
           });
-          submissions.forEach(s => { if (s.blobId) loadedIdsRef.current.add(s.blobId); });
         }
       }
     } catch (e) {
-      console.error('[Sync] Sync failed:', e);
+      console.error('[Sync] Registry sync failed:', e);
     }
 
     setSyncing(false);
-  }, [ownerAddress]);
+  }, [ownerAddress, filterBlobId]);
 
   // -- Initial load ----------------------------------------------------
   const fullLoad = useCallback(async () => {

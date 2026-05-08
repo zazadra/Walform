@@ -645,13 +645,13 @@ export default function Home() {
 
       // ── Step 3: Update Registry (Persistent Discovery) ─────────────
       try {
-        const { updateRegistry, toMetadata } = await import('@/lib/registry');
+        const { updateFormRegistry } = await import('@/lib/registry');
         const targetAdmin = adminWallet || (config.admins && config.admins[0]) || '';
         if (targetAdmin) {
-          await updateRegistry(targetAdmin, toMetadata(submission, blobId), address);
+          await updateFormRegistry(targetAdmin, formBlobId, blobId, address);
         }
       } catch (regErr) {
-        console.warn('Registry update failed, submission is still on-chain but discovery might be slow:', regErr);
+        console.warn('Registry update failed:', regErr);
       }
 
       // Also index in localStorage for same-browser instant discovery
