@@ -21,7 +21,7 @@ function FieldInput({ field, value, onChange, onFile, uploading }: {
   field: SessionField;
   value: string | string[] | boolean;
   onChange: (v: string | string[] | boolean) => void;
-  onFile: (f: File) => Promise<void>;
+  onFile: (f: File | File[]) => Promise<void>;
   uploading: boolean;
 }) {
   const base = value as string;
@@ -90,18 +90,20 @@ function FieldInput({ field, value, onChange, onFile, uploading }: {
             id={`file-input-${field.id}`}
             type="file" 
             accept="image/*,video/*,.pdf,.doc,.docx" 
+            multiple
             style={{ display:'none' }} 
             onChange={async e => { 
-              const f = e.target.files?.[0]; 
-              if (f) {
+              const files = Array.from(e.target.files || []);
+              if (files.length > 0) {
                 e.stopPropagation();
-                await onFile(f); 
+                await onFile(files); 
               }
             }} 
           />
            {uploading ? <><span className="spinner"/> Uploading to Walrus...</>
+           : Array.isArray(base) && base.length > 0 ? <span style={{color:'#4ade80'}}>✓ {base.length} uploaded - click to replace</span>
            : base ? <span style={{color:'#4ade80'}}>✓ Uploaded - click to replace</span>
-           : <>📁 Click or drop file</>}
+           : <>📁 Click or drop files</>}
         </div>
       );
     default: return null;
@@ -452,7 +454,7 @@ export default function Home() {
     setErrors(e => { const n={...e}; delete n[id]; return n; });
   }
 
-  async function handleFile(fieldId: string, file: File) {
+  async function handleFile(fieldId: string, files: File | File[]) {
     if (!address) {
       setErrors(e => ({ ...e, [fieldId]: 'Please connect your wallet first to upload files.' }));
       return;
@@ -460,9 +462,17 @@ export default function Home() {
     setFileUploading(u => ({ ...u, [fieldId]: true }));
     try {
       const { uploadBytesToWalrus } = await import('@/lib/walrus');
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const { blobId } = await uploadBytesToWalrus(bytes, 5, address);
-      setField(fieldId, blobId);
+      
+      const fileArray = Array.isArray(files) ? files : [files];
+      const blobIds = [];
+      
+      for (const file of fileArray) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const { blobId } = await uploadBytesToWalrus(bytes, 5, address);
+        blobIds.push(blobId);
+      }
+      
+      setField(fieldId, blobIds.length === 1 ? blobIds[0] : blobIds);
     } catch (err: any) { 
       setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed - try again.' })); 
     }
@@ -1143,7 +1153,7 @@ export default function Home() {
       <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', backgroundImage:'radial-gradient(ellipse 80% 35% at 50% 0%, rgba(124,58,237,0.13) 0%, transparent 60%)' }}>
         {/* Header */}
         <header style={{ position:'sticky', top:0, zIndex:40, backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(7,9,15,0.85)' }}>
-          <div style={{ maxWidth:'720px', margin:'0 auto', padding:'0 24px', height:'64px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
+          <div style={{ maxWidth:'1200px', margin:'0 auto', padding:'0 24px', height:'64px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
             <a href="/" style={{ display:'flex', alignItems:'center', gap:'16px', textDecoration:'none' }}>
               <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '48px', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(124,58,237,0.3))' }} />
               <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
