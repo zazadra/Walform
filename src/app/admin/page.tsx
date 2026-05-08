@@ -35,22 +35,22 @@ export default function AdminPage() {
   }
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key:'forms',       label:'My Forms',      icon:'-' },
-    { key:'builder',     label:'Form Builder',  icon:'-' },
-    { key:'submissions', label:'Submissions',   icon:'--' },
+    { key:'forms',       label:'My Forms',      icon:'📂' },
+    { key:'builder',     label:'Form Builder',  icon:'🏗️' },
+    { key:'submissions', label:'Submissions',   icon:'📥' },
   ];
 
   // -- Not connected --------------------------------------------
   if (!account) return (
     <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', backgroundColor:'var(--bg)', backgroundImage:'radial-gradient(ellipse 80% 40% at 50% 0%, rgba(124,58,237,0.12) 0%, transparent 60%)' }}>
       <div className="card" style={{ padding:'40px', maxWidth:'420px', width:'100%', textAlign:'center' }}>
-        <div style={{ fontSize:'48px', marginBottom:'16px' }}>--</div>
+        <div style={{ fontSize:'48px', marginBottom:'16px' }}>🔐</div>
         <h1 style={{ fontSize:'22px', fontWeight:800, marginBottom:'8px', letterSpacing:'-0.02em' }}>Walform Console</h1>
         <p style={{ fontSize:'13px', color:'var(--text-2)', marginBottom:'8px', lineHeight:1.7 }}>
           Connect your wallet to access your personal form builder dashboard.
         </p>
         <p style={{ fontSize:'12px', color:'var(--text-3)', marginBottom:'28px', lineHeight:1.6, background:'rgba(124,58,237,0.06)', padding:'10px 14px', borderRadius:'10px', border:'1px solid rgba(124,58,237,0.12)' }}>
-          - Any wallet can create and manage their own forms. Your data is private to your wallet.
+          💡 Any wallet can create and manage their own forms. Your data is private to your wallet.
         </p>
         <ConnectButton instance={dAppKit} />
       </div>
@@ -63,9 +63,9 @@ export default function AdminPage() {
       {/* Header */}
       <header style={{ position:'sticky', top:0, zIndex:100, borderBottom:'1px solid var(--border)', backdropFilter:'blur(24px)', background:'rgba(5,6,11,0.8)' }}>
         <div style={{ maxWidth:'1200px', margin:'0 auto', padding:'0 24px', height:'64px', display:'flex', alignItems:'center', gap:'24px' }}>
-          <a href="/" style={{ display:'flex', alignItems:'center', gap:'12px', textDecoration:'none' }}>
-            <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '36px', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(124,58,237,0.3))' }} />
-            <span style={{ fontSize:'18px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
+          <a href="/" style={{ display:'flex', alignItems:'center', gap:'16px', textDecoration:'none' }}>
+            <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '48px', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(124,58,237,0.3))' }} />
+            <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
           </a>
           
           <div style={{ padding: '2px 10px', borderRadius: '6px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid var(--accent-soft)', color: 'var(--accent-2)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -95,17 +95,17 @@ export default function AdminPage() {
           <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 8px' }} />
 
           {/* Wallet */}
-          <div style={{ display:'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display:'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
               <button className="addr-chip" onClick={() => { navigator.clipboard.writeText(account.address); setCopied(true); setTimeout(()=>setCopied(false),1800); }}
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', padding: '6px 12px' }}>
-                <span className="addr-dot anim-pulse" />
-                <span className="mono" style={{ color: 'var(--text-1)' }}>{shorten(account.address)}</span>
-                {copied && <span style={{ fontSize:'10px', color:'var(--success)' }}>-</span>}
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', padding: '8px 16px', borderRadius: '10px' }}>
+                <span className="addr-dot anim-pulse" style={{ width: '8px', height: '8px' }} />
+                <span className="mono" style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 600 }}>{shorten(account.address)}</span>
+                {copied && <span style={{ fontSize:'12px', color:'var(--success)', fontWeight: 'bold', marginLeft: '6px' }}>✓</span>}
               </button>
             </div>
             <button onClick={() => disconnect()}
-              style={{ fontSize:'12px', fontWeight: 600, color:'var(--text-3)', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius: '8px', padding: '6px 10px', cursor:'pointer', transition: 'all 0.2s' }}
+              style={{ fontSize:'14px', fontWeight: 600, color:'var(--text-3)', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius: '10px', padding: '8px 16px', cursor:'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
             >

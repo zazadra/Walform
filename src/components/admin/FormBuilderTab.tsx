@@ -388,7 +388,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
           2. Form Fields
         </p>
         <p style={{ fontSize:'12px', color:'var(--text-3)', marginBottom:'14px' }}>
-          Edit labels inline. Click <strong style={{color:'var(--text-2)'}}>-</strong> to expand field options (type, placeholder, help text, link, session count).
+          Edit labels inline. Click <strong style={{color:'var(--text-2)'}}>▼</strong> to expand field options (type, placeholder, help text, link, session count).
         </p>
         <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
           {config.fields.map(f => (
@@ -420,14 +420,14 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         </p>
         <button className="btn btn-primary btn-lg" onClick={publish} disabled={publishing}>
           {publishing
-            ? <><span className="spinner" /> Publishing to Walrus-</>
-            : '-- Sign & Publish Form'}
+            ? <><span className="spinner" /> Publishing to Walrus...</>
+            : '✍️ Sign & Publish Form'}
         </button>
 
         {pubUrl && (
           <div style={{ marginTop:'12px', display:'flex', flexDirection:'column', gap:'12px' }}>
             <div style={{ padding:'12px', borderRadius:'12px', background:'rgba(74,222,128,0.1)', border:'1px solid rgba(74,222,128,0.2)', display:'flex', alignItems:'center', gap:'10px' }}>
-              <span style={{ fontSize:'20px' }}>-</span>
+              <span style={{ fontSize:'20px' }}>✅</span>
               <div>
                 <p style={{ fontSize:'14px', fontWeight:600, color:'#4ade80' }}>Published Successfully!</p>
                 <p style={{ fontSize:'12px', color:'var(--text-3)' }}>It may take 30-60 seconds for the decentralized link to update.</p>
@@ -439,9 +439,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
               <div style={{ flex:1, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', fontFamily:'var(--mono)', color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {pubUrl}
               </div>
-              <button className="btn btn-secondary" onClick={copy}>{copied ? '-' : 'Copy'}</button>
+              <button className="btn btn-secondary" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
               <a href={pubUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ padding:'0 12px', display:'flex', alignItems:'center' }}>
-                -- Open
+                ↗ Open
               </a>
             </div>
           </div>

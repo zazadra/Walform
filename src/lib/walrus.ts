@@ -5,9 +5,9 @@
 
 import type { WalrusUploadResponse } from '@/types/walform';
 
-export const NETWORK = 'mainnet';
-export const WALRUS_AGGREGATOR = 'https://aggregator.mainnet.walrus.space';
-export const WALRUS_PUBLISHER  = 'https://publisher.mainnet.walrus.space';
+export const NETWORK = 'testnet';
+export const WALRUS_AGGREGATOR = 'https://aggregator.walrus-testnet.walrus.space';
+export const WALRUS_PUBLISHER  = 'https://publisher.walrus-testnet.walrus.space';
 
 console.log("NETWORK:", NETWORK);
 console.log("AGGREGATOR:", WALRUS_AGGREGATOR);
