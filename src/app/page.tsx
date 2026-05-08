@@ -459,7 +459,9 @@ export default function Home() {
     }
     setFileUploading(u => ({ ...u, [fieldId]: true }));
     try {
-      const { blobId } = await uploadOnChain(file, address);
+      const { uploadBytesToWalrus } = await import('@/lib/walrus');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { blobId } = await uploadBytesToWalrus(bytes, 5, address);
       setField(fieldId, blobId);
     } catch (err: any) { 
       setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed - try again.' })); 
@@ -1141,20 +1143,26 @@ export default function Home() {
       <div style={{ minHeight:'100dvh', backgroundColor:'var(--bg)', backgroundImage:'radial-gradient(ellipse 80% 35% at 50% 0%, rgba(124,58,237,0.13) 0%, transparent 60%)' }}>
         {/* Header */}
         <header style={{ position:'sticky', top:0, zIndex:40, backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(7,9,15,0.85)' }}>
-          <div style={{ maxWidth:'720px', margin:'0 auto', padding:'0 24px', height:'56px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-              <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '28px', height: 'auto', filter: 'drop-shadow(0 0 8px rgba(124,58,237,0.3))' }} />
-              <span style={{ fontSize:'16px', fontWeight:800, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <div style={{ maxWidth:'720px', margin:'0 auto', padding:'0 24px', height:'64px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
+            <a href="/" style={{ display:'flex', alignItems:'center', gap:'16px', textDecoration:'none' }}>
+              <img src="/walform-mascot.png" alt="Walform Logo" style={{ width: '48px', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(124,58,237,0.3))' }} />
+              <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
+            </a>
+            <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
               {account ? (
                 <>
-                  <button className="addr-chip" onClick={() => { navigator.clipboard.writeText(account.address); setWCopied(true); setTimeout(()=>setWCopied(false),1800); }} style={{ border:'none' }}>
-                    <span className="addr-dot anim-pulse"/>
-                    <span className="mono">{shorten(account.address)}</span>
-                    {wCopied && <span style={{ fontSize:'10px', color:'#4ade80', fontWeight: 'bold' }}>✓</span>}
+                  <button className="addr-chip" onClick={() => { navigator.clipboard.writeText(account.address); setWCopied(true); setTimeout(()=>setWCopied(false),1800); }} 
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', padding: '8px 16px', borderRadius: '10px' }}>
+                    <span className="addr-dot anim-pulse" style={{ width: '8px', height: '8px' }} />
+                    <span className="mono" style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 600 }}>{shorten(account.address)}</span>
+                    {wCopied && <span style={{ fontSize:'12px', color:'#4ade80', fontWeight: 'bold', marginLeft: '6px' }}>✓</span>}
                   </button>
-                  <button onClick={() => disconnect()} style={{ fontSize:'11px', color:'var(--text-3)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:'2px' }}>Disconnect</button>
+                  <button onClick={() => disconnect()} 
+                    style={{ fontSize:'14px', fontWeight: 600, color:'var(--text-3)', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius: '10px', padding: '8px 16px', cursor:'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}>
+                    Disconnect
+                  </button>
                 </>
               ) : <ConnectButton instance={dAppKit} />}
             </div>
