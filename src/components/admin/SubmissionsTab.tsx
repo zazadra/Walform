@@ -117,13 +117,11 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     try {
       const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import('@mysten/sui/jsonRpc');
       const { NETWORK } = await import('@/lib/walrus');
-      const { getWalrusClient } = await import('@/lib/walrus-onchain');
       
       const client = new SuiJsonRpcClient({ 
         url: getJsonRpcFullnodeUrl(NETWORK as any),
         network: NETWORK as any
       });
-      const structType = await getWalrusClient().getBlobType();
 
       let hasNextPage = true;
       let cursor: any = null;
@@ -131,20 +129,21 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
       while (hasNextPage) {
         const res: any = await client.getOwnedObjects({
           owner: ownerAddress,
+          filter: { StructType: '0x9f992cc2430a1f442ca7a5ca7638169f5d5c00e0221b5bcef8678cb5cef23516::blob::Blob' },
           options: { showContent: true, showType: true },
           cursor
         });
 
         for (const obj of (res.data ?? [])) {
-          if (obj.data?.type?.includes('::blob::Blob')) {
-            const fields = obj.data.content.fields as any;
-            if (fields?.blob_id) {
+          const fields = obj.data?.content?.fields as any;
+          if (fields?.blob_id) {
+            try {
               const hex = BigInt(fields.blob_id).toString(16).padStart(64, '0');
               const bytes = new Uint8Array(32);
               for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
               const blobId = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
               chainIds.push(blobId);
-            }
+            } catch { /* skip malformed blob_id */ }
           }
         }
         hasNextPage = res.hasNextPage;
@@ -159,8 +158,6 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
       const { publishSubmission } = await import('@/lib/submission-index');
       chainIds.forEach(id => publishSubmission(id, filterBlobId || ''));
       await loadFromIndex();
-    } else {
-      console.log('[Sync] No new blobs found on-chain for this wallet.');
     }
     setSyncing(false);
   }, [ownerAddress, filterBlobId, loadFromIndex]);
@@ -210,6 +207,41 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  // ── Manual import by blob ID ────────────────────────────────────────
+  const [manualBlobId, setManualBlobId] = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState('');
+
+  async function importManual() {
+    const id = manualBlobId.trim();
+    if (!id) return;
+    if (loadedIdsRef.current.has(id)) {
+      setManualError('Already loaded.');
+      return;
+    }
+    setManualLoading(true);
+    setManualError('');
+    try {
+      const s = await readJsonFromWalrus<Submission>(id);
+      if (!s?.status) { setManualError('Not a valid submission blob.'); setManualLoading(false); return; }
+      const sub = { ...s, blobId: s.blobId ?? id };
+      loadedIdsRef.current.add(id);
+      // Persist to localStorage index so it appears on next load
+      const { addSubId } = await import('@/lib/fields');
+      const { publishSubmission } = await import('@/lib/submission-index');
+      addSubId(sub.formBlobId || sub.formId || '', id);
+      publishSubmission(id, sub.formBlobId || sub.formId || '');
+      setSubs(prev => {
+        if (prev.some(x => x.id === sub.id)) return prev;
+        return [sub, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+      });
+      setManualBlobId('');
+    } catch {
+      setManualError('Failed to fetch. Check the blob ID and try again.');
+    }
+    setManualLoading(false);
   }
 
   const filtered = subs.filter(s => filter === 'all' || s.status === filter);
@@ -270,8 +302,28 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
               onClick={() => { setBlobIdInput(''); setFilterBlobId(''); }}>
               Show All
             </button>
-          )}
         </div>
+      </div>
+
+      {/* ── Manual import ────────────────────────────────────── */}
+      <div className="card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          Import Submission by Blob ID
+        </p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            className="input"
+            placeholder="Paste submission blob ID (from submitter's confirmation screen)"
+            value={manualBlobId}
+            onChange={e => { setManualBlobId(e.target.value); setManualError(''); }}
+            onKeyDown={e => e.key === 'Enter' && importManual()}
+            style={{ flex: 1, fontSize: '12px', fontFamily: 'var(--mono)' }}
+          />
+          <button className="btn btn-secondary btn-sm" onClick={importManual} disabled={manualLoading || !manualBlobId.trim()}>
+            {manualLoading ? <span className="spinner" style={{ width: '12px', height: '12px' }} /> : 'Import'}
+          </button>
+        </div>
+        {manualError && <p style={{ fontSize: '12px', color: 'var(--error)' }}>{manualError}</p>}
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────── */}

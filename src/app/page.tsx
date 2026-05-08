@@ -487,11 +487,11 @@ export default function Home() {
       return;
     }
 
-    setStatus('submitting');
+    setStatus('signing');
     try {
       const submission: Submission = {
         id: uid(), 
-        formId: formBlobId, // Mandatory for Bug #1
+        formId: formBlobId,
         formBlobId, 
         data,
         submitterAddress: address,
@@ -499,32 +499,20 @@ export default function Home() {
         status: 'pending',
       };
 
-      console.log("FORM ID:", formBlobId);
-      console.log("SUBMISSION:", submission);
+      console.log("📝 Submitting to form:", formBlobId);
+      console.log("📦 Submission data:", submission);
 
-      // Step 1: Upload submission data to Walrus via on-chain certification
-      // Priority for targetOwner:
-      // 1. config.publishedBy (the person who created the form)
-      // 2. Current address (if they are in the admins list)
-      // 3. First admin in the list
-      let targetOwner = config.publishedBy;
-      if (!targetOwner) {
-        if (config.admins?.some(a => a.toLowerCase() === address.toLowerCase())) {
-          targetOwner = address;
-        } else if (config.admins && config.admins.length > 0) {
-          targetOwner = config.admins[0];
-        } else {
-          targetOwner = address;
-        }
-      }
-
-      const result = await uploadJsonOnChain(submission, address, 1, targetOwner);
-      const { blobId } = result;
+      // Upload submission to Walrus HTTP API (no wallet pop-up needed for data storage)
+      // The submitter's wallet signature is embedded in the submission JSON itself
+      setStatus('submitting');
+      const { uploadJsonToWalrus } = await import('@/lib/walrus');
+      const { blobId } = await uploadJsonToWalrus(submission);
       submission.blobId = blobId;
-      console.log("UPLOAD RESULT:", result);
+      console.log("✅ Submission uploaded, blobId:", blobId);
 
-      // Step 2: Persist blobId locally + broadcast to admin tabs instantly
+      // Index the blobId in localStorage so admin can discover it (same-browser)
       addSubId(formBlobId, blobId);
+      // Broadcast to any open admin tabs in the same browser
       publishSubmission(blobId, formBlobId);
 
       setSubmittedBlobId(blobId);
