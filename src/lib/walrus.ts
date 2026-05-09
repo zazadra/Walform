@@ -6,8 +6,8 @@
 import type { WalrusUploadResponse } from '@/types/walform';
 
 export const NETWORK = 'mainnet'; // Sui remains on mainnet
-export const WALRUS_AGGREGATOR = 'https://aggregator.walrus-testnet.walrus.space';
-export const WALRUS_PUBLISHER  = 'https://publisher.walrus-testnet.walrus.space';
+export const WALRUS_AGGREGATOR = 'https://wal-aggregator-mainnet.staketab.org';
+export const WALRUS_PUBLISHER  = 'https://walrus-mainnet-publisher-1.staketab.org:443';
 
 function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadResponse {
   if (result.newlyCreated) {
@@ -102,5 +102,5 @@ export function getWalrusBlobUrl(blobId: string) {
 }
 
 export function getWalrusScanUrl(blobId: string) {
-  return `https://walruscan.com/testnet/blob/${blobId}`;
+  return `https://walruscan.com/mainnet/blob/${blobId}`;
 }
