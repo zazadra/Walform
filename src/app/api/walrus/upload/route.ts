@@ -36,55 +36,50 @@ export async function POST(req: NextRequest) {
 
     // Provider Rotation Loop
     for (const publisherUrl of PUBLISHER_POOL) {
-      let url = `${publisherUrl}/v1/blobs?epochs=${epochs}`;
-      if (sendObjectTo) {
-        url += `&send_object_to=${sendObjectTo}`;
-      }
+      // Build URL - only add epochs if > 1 or specific parameters are needed
+      let url = `${publisherUrl}/v1/blobs`;
+      const queryParams = new URLSearchParams();
+      if (epochs && epochs !== '1') queryParams.append('epochs', epochs);
+      if (sendObjectTo) queryParams.append('send_object_to', sendObjectTo);
+      
+      const queryString = queryParams.toString();
+      if (queryString) url += `?${queryString}`;
 
-      console.log(`[Backend Relay] Attempting upload to: ${publisherUrl} (Size: ${buffer.byteLength} bytes)`);
+      console.log(`[Backend Relay] [TRY] ${publisherUrl} | Size: ${buffer.byteLength}`);
 
       try {
         const res = await fetch(url, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/octet-stream',
-            'Content-Length': buffer.byteLength.toString(),
-            'User-Agent': 'WalForm-Relay/1.0',
-            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (WalForm Relay)',
           },
-          body: buffer,
-          // Use a shorter timeout per node to cycle faster if one is slow
-          signal: AbortSignal.timeout(20000) 
+          // Using Uint8Array is often more compatible than raw ArrayBuffer in fetch
+          body: new Uint8Array(buffer),
+          signal: AbortSignal.timeout(25000) 
         });
 
         if (!res.ok) {
-          let errorText = '';
+          const status = res.status;
+          let text = '';
           try {
-            errorText = await res.text();
+            text = await res.text();
           } catch {
-            errorText = `HTTP ${res.status}`;
+            text = res.statusText;
           }
           
-          // Handle common node errors
-          if (res.status === 502 || res.status === 504 || res.status === 503) {
-            errorText = `Node Busy/Offline (${res.status})`;
-          } else if (res.status === 413) {
-            errorText = `Node rejected size (${res.status})`;
-          }
-          
-          console.warn(`[Backend Relay] [${publisherUrl}] failed: ${res.status} - ${errorText.substring(0, 100)}`);
-          lastError = `${publisherUrl}: ${res.status} ${errorText.substring(0, 50)}`;
+          console.warn(`[Backend Relay] [FAIL] ${publisherUrl} | Status: ${status} | Error: ${text.substring(0, 50)}`);
+          lastError = `${publisherUrl}: ${status} ${text.substring(0, 50)}`;
           continue; 
         }
 
         const data = await res.json();
-        console.log(`[Backend Relay] SUCCESS on ${publisherUrl}`);
+        console.log(`[Backend Relay] [SUCCESS] ${publisherUrl}`);
         return NextResponse.json(data);
 
       } catch (err: any) {
-        const isTimeout = err.name === 'TimeoutError' || err.message?.includes('aborted');
-        console.warn(`[Backend Relay] [${publisherUrl}] ${isTimeout ? 'Timeout' : 'Network'} Error: ${err.message}`);
-        lastError = `${publisherUrl}: ${isTimeout ? 'Timeout' : err.message}`;
+        console.warn(`[Backend Relay] [ERROR] ${publisherUrl} | ${err.message}`);
+        lastError = `${publisherUrl}: ${err.message}`;
         continue; 
       }
     }
