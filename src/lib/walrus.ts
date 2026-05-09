@@ -57,7 +57,10 @@ export async function uploadBytesToWalrus(
   sendObjectTo?: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<WalrusUploadResponse> {
-  const body = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  // Wrap data in a Blob to ensure the browser calculates Content-Length properly
+  // Passing Uint8Array directly can cause chunked encoding or missing headers,
+  // which causes strict nodes and Vercel to immediately close the connection (Failed to fetch).
+  const blobBody = new Blob([data], { type: 'application/octet-stream' });
   const startTime = Date.now();
   let lastError: string = '';
 
@@ -76,24 +79,38 @@ export async function uploadBytesToWalrus(
 
         let url = '';
         let method = 'POST';
+        const headers: Record<string, string> = {};
         
         if (isDirect) {
-          // Direct PUT to publisher (bypasses Vercel limits)
+          // Direct PUT to publisher
           url = `${provider}/v1/blobs?epochs=${epochs}`;
           if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
           method = 'PUT';
+          // Explicitly set content-type for direct uploads
+          headers['Content-Type'] = 'application/octet-stream';
         } else {
-          // Proxy via Vercel (avoids CORS issues)
+          // Proxy via Vercel
           url = `/api/walrus/upload?epochs=${epochs}&publisher=${encodeURIComponent(provider)}`;
           if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
           method = 'POST';
         }
 
-        const res = await fetch(url, { 
-          method, 
-          body: body as any,
-          signal: AbortSignal.timeout(isDirect ? 120000 : 45000) // Longer timeout for direct
-        });
+        // Robust timeout implementation
+        const timeoutMs = isDirect ? 120000 : 45000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        let res: Response;
+        try {
+          res = await fetch(url, { 
+            method, 
+            headers,
+            body: blobBody,
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         if (!res.ok) {
           let errorInfo = '';
@@ -113,7 +130,13 @@ export async function uploadBytesToWalrus(
         return parseWalrusResponse(result);
 
       } catch (err: any) {
-        lastError = err.message || 'Connection failed';
+        // If it's an AbortError, it was our timeout
+        if (err.name === 'AbortError') {
+          lastError = 'Connection timed out';
+        } else {
+          lastError = err.message || 'Connection failed (CORS or Network Error)';
+        }
+        
         console.warn(`[Walrus] [${providerName}] ${mode} attempt failed: ${lastError}`);
         
         // Brief pause if proxy failed before trying direct
@@ -127,8 +150,17 @@ export async function uploadBytesToWalrus(
   // If we reach here, all providers failed. Queue it.
   console.error('[Walrus] All providers failed. Queueing for retry...');
   const queue = JSON.parse(localStorage.getItem('walform_upload_queue') || '[]');
+  
+  // Store data efficiently depending on type
+  let dataToStore;
+  if (typeof data === 'string') {
+    dataToStore = Array.from(new TextEncoder().encode(data));
+  } else {
+    dataToStore = Array.from(data);
+  }
+
   queue.push({
-    data: Array.from(body), // Store as array for JSON compatibility
+    data: dataToStore, 
     epochs,
     sendObjectTo,
     timestamp: Date.now()
