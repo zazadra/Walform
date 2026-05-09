@@ -5,9 +5,9 @@
 
 import type { WalrusUploadResponse } from '@/types/walform';
 
-export const NETWORK = 'mainnet';
-export const WALRUS_AGGREGATOR = 'https://aggregator.walrus.space';
-export const WALRUS_PUBLISHER  = 'https://publisher.walrus.space';
+export const NETWORK = 'mainnet'; // Sui remains on mainnet
+export const WALRUS_AGGREGATOR = 'https://aggregator.walrus-testnet.walrus.space';
+export const WALRUS_PUBLISHER  = 'https://publisher.walrus-testnet.walrus.space';
 
 function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadResponse {
   if (result.newlyCreated) {
@@ -102,5 +102,5 @@ export function getWalrusBlobUrl(blobId: string) {
 }
 
 export function getWalrusScanUrl(blobId: string) {
-  return `https://walruscan.com/mainnet/blob/${blobId}`;
+  return `https://walruscan.com/testnet/blob/${blobId}`;
 }
