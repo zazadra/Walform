@@ -38,10 +38,14 @@ export async function uploadBytesToWalrus(
   epochs = 5,
   sendObjectTo?: string
 ): Promise<WalrusUploadResponse> {
-  let url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
+  let url = `/api/walrus/upload?epochs=${epochs}`;
   if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
+  
   const body = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-  const res = await fetch(url, { method: 'PUT', body: body as any });
+  
+  // POST to our Next.js API route which proxies the PUT request to Walrus
+  const res = await fetch(url, { method: 'POST', body: body as any });
+  
   if (!res.ok) throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
   return parseWalrusResponse(await res.json());
 }
@@ -67,9 +71,11 @@ export async function uploadFileToWalrus(
   epochs = 1,
   sendObjectTo?: string
 ): Promise<WalrusUploadResponse> {
-  let url = `${WALRUS_PUBLISHER}/v1/blobs?epochs=${epochs}`;
+  let url = `/api/walrus/upload?epochs=${epochs}`;
   if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
-  const res = await fetch(url, { method: 'PUT', body: file });
+  
+  const res = await fetch(url, { method: 'POST', body: file });
+  
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`Walrus Upload failed (${res.status}): ${errorText}`);
