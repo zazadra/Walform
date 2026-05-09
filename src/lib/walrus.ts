@@ -52,7 +52,7 @@ function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadRespo
  * Upload bytes to Walrus with failover and direct fallback
  */
 export async function uploadBytesToWalrus(
-  data: string | Uint8Array,
+  data: string | Uint8Array | File | Blob,
   epochs = 5,
   sendObjectTo?: string,
   onProgress?: (progress: UploadProgress) => void
@@ -60,7 +60,7 @@ export async function uploadBytesToWalrus(
   // Wrap data in a Blob to ensure the browser calculates Content-Length properly
   // Passing Uint8Array directly can cause chunked encoding or missing headers,
   // which causes strict nodes and Vercel to immediately close the connection (Failed to fetch).
-  const blobBody = new Blob([data as any], { type: 'application/octet-stream' });
+  const blobBody = data instanceof Blob ? data : new Blob([data as any], { type: 'application/octet-stream' });
   const startTime = Date.now();
   let lastError: string = '';
 
@@ -147,27 +147,10 @@ export async function uploadBytesToWalrus(
     }
   }
 
-  // If we reach here, all providers failed. Queue it.
-  console.error('[Walrus] All providers failed. Queueing for retry...');
-  const queue = JSON.parse(localStorage.getItem('walform_upload_queue') || '[]');
-  
-  // Store data efficiently depending on type
-  let dataToStore;
-  if (typeof data === 'string') {
-    dataToStore = Array.from(new TextEncoder().encode(data));
-  } else {
-    dataToStore = Array.from(data);
-  }
+  // If we reach here, all providers failed.
+  console.error('[Walrus] All providers failed. Throwing error for sync engine retry...');
 
-  queue.push({
-    data: dataToStore, 
-    epochs,
-    sendObjectTo,
-    timestamp: Date.now()
-  });
-  localStorage.setItem('walform_upload_queue', JSON.stringify(queue));
-
-  onProgress?.({ status: 'queued', message: 'Offline or all nodes busy. Data queued for auto-retry.' });
+  onProgress?.({ status: 'failed', message: 'Offline or all nodes busy.' });
   throw new Error(`All providers failed. Last error: ${lastError}`);
 }
 
