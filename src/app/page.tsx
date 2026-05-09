@@ -401,6 +401,7 @@ export default function Home() {
 
   const [status, setStatus]     = useState<'idle'|'signing'|'submitting'|'success'|'error'>('idle');
   const [submitMsg, setSubmitMsg] = useState('');
+  const [syncMessage, setSyncMessage] = useState('');
   const [fileUploadMsg, setFileUploadMsg] = useState<Record<string, string>>({});
   const [submittedBlobId, setSubmittedBlobId] = useState('');
   const [errMsg, setErrMsg]     = useState('');
@@ -410,20 +411,19 @@ export default function Home() {
 
   // Background: Auto-process upload queue on mount
   useEffect(() => {
-    const { processUploadQueue } = require('@/lib/walrus');
-    // Initial delay to not interfere with page load
-    const timer = setTimeout(() => {
-      processUploadQueue((p: any) => console.log('[Queue Processor]', p.message));
-    }, 5000);
+    const { startSyncEngine } = require('@/lib/sync-engine');
     
-    // Periodically check every 5 minutes
-    const interval = setInterval(() => {
-      processUploadQueue((p: any) => console.log('[Queue Processor]', p.message));
-    }, 5 * 60 * 1000);
-
+    // Start engine (runs immediately then every 10s)
+    startSyncEngine();
+    
+    // Listen to sync events for UI
+    const handleSyncStatus = (e: any) => {
+      setSyncMessage(e.detail);
+    };
+    window.addEventListener('walform:sync_status', handleSyncStatus);
+    
     return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
+      window.removeEventListener('walform:sync_status', handleSyncStatus);
     };
   }, []);
 
@@ -559,32 +559,27 @@ export default function Home() {
     }
     setFileUploading(u => ({ ...u, [fieldId]: true }));
     try {
-      const { uploadOnChain } = await import('@/lib/walrus-onchain');
+      const { queueFile } = await import('@/lib/local-storage');
       
       const fileArray = Array.isArray(files) ? files : [files];
-      const newBlobIds: string[] = [];
+      const newLocalIds: string[] = [];
       
       for (const file of fileArray) {
-        const { blobId } = await uploadOnChain(
-          file, 
-          address, 
-          1, 
-          undefined, 
-          (p: any) => setFileUploadMsg(prev => ({ ...prev, [fieldId]: p.message }))
-        );
-        newBlobIds.push(blobId);
+        // Queue file locally instead of uploading immediately
+        const localId = await queueFile(address, file);
+        newLocalIds.push(localId);
       }
       
       // Append to existing uploads instead of replacing
       setData(d => {
         const existing = d[fieldId];
         const existingArr = Array.isArray(existing) ? existing : (existing && typeof existing === 'string' ? [existing] : []);
-        const combined = [...(existingArr as string[]), ...newBlobIds];
+        const combined = [...(existingArr as string[]), ...newLocalIds];
         return { ...d, [fieldId]: combined.length === 1 ? combined[0] : combined };
       });
       setErrors(e => { const n = { ...e }; delete n[fieldId]; return n; });
     } catch (err: any) { 
-      setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed - try again.' })); 
+      setErrors(e => ({ ...e, [fieldId]: err.message || 'File queueing failed - try again.' })); 
     }
     setFileUploading(u => ({ ...u, [fieldId]: false }));
   }
@@ -652,9 +647,9 @@ export default function Home() {
         console.warn('Wallet signing failed, proceeding without signature:', signErr);
       }
 
-      // ── Step 2: Upload submission blob to Walrus ──────────────────────
+      // ── Step 2: Save submission to IndexedDB locally ──────────────────────
       setStatus('submitting');
-      setSubmitMsg('Preparing submission...');
+      setSubmitMsg('Securing submission locally...');
 
       const submission: Submission = {
         id: submissionId,
@@ -668,48 +663,19 @@ export default function Home() {
         ...(walletSignature ? { walletSignature, signedMessage: messageText } : {}),
       };
 
-      const { uploadOnChain } = await import('@/lib/walrus-onchain');
-      const { blobId } = await uploadOnChain(
-        JSON.stringify(submission), 
-        address, 
-        5, 
-        adminWallet || undefined,
-        (p: any) => setSubmitMsg(p.message)
+      const { queueSubmission } = await import('@/lib/local-storage');
+      const targetAdmin = adminWallet || (config.admins && config.admins[0]) || '';
+      
+      const localSubId = await queueSubmission(
+        address,
+        formBlobId,
+        submission,
+        targetAdmin
       );
-      submission.blobId = blobId;
 
-      // ── Step 3: Indexing Layer (Sui Native + Registry Fallback) ──────
-      try {
-        const { WALFORM_PACKAGE_ID, createSubmissionObject, getSuiClient } = await import('@/lib/walrus-onchain');
-        const targetAdmin = adminWallet || (config.admins && config.admins[0]) || '';
-        
-        if (WALFORM_PACKAGE_ID !== '0x0' && targetAdmin) {
-          console.log('[Sui] Registering submission object for native indexing...');
-          const txb = await createSubmissionObject(formBlobId, blobId, 'pending', targetAdmin);
-          // Execute via wallet
-          const provider = (window as any).suiWallet || (window as any).slush;
-          if (provider) {
-            await (provider.signAndExecuteTransactionBlock || provider.signAndExecuteTransaction).call(provider, {
-              transaction: txb,
-              transactionBlock: txb,
-            });
-            console.log('[Sui] Submission object created successfully.');
-          }
-        } else if (targetAdmin) {
-          // Fallback to Registry pattern if package not deployed
-          const { updateFormRegistry } = await import('@/lib/registry');
-          await updateFormRegistry(targetAdmin, formBlobId, blobId, address);
-        }
-      } catch (regErr) {
-        console.warn('Indexing failed:', regErr);
-      }
-
-      // Also index in localStorage for same-browser instant discovery
-      addSubId(formBlobId, blobId);
-      // Broadcast to any open admin tabs in the same browser
-      publishSubmission(blobId, formBlobId);
-
-      setSubmittedBlobId(blobId);
+      // We do NOT block on uploading to Walrus anymore!
+      
+      setSubmittedBlobId('local_pending'); // Used to show the success screen
       setStatus('success');
     } catch (e: unknown) {
       setErrMsg(e instanceof Error ? e.message : 'Upload failed.');
@@ -1338,6 +1304,12 @@ export default function Home() {
               <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.03em', color: '#fff' }}>Walform</span>
             </a>
             <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+              {syncMessage && (
+                <div style={{ fontSize: '12px', color: 'var(--accent-2)', background: 'rgba(124,58,237,0.1)', padding: '6px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(124,58,237,0.2)' }}>
+                  <span className="spinner" style={{ width: '12px', height: '12px', borderTopColor: 'var(--accent-2)' }} />
+                  {syncMessage}
+                </div>
+              )}
               {account ? (
                 <>
                   <button className="addr-chip" onClick={() => { navigator.clipboard.writeText(account.address); setWCopied(true); setTimeout(()=>setWCopied(false),1800); }} 
