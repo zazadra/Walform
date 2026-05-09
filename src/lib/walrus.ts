@@ -60,7 +60,7 @@ export async function uploadBytesToWalrus(
   // Wrap data in a Blob to ensure the browser calculates Content-Length properly
   // Passing Uint8Array directly can cause chunked encoding or missing headers,
   // which causes strict nodes and Vercel to immediately close the connection (Failed to fetch).
-  const blobBody = new Blob([data], { type: 'application/octet-stream' });
+  const blobBody = new Blob([data as any], { type: 'application/octet-stream' });
   const startTime = Date.now();
   let lastError: string = '';
 
