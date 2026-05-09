@@ -76,17 +76,43 @@ export function MyFormsTab({
     if (!ownerAddress) return;
     setIsSyncing(true);
     try {
-      const { forms: chainForms } = await scanOwnedBlobs(ownerAddress);
-      setForms(prev => {
-        const combined = [...prev, ...chainForms];
-        const seen = new Set<string>();
-        return combined.filter(f => {
-          const id = f.publishedBlobId || f.id;
-          if (!id || seen.has(id)) return false;
-          seen.add(id);
-          return true;
+      const { WALFORM_PACKAGE_ID } = await import('@/lib/walrus-onchain');
+      const { getSuiNativeForms } = await import('@/lib/registry');
+      
+      let chainBlobIds: string[] = [];
+      
+      if (WALFORM_PACKAGE_ID !== '0x0') {
+        console.log('[Sync] Discovering forms via Sui Native...');
+        chainBlobIds = await getSuiNativeForms(ownerAddress, WALFORM_PACKAGE_ID);
+      } else {
+        console.log('[Sync] Falling back to blob scan (Legacy)...');
+        const { forms: legacyForms } = await scanOwnedBlobs(ownerAddress);
+        chainBlobIds = legacyForms.map(f => f.publishedBlobId || f.id).filter(Boolean) as string[];
+      }
+
+      if (chainBlobIds.length > 0) {
+        const results = await Promise.allSettled(
+          chainBlobIds.map(id =>
+            readJsonFromWalrus<FormConfig>(id)
+              .then(cfg => ({ ...cfg, publishedBlobId: cfg.publishedBlobId ?? id }))
+          )
+        );
+        const loaded = results
+          .filter(r => r.status === 'fulfilled')
+          .map(r => (r as PromiseFulfilledResult<FormConfig>).value)
+          .filter(cfg => cfg && Array.isArray(cfg.fields));
+
+        setForms(prev => {
+          const combined = [...loaded, ...prev];
+          const seen = new Set<string>();
+          return combined.filter(f => {
+            const id = f.publishedBlobId || f.id;
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
         });
-      });
+      }
     } catch (e) {
       console.error('Sync failed:', e);
     }

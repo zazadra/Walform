@@ -5,7 +5,8 @@ import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus, getWalrusBlob
 import { getSubIds, getAllSubIds } from '@/lib/fields';
 import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
 import { getCachedSubIds, getCachedFormIds } from '@/lib/form-registry';
-import { getFormRegistry } from '@/lib/registry';
+import { getFormRegistry, getSuiNativeSubmissions } from '@/lib/registry';
+import { WALFORM_PACKAGE_ID } from '@/lib/walrus-onchain';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
@@ -126,14 +127,20 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
         formIds = forms.map(f => f.publishedBlobId!).filter(Boolean);
       }
 
-      console.log(`[Sync] Fetching registries for ${formIds.length} forms...`);
+      const allSubIds = new Set<string>();
 
-      // 2. Fetch registries in parallel
+      // 2. Try Sui Native First (if package deployed)
+      if (WALFORM_PACKAGE_ID !== '0x0') {
+        console.log('[Sync] Querying Sui Native objects...');
+        const nativeIds = await getSuiNativeSubmissions(ownerAddress, WALFORM_PACKAGE_ID, filterBlobId || undefined);
+        nativeIds.forEach(id => allSubIds.add(id));
+      }
+
+      // 3. Registry Fallback/Merge
+      console.log(`[Sync] Fetching registries for ${formIds.length} forms...`);
       const registries = await Promise.all(
         formIds.map(fid => getFormRegistry(ownerAddress, fid))
       );
-
-      const allSubIds = new Set<string>();
       registries.forEach(r => {
         r?.submissionBlobIds.forEach(id => allSubIds.add(id));
       });

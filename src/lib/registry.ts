@@ -109,3 +109,58 @@ export async function updateFormRegistry(
     return null;
   }
 }
+
+/**
+ * Queries Sui directly for Submission objects owned by the wallet.
+ */
+export async function getSuiNativeSubmissions(owner: string, packageId: string, formId?: string): Promise<string[]> {
+  const client = getSuiClient();
+  const subType = `${packageId}::walform::Submission`;
+  
+  try {
+    const res = await client.getOwnedObjects({
+      owner,
+      filter: { StructType: subType },
+      options: { showContent: true },
+      limit: 100,
+    });
+
+    const ids = res.data.map(obj => {
+      const content = (obj.data?.content as any)?.fields;
+      if (formId && content?.form_id !== formId) return null;
+      return content?.walrus_blob_id as string;
+    }).filter((id): id is string => Boolean(id));
+
+    return ids;
+  } catch (err) {
+    console.error('[SuiNative] Query failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Queries Sui directly for Form objects owned by the wallet.
+ */
+export async function getSuiNativeForms(owner: string, packageId: string): Promise<string[]> {
+  const client = getSuiClient();
+  const formType = `${packageId}::walform::Form`;
+  
+  try {
+    const res = await client.getOwnedObjects({
+      owner,
+      filter: { StructType: formType },
+      options: { showContent: true },
+      limit: 50,
+    });
+
+    const ids = res.data.map(obj => {
+      const content = (obj.data?.content as any)?.fields;
+      return content?.blob_id as string;
+    }).filter((id): id is string => Boolean(id));
+
+    return ids;
+  } catch (err) {
+    console.error('[SuiNativeForms] Query failed:', err);
+    return [];
+  }
+}

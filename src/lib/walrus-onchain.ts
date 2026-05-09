@@ -15,6 +15,9 @@ let walrusClient: WalrusClient | null = null;
 const WALRUS_MAINNET_SYSTEM_ID = '0x2134d52768ea07e8c43570ef975eb3e4c27a39fa6396bef985b5abc58d03ddd2';
 const WALRUS_MAINNET_PACKAGE_ID = '0xfdc88f7d7cf30afab2f82e8380d11ee8f70efb90e863d1de8616fae1bb09ea77';
 
+// UPDATE THIS after deploying the move package
+export const WALFORM_PACKAGE_ID = '0x56d0c64c632b581c6efc3fa7b6f058f3d1cdbd1d83fb7399a9da2cac48267e3f'; 
+
 function initClients() {
   if (!suiClient) {
     console.log("ON-CHAIN SYNC: Initializing with", NETWORK);
@@ -164,4 +167,40 @@ export async function uploadOnChain(
 
 export async function uploadJsonOnChain<T>(data: T, ownerAddress: string, epochs = 1, targetOwner?: string) {
   return uploadOnChain(data, ownerAddress, epochs, targetOwner);
+}
+
+/**
+ * Creates a Form object on Sui to index the Walrus blob.
+ */
+export async function createFormObject(formId: string, blobId: string, ownerAddress: string) {
+  const { TransactionBlock } = await import('@mysten/sui/transactions');
+  const txb = new TransactionBlock();
+  txb.moveCall({
+    target: `${WALFORM_PACKAGE_ID}::walform::create_form`,
+    arguments: [
+      txb.pure(formId),
+      txb.pure(blobId),
+      txb.pure(Date.now()),
+    ],
+  });
+  return txb;
+}
+
+/**
+ * Creates a Submission object on Sui and transfers it to the form owner.
+ */
+export async function createSubmissionObject(formId: string, blobId: string, status: string, owner: string) {
+  const { TransactionBlock } = await import('@mysten/sui/transactions');
+  const txb = new TransactionBlock();
+  txb.moveCall({
+    target: `${WALFORM_PACKAGE_ID}::walform::register_submission`,
+    arguments: [
+      txb.pure(formId),
+      txb.pure(blobId),
+      txb.pure(Date.now()),
+      txb.pure(status),
+      txb.pure(owner),
+    ],
+  });
+  return txb;
 }

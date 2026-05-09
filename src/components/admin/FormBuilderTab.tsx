@@ -337,6 +337,26 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
       const { blobId } = await uploadJsonOnChain(cfg, ownerAddress);
       
       cfg.publishedBlobId = blobId;
+
+      // ── Sui Native Indexing ──────────────────────────────────────────
+      try {
+        const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
+        if (WALFORM_PACKAGE_ID !== '0x0') {
+          console.log('[Sui] Creating Form object for native indexing...');
+          const txb = await createFormObject(cfg.id, blobId, ownerAddress);
+          const provider = (window as any).suiWallet || (window as any).slush;
+          if (provider) {
+            await (provider.signAndExecuteTransactionBlock || provider.signAndExecuteTransaction).call(provider, {
+              transactionBlock: txb,
+              transaction: txb,
+            });
+            console.log('[Sui] Form object created successfully.');
+          }
+        }
+      } catch (err) {
+        console.warn('[Sui] Form indexing failed:', err);
+      }
+
       onChange(cfg);
       saveAdminConfig(cfg);
       // Also cache in form registry so My Forms tab can discover it

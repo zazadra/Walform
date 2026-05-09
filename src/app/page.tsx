@@ -643,15 +643,30 @@ export default function Home() {
       const { blobId } = await uploadOnChain(JSON.stringify(submission), address, 5, adminWallet || undefined);
       submission.blobId = blobId;
 
-      // ── Step 3: Update Registry (Persistent Discovery) ─────────────
+      // ── Step 3: Indexing Layer (Sui Native + Registry Fallback) ──────
       try {
-        const { updateFormRegistry } = await import('@/lib/registry');
+        const { WALFORM_PACKAGE_ID, createSubmissionObject, getSuiClient } = await import('@/lib/walrus-onchain');
         const targetAdmin = adminWallet || (config.admins && config.admins[0]) || '';
-        if (targetAdmin) {
+        
+        if (WALFORM_PACKAGE_ID !== '0x0' && targetAdmin) {
+          console.log('[Sui] Registering submission object for native indexing...');
+          const txb = await createSubmissionObject(formBlobId, blobId, 'pending', targetAdmin);
+          // Execute via wallet
+          const provider = (window as any).suiWallet || (window as any).slush;
+          if (provider) {
+            await (provider.signAndExecuteTransactionBlock || provider.signAndExecuteTransaction).call(provider, {
+              transactionBlock: txb,
+              transaction: txb,
+            });
+            console.log('[Sui] Submission object created successfully.');
+          }
+        } else if (targetAdmin) {
+          // Fallback to Registry pattern if package not deployed
+          const { updateFormRegistry } = await import('@/lib/registry');
           await updateFormRegistry(targetAdmin, formBlobId, blobId, address);
         }
       } catch (regErr) {
-        console.warn('Registry update failed:', regErr);
+        console.warn('Indexing failed:', regErr);
       }
 
       // Also index in localStorage for same-browser instant discovery
