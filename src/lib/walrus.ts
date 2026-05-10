@@ -78,7 +78,7 @@ async function tryDirectUpload(
       const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/octet-stream' },
-        body: bytes,
+        body: bytes as any,
         signal: AbortSignal.timeout(30_000),
       });
 
