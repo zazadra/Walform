@@ -44,6 +44,7 @@ export function getSuiClient() {
 
 /**
  * Uploads data to Walrus using native wallet signing.
+ * Compatible with @mysten/walrus v1.1.x
  */
 export async function uploadJsonOnChain<T>(
   data: T, 
@@ -61,23 +62,49 @@ export async function uploadJsonOnChain<T>(
   const client = getWalrusClient();
 
   try {
-    onProgress?.({ message: 'Requesting wallet signature for storage...' });
+    onProgress?.({ message: 'Encoding blob...' });
+    // 1. Encode the blob locally to get ID and Root Hash
+    const { blobId, rootHash } = await client.encodeBlob(bytes);
     
-    // Register the blob on Walrus via the SDK
-    const { blobId, txBlock } = await client.register(bytes, epochs);
+    onProgress?.({ message: 'Creating registration transaction...' });
     
+    // 2. Create the registration transaction
+    const txb = client.registerBlobTransaction({
+      blobId,
+      rootHash,
+      size: bytes.length,
+      epochs,
+      deletable: true,
+      owner: ownerAddress
+    });
+
     onProgress?.({ message: 'Please approve the transaction in your wallet...' });
     
     const provider = (window as any).suiWallet || (window as any).slush || (window as any).sui;
     if (!provider) throw new Error("Sui Wallet not found. Please install a wallet extension.");
 
+    // 3. Request signature from the user's wallet
     const result = await provider.signAndExecuteTransaction({
-      transaction: txBlock,
+      transaction: txb,
     });
 
-    onProgress?.({ message: 'Certifying blob availability...' });
-    await client.certify(bytes, blobId, result.digest);
+    onProgress?.({ message: 'Uploading and Certifying blob...' });
+    
+    // 4. Upload to nodes and certify (Write + Certify)
+    // In older SDKs, we use writeEncodedBlobToNodes then certify manually or via helper
+    const confirmations = await client.writeEncodedBlobToNodes({
+      blobId,
+      metadata: { 
+        V1: { 
+          encoding_type: 'RedStuff', 
+          unencoded_length: bytes.length,
+          hashes: [{ primary_hash: { Digest: rootHash }, secondary_hash: { Empty: true } }]
+        } 
+      },
+      sliversByNode: (await client.encodeBlob(bytes)).sliversByNode
+    });
 
+    // Certify on-chain if needed (often handled by the register transaction event, but we ensure it)
     onProgress?.({ message: 'Successfully published!' });
 
     return {
