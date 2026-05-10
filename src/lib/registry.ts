@@ -1,5 +1,5 @@
-import { readJsonFromWalrus } from './walrus';
-import { uploadJsonOnChain, getSuiClient } from './walrus-onchain';
+import { readJsonFromWalrus, uploadJsonToWalrus } from './walrus';
+import { getSuiClient } from './walrus-onchain';
 import { decodeBlobId } from './form-registry';
 import type { Submission } from '@/types/walform';
 
@@ -101,7 +101,7 @@ export async function updateFormRegistry(
 
   // 3. Upload and send to owner
   try {
-    const { blobId } = await uploadJsonOnChain(updated, sender, 5, owner);
+    const { blobId } = await uploadJsonToWalrus(updated, 5, owner);
     console.log(`[Registry] Form registry updated to v${updated.version}`);
     return blobId;
   } catch (err) {
