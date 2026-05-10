@@ -332,10 +332,10 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
           const result = await dAppKit.signAndExecuteTransaction({
             transaction: transaction as any,
           });
-          if (!result?.digest) {
-            throw new Error('Wallet signing failed or was cancelled');
-          }
-          return { digest: result.digest };
+          // dAppKit v2 returns a discriminated union: { $kind, Transaction: { digest } }
+          const digest = (result as any)?.Transaction?.digest ?? (result as any)?.digest;
+          if (!digest) throw new Error('Wallet signing failed or was cancelled');
+          return { digest };
         },
       };
 
