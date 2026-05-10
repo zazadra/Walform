@@ -17,7 +17,7 @@ import { NETWORK } from '@/lib/walrus';
 // Constants
 // ---------------------------------------------------------------------------
 
-export const WALFORM_PACKAGE_ID =
+export const WALFORM_PACKAGE_ID: string =
   '0x56d0c64c632b581c6efc3fa7b6f058f3d1cdbd1d83fb7399a9da2cac48267e3f';
 
 const WALRUS_BLOB_TYPE = '0xfdc88f7d7cf30afab2f82e8380d11ee8f70efb90e863d1de8616fae1bb09ea77::blob::Blob';
