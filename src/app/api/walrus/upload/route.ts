@@ -7,10 +7,12 @@ export const maxDuration = 60;
 // Only include publishers that reliably handle server-to-server requests
 // (no Cloudflare blocks, no strict CORS restrictions on PUT)
 const PUBLISHER_POOL = [
-  'https://publisher.walrus-mainnet.mystenlabs.com', // Official — most reliable
-  'https://publisher.walrus.space',                  // Community — good uptime
-  'https://walrus-mainnet-publisher.staketab.org',   // Community
-  'https://publisher.walrus-mainnet.nodeinfra.com',  // Community
+  'https://publisher.walrus-mainnet.mystenlabs.com', 
+  'https://publisher.walrus.space',                  
+  'https://walrus-mainnet-publisher.staketab.org',   
+  'https://publisher.walrus-mainnet.nodeinfra.com',  
+  'https://walrus-mainnet-publisher.nodes.guru',
+  'https://walrus-mainnet-publisher.polkachu.com',
 ];
 
 const TIMEOUT_MS = 25_000; // 25s per attempt (leaves buffer for relay overhead)
@@ -46,12 +48,20 @@ export async function POST(req: NextRequest) {
       console.log(`[Relay] → ${publisherUrl} | ${buffer.byteLength} bytes | ${epochs} epochs`);
 
       try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      try {
         const res = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/octet-stream' },
+          headers: { 
+            'Content-Type': 'application/octet-stream',
+            'User-Agent': 'Walform-Relay/1.0',
+          },
           body: buffer,
-          signal: AbortSignal.timeout(TIMEOUT_MS),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           // Try to parse error as text (some publishers return HTML)

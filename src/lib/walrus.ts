@@ -21,9 +21,12 @@ export const WALRUS_AGGREGATOR = AGGREGATOR_POOL[0];
 
 // Publishers that are known to support CORS and are reliably online on mainnet
 const DIRECT_PUBLISHER_POOL = [
-  'https://publisher.walrus-mainnet.mystenlabs.com', // Official — most reliable
-  'https://publisher.walrus.space',                  // Community — good uptime
-  'https://walrus-mainnet-publisher.staketab.org',   // Community
+  'https://publisher.walrus-mainnet.mystenlabs.com',
+  'https://publisher.walrus.space',                 
+  'https://walrus-mainnet-publisher.staketab.org',  
+  'https://publisher.walrus-mainnet.nodeinfra.com',
+  'https://walrus-mainnet-publisher.nodes.guru',
+  'https://walrus-mainnet-publisher.polkachu.com',
 ];
 
 export type UploadStatus = 'pending' | 'uploading' | 'retrying' | 'queued' | 'success' | 'failed';
@@ -74,13 +77,16 @@ async function tryDirectUpload(
 
     onProgress?.({ status: 'uploading', provider: publisherUrl.replace('https://', ''), message: `Trying ${publisherUrl.replace('https://', '')}...` });
 
-    try {
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: bytes as any,
-        signal: AbortSignal.timeout(30_000),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const res = await fetch(url, {
+          method: 'PUT',
+          body: bytes as any,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
       if (!res.ok) {
         console.warn(`[Walrus Direct] ${publisherUrl} → ${res.status}`);
