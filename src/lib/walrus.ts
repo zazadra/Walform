@@ -184,7 +184,7 @@ export async function uploadBytesToWalrus(
   }
 
   const uploaded = files[0];
-  const blobId = await uploaded.id?.() ?? '';
+  const blobId = uploaded.id ?? '';
 
   onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (blobId: ${blobId.slice(0, 12)}…)` });
 
