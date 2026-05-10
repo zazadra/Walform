@@ -7,10 +7,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const PUBLISHER_POOL = [
-  'https://publisher.walrus-mainnet.walrus.space',
-  'https://walrus-mainnet-publisher-1.staketab.org:443',
-  'https://walrus-mainnet-publisher.nami.cloud',
-  'https://publisher.walrus.space',
+  'https://publisher.walrus-mainnet.walrus.space/v1/blobs',
+  'https://walrus-mainnet-publisher.nami.cloud/v1/store',
+  'https://walrus-mainnet-publisher-1.staketab.org:443/v1/blobs',
+  'https://walrus-mainnet-publisher.staketab.org/v1/blobs',
+  'https://publisher.walrus.space/v1/blobs',
 ];
 
 /**
@@ -81,8 +82,9 @@ export async function POST(req: NextRequest) {
 
     const errors: string[] = [];
 
-    for (const publisherUrl of PUBLISHER_POOL) {
-      let url = `${publisherUrl}/v1/blobs?epochs=${epochs}`;
+    for (const baseUrl of PUBLISHER_POOL) {
+      // Append query params to the base URL (which now includes the path)
+      let url = `${baseUrl}?epochs=${epochs}`;
       if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
 
       console.log(`[Relay] PUT → ${url} (${buffer.length} bytes)`);

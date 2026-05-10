@@ -20,10 +20,11 @@ const AGGREGATOR_POOL = [
 export const WALRUS_AGGREGATOR = AGGREGATOR_POOL[0];
 
 const DIRECT_PUBLISHER_POOL = [
-  'https://publisher.walrus-mainnet.walrus.space',
-  'https://walrus-mainnet-publisher-1.staketab.org:443',
-  'https://walrus-mainnet-publisher.nami.cloud',
-  'https://publisher.walrus.space',
+  'https://publisher.walrus-mainnet.walrus.space/v1/blobs',
+  'https://walrus-mainnet-publisher.nami.cloud/v1/store',
+  'https://walrus-mainnet-publisher-1.staketab.org:443/v1/blobs',
+  'https://walrus-mainnet-publisher.staketab.org/v1/blobs',
+  'https://publisher.walrus.space/v1/blobs',
 ];
 
 export type UploadStatus = 'pending' | 'uploading' | 'retrying' | 'queued' | 'success' | 'failed';
@@ -68,11 +69,11 @@ async function tryDirectUpload(
   sendObjectTo?: string,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<WalrusUploadResponse | null> {
-  for (const publisherUrl of DIRECT_PUBLISHER_POOL) {
-    let url = `${publisherUrl}/v1/blobs?epochs=${epochs}`;
+  for (const baseUrl of DIRECT_PUBLISHER_POOL) {
+    let url = `${baseUrl}?epochs=${epochs}`;
     if (sendObjectTo) url += `&send_object_to=${encodeURIComponent(sendObjectTo)}`;
 
-    onProgress?.({ status: 'uploading', provider: publisherUrl.replace('https://', ''), message: `Trying ${publisherUrl.replace('https://', '')}...` });
+    onProgress?.({ status: 'uploading', provider: baseUrl.replace('https://', ''), message: `Trying ${baseUrl.replace('https://', '')}...` });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
