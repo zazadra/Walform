@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import https from 'https';
+import { URL } from 'url';
 
-// Node.js runtime — no 30s edge limit, supports longer Walrus publisher timeouts
+// Node.js runtime is required for 'https' module and longer timeouts
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Only include publishers that reliably handle server-to-server requests
-// (no Cloudflare blocks, no strict CORS restrictions on PUT)
 const PUBLISHER_POOL = [
   'https://publisher.walrus-mainnet.mystenlabs.com', 
   'https://publisher.walrus.space',                  
@@ -15,7 +15,58 @@ const PUBLISHER_POOL = [
   'https://walrus-mainnet-publisher.polkachu.com',
 ];
 
-const TIMEOUT_MS = 25_000; // 25s per attempt (leaves buffer for relay overhead)
+/**
+ * Robust HTTP PUT using Node's native 'https' module.
+ * This avoids 'fetch failed' issues common with undici/fetch in Vercel's Node environment
+ * when talking to certain decentralized infrastructure nodes.
+ */
+function robustPut(urlStr: string, buffer: Buffer): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const options = {
+      method: 'PUT',
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname + url.search,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': buffer.length,
+        'User-Agent': 'Walform-Relay/1.1',
+      },
+      timeout: 30000,
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            resolve({ raw: data }); // Fallback if not JSON
+          }
+        } else {
+          // Extract error message from HTML if needed
+          const cleanErr = data.replace(/<[^>]*>/g, '').trim().substring(0, 100);
+          reject(new Error(`HTTP ${res.statusCode}: ${cleanErr || res.statusMessage}`));
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Timeout (30s)'));
+    });
+
+    req.write(buffer);
+    req.end();
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,18 +74,11 @@ export async function POST(req: NextRequest) {
     const epochs = Math.max(1, parseInt(searchParams.get('epochs') || '5', 10));
     const sendObjectTo = searchParams.get('send_object_to');
 
-    const buffer = await req.arrayBuffer();
+    const arrayBuffer = await req.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    if (buffer.byteLength === 0) {
+    if (buffer.length === 0) {
       return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
-    }
-
-    const MAX_SIZE = 9 * 1024 * 1024; // 9MB
-    if (buffer.byteLength > MAX_SIZE) {
-      return NextResponse.json(
-        { error: `File too large (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB). Max 9MB.` },
-        { status: 413 },
-      );
     }
 
     const errors: string[] = [];
@@ -43,57 +87,29 @@ export async function POST(req: NextRequest) {
       let url = `${publisherUrl}/v1/blobs?epochs=${epochs}`;
       if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
 
-      console.log(`[Relay] → ${publisherUrl} | ${buffer.byteLength} bytes | ${epochs} epochs`);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      console.log(`[Relay] PUT → ${url} (${buffer.length} bytes)`);
 
       try {
-        const res = await fetch(url, {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/octet-stream',
-            'User-Agent': 'Walform-Relay/1.0',
-          },
-          body: buffer,
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          let errText = '';
-          try {
-            const raw = await res.text();
-            errText = raw.replace(/<[^>]*>/g, '').trim().substring(0, 100);
-          } catch { errText = res.statusText; }
-
-          console.warn(`[Relay] FAIL ${publisherUrl} | ${res.status} | ${errText}`);
-          errors.push(`${publisherUrl}: ${res.status}`);
-          continue;
-        }
-
-        const data = await res.json();
-        console.log(`[Relay] SUCCESS ${publisherUrl}`);
-        return NextResponse.json(data);
-
+        const result = await robustPut(url, buffer);
+        console.log(`[Relay] SUCCESS via ${publisherUrl}`);
+        return NextResponse.json(result);
       } catch (err: any) {
-        clearTimeout(timeoutId);
-        const msg = err.name === 'AbortError' ? 'timeout (25s)' : err.message;
-        console.warn(`[Relay] ERROR ${publisherUrl} | ${msg}`);
-        errors.push(`${publisherUrl}: ${msg}`);
+        console.warn(`[Relay] FAIL ${publisherUrl}: ${err.message}`);
+        errors.push(`${publisherUrl.replace('https://', '')}: ${err.message}`);
+        // Optional: slight delay before trying next node
+        await new Promise(r => setTimeout(r, 500));
         continue;
       }
     }
 
     const summary = errors.join(' | ');
-    console.error('[Relay] All publishers failed:', summary);
     return NextResponse.json(
-      { error: `All Walrus publishers failed. Errors: ${summary}` },
+      { error: `Walrus Publishers exhausted. Last errors: ${summary}` },
       { status: 502 },
     );
 
   } catch (error: any) {
-    console.error('[Relay] Internal Error:', error.message);
+    console.error('[Relay] Global Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
