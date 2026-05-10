@@ -46,33 +46,41 @@ export async function uploadBytesToWalrus(
   onProgress?: (progress: UploadProgress) => void
 ): Promise<WalrusUploadResponse> {
   const startTime = Date.now();
-  onProgress?.({ status: 'uploading', provider: 'Backend Relay', message: 'Uploading to Backend Relay...' });
+  onProgress?.({ status: 'uploading', provider: 'Walrus Relay', message: 'Uploading to Walrus network...' });
 
   let url = `/api/walrus/upload?epochs=${epochs}`;
-  if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
+  if (sendObjectTo) url += `&send_object_to=${encodeURIComponent(sendObjectTo)}`;
 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      body: data as any
+      body: data as any,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || `HTTP ${res.status}`);
+    let result: any;
+    try {
+      result = await res.json();
+    } catch {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
 
-    const result = await res.json();
+    if (!res.ok) {
+      // Extract human-readable error from relay response
+      const msg = result?.error || `Upload failed (HTTP ${res.status})`;
+      throw new Error(msg);
+    }
+
     const duration = Date.now() - startTime;
-    console.log(`[Walrus] SUCCESS! Duration: ${duration}ms via Backend Relay`);
-    onProgress?.({ status: 'success', provider: 'Backend Relay', message: 'Upload successful!' });
+    console.log(`[Walrus] SUCCESS! Duration: ${duration}ms`);
+    onProgress?.({ status: 'success', provider: 'Walrus Relay', message: 'Upload successful!' });
     return parseWalrusResponse(result);
 
   } catch (err: any) {
-    onProgress?.({ status: 'failed', message: 'Backend Relay failed.' });
-    throw new Error(`Upload via Backend Relay failed: ${err.message}`);
+    onProgress?.({ status: 'failed', message: err.message });
+    throw err; // Throw the already-clean error directly
   }
 }
+
 
 export async function uploadJsonToWalrus<T>(
   data: T,

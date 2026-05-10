@@ -1,89 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'edge';
+// Use Node.js runtime for longer timeout (no 30s edge limit)
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60s max per Vercel plan
 
+// Most reliable Walrus mainnet publishers, ordered by reliability
 const PUBLISHER_POOL = [
-  'https://publisher-mainnet.walrus.nami.cloud',
-  'https://publisher.walrus-mainnet.mystenlabs.com',
+  'https://publisher.walrus-mainnet.mystenlabs.com', // Official, most reliable
   'https://publisher.walrus.space',
   'https://walrus-mainnet-publisher.staketab.org',
-  'https://walrus-mainnet-publisher-1.staketab.org',
-  'https://walrus-mainnet-publisher.chainode.tech',
+  'https://publisher-mainnet.walrus.nami.cloud',
   'https://publisher.walrus-mainnet.nodeinfra.com',
+  'https://walrus-mainnet-publisher.chainode.tech',
+  'https://walrus-mainnet-publisher-1.staketab.org',
   'https://publisher.walrus-mainnet.decentnode.com',
   'https://publisher.walrus-mainnet.blockscope.net',
 ];
 
+const TIMEOUT_MS = 30_000; // 30s per publisher attempt
+
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const epochs = searchParams.get('epochs') || '1';
+    const epochs = parseInt(searchParams.get('epochs') || '5', 10);
     const sendObjectTo = searchParams.get('send_object_to');
 
-    // Buffer the request
+    // Buffer the request body
     const buffer = await req.arrayBuffer();
     
     if (buffer.byteLength === 0) {
-      return NextResponse.json({ error: "Empty request body" }, { status: 400 });
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
     }
 
-    const MAX_SIZE = 4.5 * 1024 * 1024;
+    const MAX_SIZE = 9 * 1024 * 1024; // 9MB — Walrus practical limit
     if (buffer.byteLength > MAX_SIZE) { 
-      return NextResponse.json({ error: `File too large (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB). Limit 4.5MB.` }, { status: 413 });
+      return NextResponse.json(
+        { error: `File too large (${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB). Max 9MB.` },
+        { status: 413 }
+      );
     }
 
-    let lastError = '';
+    const errors: string[] = [];
 
     // Provider Rotation Loop
     for (const publisherUrl of PUBLISHER_POOL) {
-      // Build URL - added deletable=true as it's often more compatible for free tiers
-      let url = `${publisherUrl}/v1/blobs?deletable=true`;
-      if (epochs && epochs !== '1') url += `&epochs=${epochs}`;
-      if (sendObjectTo) url += `&send_object_to=${sendObjectTo}`;
+      // Correct Walrus REST API: PUT /v1/blobs?epochs=N
+      // - DO NOT pass `deletable=true` — blobs are deletable by default, 
+      //   passing it explicitly causes "internal error" on some publishers
+      // - Always include epochs
+      let url = `${publisherUrl}/v1/blobs?epochs=${epochs}`;
+      if (sendObjectTo) url += `&send_object_to=${encodeURIComponent(sendObjectTo)}`;
       
-      console.log(`[Backend Relay] [TRY] ${publisherUrl}`);
+      console.log(`[Relay] Trying ${publisherUrl} (${buffer.byteLength} bytes, ${epochs} epochs)`);
 
       try {
         const res = await fetch(url, {
           method: 'PUT',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (WalForm Relay)',
+            'Content-Type': 'application/octet-stream',
           },
-          body: new Uint8Array(buffer),
-          signal: AbortSignal.timeout(15000) // Faster rotation
+          body: buffer,
+          // @ts-ignore — duplex required in Node.js for streaming body
+          duplex: 'half',
+          signal: AbortSignal.timeout(TIMEOUT_MS),
         });
 
         if (!res.ok) {
-          const status = res.status;
-          let text = '';
-          try {
-            text = await res.text();
-          } catch {
-            text = res.statusText;
-          }
-          
-          console.warn(`[Backend Relay] [FAIL] ${publisherUrl} | Status: ${status} | Error: ${text.substring(0, 50)}`);
-          lastError = `${publisherUrl}: ${status} ${text.substring(0, 50)}`;
+          let errText = res.statusText;
+          try { errText = await res.text(); } catch { /* ignore */ }
+          console.warn(`[Relay] FAIL ${publisherUrl} | ${res.status} | ${errText.substring(0, 80)}`);
+          errors.push(`${publisherUrl}: ${res.status} ${errText.substring(0, 80)}`);
           continue; 
         }
 
         const data = await res.json();
-        console.log(`[Backend Relay] [SUCCESS] ${publisherUrl}`);
+        console.log(`[Relay] SUCCESS ${publisherUrl}`);
         return NextResponse.json(data);
 
       } catch (err: any) {
-        console.warn(`[Backend Relay] [ERROR] ${publisherUrl} | ${err.message}`);
-        lastError = `${publisherUrl}: ${err.message}`;
+        const msg = err.name === 'TimeoutError' ? 'timeout' : err.message;
+        console.warn(`[Relay] ERROR ${publisherUrl} | ${msg}`);
+        errors.push(`${publisherUrl}: ${msg}`);
         continue; 
       }
     }
 
-    // If we reach here, all providers failed
-    console.error('[Backend Relay] All providers failed. Last error:', lastError);
-    return NextResponse.json({ error: `All Walrus publishers failed. Last error: ${lastError}` }, { status: 502 });
+    // All providers failed
+    const summary = errors.slice(-3).join(' | ');
+    console.error('[Relay] All publishers failed:', errors);
+    return NextResponse.json(
+      { error: `All Walrus publishers failed. Last errors: ${summary}` },
+      { status: 502 }
+    );
 
   } catch (error: any) {
-    console.error('[Backend Relay] Internal Error:', error.message);
+    console.error('[Relay] Internal Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
