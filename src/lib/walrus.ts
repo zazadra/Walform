@@ -141,7 +141,7 @@ export async function uploadBytesToWalrus(
       uploadRelay: {
         host: UPLOAD_RELAY_HOST,
         // SDK auto-discovers the tip config from /v1/tip-config
-        sendTip: { max: 100_000 }, // max 0.0001 SUI tip to relay
+        sendTip: { max: 50_000_000 }, // max 0.05 SUI tip to relay
       },
       storageNodeClientOptions: {
         timeout: 60_000,
