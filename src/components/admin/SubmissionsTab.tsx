@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Submission, SubmissionStatus } from '@/types/walform';
 import { readJsonFromWalrus, getWalrusScanUrl, uploadJsonToWalrus, getWalrusBlobUrl } from '@/lib/walrus';
+import { dAppKit } from '@/app/dapp-kit';
 import { getSubIds, getAllSubIds } from '@/lib/fields';
 import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
 import { getCachedSubIds, getCachedFormIds } from '@/lib/form-registry';
@@ -227,7 +228,17 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     setSubs(prev => prev.map(s => s.id === sub.id ? updated : s));
     setUpdatingId(sub.id);
     try {
-      await uploadJsonToWalrus(updated);
+      const signer = {
+        address: ownerAddress,
+        signAndExecute: async (transaction: unknown) => {
+          const result = await dAppKit.signAndExecuteTransaction({ transaction: transaction as any });
+          // dAppKit v2 returns { $kind, Transaction: { digest } }
+          const digest = (result as any)?.Transaction?.digest ?? (result as any)?.digest;
+          if (!digest) throw new Error('Wallet signing failed or was cancelled');
+          return { digest };
+        },
+      };
+      await uploadJsonToWalrus(updated, signer, 3);
     } catch {
       setSubs(prev => prev.map(s => s.id === sub.id ? sub : s));
       alert('Failed to save status update. Please try again.');
