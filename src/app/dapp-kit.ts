@@ -1,10 +1,9 @@
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 
 function createSuiClient() {
-  return new SuiJsonRpcClient({ 
-    url: getJsonRpcFullnodeUrl('mainnet'),
-    network: 'mainnet'
+  return new SuiClient({ 
+    url: getFullnodeUrl('mainnet')
   });
 }
 

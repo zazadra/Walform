@@ -5,9 +5,8 @@ import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
 import { motion } from 'framer-motion';
 import { cacheFormId } from '@/lib/form-registry';
-import { useDAppKit } from '@mysten/dapp-kit-react';
-import { CurrentAccountSigner } from '@mysten/dapp-kit-core';
-import { useMemo } from 'react';
+import { useWalletConnection } from '@/hooks/useWalletConnection';
+// Note: Wallet signing is handled internally via CurrentAccountSigner in walrus.ts
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -283,10 +282,8 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
   const [publishing, setPublishing] = useState(false);
   const [pubMsg, setPubMsg]         = useState('');
   const [pubUrl, setPubUrl]         = useState(config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?form=${config.publishedBlobId}` : '');
+  const [pubBlobId, setPubBlobId]   = useState(config.publishedBlobId ?? '');
   const [copied, setCopied]         = useState(false);
-
-  const dAppKit = useDAppKit();
-  const signer = useMemo(() => new CurrentAccountSigner(dAppKit as any), [dAppKit]);
 
   function updateField(id: string, patch: Partial<SessionField>) {
     onChange({ ...config, fields: config.fields.map(f => f.id === id ? { ...f, ...patch } : f) });
@@ -298,36 +295,23 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
     onChange({ ...config, fields: [...config.fields, f] });
   }
 
+  const connection = useWalletConnection();
+
   async function publish() {
-    if (!ownerAddress) {
-      alert('Please connect your wallet first.');
+    if (!connection.isConnected) {
+      alert('Sui Wallet not found or disconnected. Please connect your wallet first.');
       return;
     }
 
     setPublishing(true);
     setPubMsg('Preparing form configuration...');
     try {
-      // Deep-clone fields and ensure options are preserved
-      // Detailed logging for verification
       console.log("-- PUBLISHING FORM...");
-      console.log("-- Base Config:", config);
       
-      const clonedFields = config.fields.map(f => {
-        let options = f.options;
-        
-        // Safety check for session_select if it's supposed to be a list but has none
-        if (f.id === 'session_select' && f.type === 'checkbox' && (!options || options.length === 0)) {
-          console.warn("-- session_select has no options! Adding default fallback.");
-          options = ['Session 1', 'Session 2'];
-        }
-
-        return {
-          ...f,
-          options: options ? [...options] : undefined
-        };
-      });
-
-      console.log("-- Cloned Fields with Options:", clonedFields.filter(f => f.options).map(f => ({ id:f.id, opts:f.options })));
+      const clonedFields = config.fields.map(f => ({
+        ...f,
+        options: f.options ? [...f.options] : undefined
+      }));
 
       const cfg: FormConfig = { 
         ...config, 
@@ -339,12 +323,11 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         publishedBlobId: undefined 
       };
 
-      console.log("-- Final JSON payload:", cfg);
       const { blobId } = await uploadJsonOnChain(
         cfg, 
         ownerAddress, 
-        (args: any) => signer.signAndExecuteTransaction(args),
-        1, 
+        1,          // Test with 1 epoch first
+        undefined, 
         (p: any) => setPubMsg(p.message)
       );
       
@@ -353,25 +336,32 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
       // ── Sui Native Indexing ──────────────────────────────────────────
       try {
         const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
-        if (WALFORM_PACKAGE_ID !== '0x0') {
+        if (WALFORM_PACKAGE_ID && WALFORM_PACKAGE_ID.startsWith('0x')) {
           console.log('[Sui] Creating Form object for native indexing...');
           const txb = await createFormObject(cfg.id, blobId, ownerAddress);
-          await signer.signAndExecuteTransaction({
-            transaction: txb,
-          });
-          console.log('[Sui] Form object created successfully.');
+          
+          const { dAppKit } = await import('@/app/dapp-kit');
+          if (dAppKit) {
+            await dAppKit.signAndExecuteTransaction({ 
+              transaction: txb as any,
+              options: { showEffects: true }
+            });
+            console.log('[Sui] Form object created successfully.');
+          }
         }
       } catch (err) {
-        console.warn('[Sui] Form indexing failed:', err);
+        console.warn('[Sui] Form indexing failed (non-critical):', err);
       }
 
       onChange(cfg);
       saveAdminConfig(cfg);
-      // Also cache in form registry so My Forms tab can discover it
       cacheFormId(ownerAddress, blobId);
-      const formUrl = `${window.location.origin}/?form=${blobId}`;
-      setPubUrl(formUrl);
-    } catch (e) { alert('Publish failed: ' + (e as Error).message); }
+      setPubUrl(`${window.location.origin}/?form=${blobId}`);
+      setPubBlobId(blobId);
+    } catch (e) { 
+      console.error("Publish Error:", e);
+      alert('Publish failed: ' + (e as Error).message); 
+    }
     setPublishing(false);
   }
 

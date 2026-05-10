@@ -1,152 +1,177 @@
+/**
+ * Walrus On-Chain Integration
+ *
+ * Coordinates between:
+ *   1. Walrus blob storage (via SDK writeBlobFlow)
+ *   2. Sui Move smart contracts (Form/Submission indexing)
+ *
+ * The upload path uses dAppKit.signAndExecuteTransaction directly to avoid 
+ * account state sync issues.
+ */
+
 import type { WalrusUploadResponse } from '@/types/walform';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import { WalrusClient } from '@mysten/walrus';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { NETWORK } from '@/lib/walrus';
 
-let suiClient: SuiJsonRpcClient | null = null;
-let walrusClient: WalrusClient | null = null;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-const WALRUS_MAINNET_SYSTEM_ID = '0x2134d52768ea07e8c43570ef975eb3e4c27a39fa6396bef985b5abc58d03ddd2';
-const WALRUS_MAINNET_PACKAGE_ID = '0xfdc88f7d7cf30afab2f82e8380d11ee8f70efb90e863d1de8616fae1bb09ea77';
+export const WALFORM_PACKAGE_ID =
+  '0x56d0c64c632b581c6efc3fa7b6f058f3d1cdbd1d83fb7399a9da2cac48267e3f';
 
-// UPDATE THIS after deploying the move package
-export const WALFORM_PACKAGE_ID: string = '0x56d0c64c632b581c6efc3fa7b6f058f3d1cdbd1d83fb7399a9da2cac48267e3f'; 
+const WALRUS_BLOB_TYPE = '0xfdc88f7d7cf30afab2f82e8380d11ee8f70efb90e863d1de8616fae1bb09ea77::blob::Blob';
 
-function initClients() {
-  if (!suiClient) {
-    suiClient = new SuiJsonRpcClient({ 
-      url: getJsonRpcFullnodeUrl(NETWORK as any),
-      network: NETWORK as any
+// ---------------------------------------------------------------------------
+// Sui Client singleton
+// ---------------------------------------------------------------------------
+
+let _suiClient: SuiClient | null = null;
+
+export function getSuiClient(): SuiClient {
+  if (!_suiClient) {
+    _suiClient = new SuiClient({
+      url: getFullnodeUrl(NETWORK as 'mainnet'),
     });
   }
-  if (!walrusClient) {
-    const config: any = { 
-      network: NETWORK as any,
-      suiClient: suiClient as any 
-    };
-    if (NETWORK === 'mainnet') {
-      config.packageId = WALRUS_MAINNET_PACKAGE_ID;
-      config.systemObjectId = WALRUS_MAINNET_SYSTEM_ID;
-    }
-    walrusClient = new WalrusClient(config);
-  }
+  return _suiClient;
 }
 
-export function getWalrusClient() {
-  initClients();
-  return walrusClient!;
-}
-
-export function getSuiClient() {
-  initClients();
-  return suiClient!;
-}
+// ---------------------------------------------------------------------------
+// Upload entry points
+// ---------------------------------------------------------------------------
 
 /**
- * Uploads data to Walrus using the provided wallet signer.
+ * Upload arbitrary data to Walrus using the user's connected dAppKit wallet.
+ *
+ * @param data - Any JSON-serializable value, or a raw Uint8Array/Blob/File
+ * @param ownerAddress - The user's connected Sui wallet address
+ * @param epochs - Storage duration (default 5 ≈ ~6 months on mainnet)
+ * @param targetOwner - Address to receive the Blob NFT (defaults to ownerAddress)
+ * @param onProgress - Progress message callback for UI feedback
  */
-export async function uploadJsonOnChain<T>(
-  data: T, 
-  ownerAddress: string, 
-  signAndExecute: (args: any) => Promise<any>, // Passed from dAppKit hook
-  epochs = 1, 
-  onProgress?: (progress: any) => void
+export async function uploadOnChain(
+  data: unknown,
+  ownerAddress: string,
+  epochs = 5,
+  targetOwner?: string,
+  onProgress?: (progress: { message: string }) => void
 ): Promise<WalrusUploadResponse> {
-  if (!ownerAddress) throw new Error("Wallet not connected");
+  if (!ownerAddress) throw new Error('Sui Wallet not found. Please ensure your wallet is connected and unlocked.');
 
-  onProgress?.({ message: 'Preparing blob data...' });
-  const submission = { ...data, wallet: ownerAddress, timestamp: Date.now() };
-  const bytes = new Uint8Array(new TextEncoder().encode(JSON.stringify(submission)));
-  
+  const { getWalrusClient } = await import('@/lib/walrus');
   const client = getWalrusClient();
 
-  try {
-    onProgress?.({ message: 'Encoding blob...' });
-    const { blobId, rootHash, sliversByNode } = await client.encodeBlob(bytes);
-    
-    onProgress?.({ message: 'Creating registration transaction...' });
-    const txb = client.registerBlobTransaction({
-      blobId,
-      rootHash,
-      size: bytes.length,
-      epochs,
-      deletable: true,
-      owner: ownerAddress
-    });
-
-    onProgress?.({ message: 'Please approve the transaction in your wallet...' });
-    
-    // Execute via the passed signer (dAppKit hook)
-    console.log("[Sui] Executing registration transaction...");
-    const result = await signAndExecute({
-      transaction: txb,
-      options: { showObjectChanges: true, showEffects: true }
-    });
-    console.log("[Sui] Transaction Result:", result);
-
-    let blobObject = result.objectChanges?.find(
-      (c: any) => c.type === 'created' && c.objectType.includes('::blob::Blob')
-    );
-    
-    let objectId = blobObject?.objectId;
-
-    if (!objectId && result.effects?.created) {
-      console.log("[Sui] ObjectChanges empty, scanning effects.created...");
-      try {
-        const createdIds = result.effects.created.map((c: any) => c.reference.objectId);
-        const objects = await getSuiClient().multiGetObjects({
-          ids: createdIds,
-          options: { showType: true }
-        });
-        const found = objects.find(obj => obj.data?.type?.includes('::blob::Blob'));
-        objectId = found?.data?.objectId;
-      } catch (err) {
-        console.warn("[Sui] Failed to scan effects.created:", err);
-      }
-    }
-
-    if (!objectId) {
-      console.error("[Sui] CRITICAL: Blob object not found in transaction. Result:", result);
-      throw new Error("Blob object not found in transaction. Please ensure you have enough WAL and SUI and try again.");
-    }
-
-    console.log("[Sui] Registered Blob Object ID:", objectId);
-
-    onProgress?.({ message: 'Uploading to nodes...' });
-    
-    await client.writeEncodedBlobToNodes({
-      blobId,
-      objectId,
-      deletable: true,
-      metadata: { 
-        V1: { 
-          encoding_type: 'RedStuff', 
-          unencoded_length: bytes.length,
-          hashes: [{ primary_hash: { Digest: rootHash }, secondary_hash: { Empty: true } }]
-        } 
-      },
-      sliversByNode
-    });
-
-    onProgress?.({ message: 'Successfully published!' });
-
-    return {
-      blobId,
-      objectId,
-      endEpoch: epochs,
-    };
-  } catch (err: any) {
-    console.error("SDK UPLOAD ERROR:", err);
-    throw new Error(err.message || "Walrus SDK Upload failed.");
+  // Serialize to bytes if not already raw binary
+  let bytes: Uint8Array;
+  if (data instanceof Uint8Array) {
+    bytes = data;
+  } else if (data instanceof Blob || data instanceof File) {
+    bytes = new Uint8Array(await (data as Blob).arrayBuffer());
+  } else {
+    bytes = new TextEncoder().encode(JSON.stringify(data));
   }
+
+  onProgress?.({ message: 'Initializing Walrus upload flow...' });
+  
+  const uploadFlow = await client.writeBlobFlow({
+    blob: bytes,
+    epochs,
+  });
+
+  onProgress?.({ message: 'Requesting storage transaction signature...' });
+  const tx = await uploadFlow.transaction();
+  
+  // Use dAppKit for signing to avoid state mismatches
+  const { dAppKit } = await import('@/app/dapp-kit');
+  if (!dAppKit) throw new Error('dAppKit not initialized');
+
+  const result = await dAppKit.signAndExecuteTransaction({
+    transaction: tx as any,
+    options: { showObjectChanges: true, showEffects: true }
+  });
+  
+  console.log("[Sui] Transaction Result (Initial):", result);
+  
+  if (result.effects?.status?.status === 'failure') {
+    const error = result.effects.status.error || 'Unknown Sui error';
+    console.error("[Sui] Transaction failed on-chain:", error);
+    throw new Error(`Transaction failed: ${error}`);
+  }
+
+  let objectId: string | undefined;
+
+  // Try to find the blob object ID in the response
+  if (result.objectChanges) {
+    const blobChange = result.objectChanges.find(
+      (c: any) => c.type === 'created' && c.objectType === WALRUS_BLOB_TYPE
+    );
+    if (blobChange && 'objectId' in blobChange) {
+      objectId = blobChange.objectId;
+    }
+  }
+
+  // Fallback: wait for transaction and fetch object
+  if (!objectId) {
+    console.warn('[Sui] Blob ID not found in immediate response. Fetching indexed data...');
+    const indexed = await getSuiClient().waitForTransaction({
+      digest: result.digest,
+      options: { showObjectChanges: true }
+    });
+    const blobChange = indexed.objectChanges?.find(
+      (c: any) => c.type === 'created' && c.objectType === WALRUS_BLOB_TYPE
+    );
+    if (blobChange && 'objectId' in blobChange) {
+      objectId = blobChange.objectId;
+    }
+  }
+
+  if (!objectId) {
+    console.error("[Sui] Final diagnostic check failed. Result:", result);
+    throw new Error('Blob object not found in transaction. Please ensure you have enough WAL and SUI and try again.');
+  }
+
+  onProgress?.({ message: 'Writing blob to Walrus nodes...' });
+  try {
+    await uploadFlow.upload();
+  } catch (err) {
+    console.error("SDK UPLOAD ERROR:", err);
+    throw err;
+  }
+
+  return {
+    blobId: uploadFlow.blobId,
+    blobObjectId: objectId,
+    endEpoch: uploadFlow.endEpoch,
+    suiTransactionDigest: result.digest
+  };
 }
 
-export const uploadOnChain = uploadJsonOnChain;
+/**
+ * Convenience wrapper for JSON data uploads.
+ */
+export async function uploadJsonOnChain<T>(
+  data: T,
+  ownerAddress: string,
+  epochs = 5,
+  targetOwner?: string,
+  onProgress?: (progress: { message: string }) => void
+): Promise<WalrusUploadResponse> {
+  return uploadOnChain(data, ownerAddress, epochs, targetOwner, onProgress);
+}
+
+// ---------------------------------------------------------------------------
+// Sui Move contract interactions
+// ---------------------------------------------------------------------------
 
 /**
- * Creates a Form object on Sui to index the Walrus blob.
+ * Creates a Form indexing object on Sui chain.
  */
-export async function createFormObject(formId: string, blobId: string, ownerAddress: string) {
+export async function createFormObject(
+  formId: string,
+  blobId: string,
+  _ownerAddress: string
+) {
   const { Transaction } = await import('@mysten/sui/transactions');
   const txb = new Transaction();
   txb.moveCall({
@@ -154,7 +179,31 @@ export async function createFormObject(formId: string, blobId: string, ownerAddr
     arguments: [
       txb.pure.string(formId),
       txb.pure.string(blobId),
-      txb.pure.u64(Date.now()),
+      txb.pure.u64(BigInt(Date.now())),
+    ],
+  });
+  return txb;
+}
+
+/**
+ * Creates a Submission indexing object on Sui chain.
+ */
+export async function createSubmissionObject(
+  formId: string,
+  blobId: string,
+  status: string,
+  owner: string
+) {
+  const { Transaction } = await import('@mysten/sui/transactions');
+  const txb = new Transaction();
+  txb.moveCall({
+    target: `${WALFORM_PACKAGE_ID}::walform::register_submission`,
+    arguments: [
+      txb.pure.string(formId),
+      txb.pure.string(blobId),
+      txb.pure.u64(BigInt(Date.now())),
+      txb.pure.string(status),
+      txb.pure.address(owner),
     ],
   });
   return txb;
