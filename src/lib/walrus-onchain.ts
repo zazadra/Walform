@@ -21,7 +21,7 @@ function initClients() {
   }
   if (!walrusClient) {
     const config: any = { 
-      network: NETWORK === 'testnet' ? 'testnet' : 'mainnet',
+      network: NETWORK as any,
       suiClient: suiClient as any 
     };
     if (NETWORK === 'mainnet') {
