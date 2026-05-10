@@ -8,6 +8,7 @@ export const INITIAL_ADMINS = [
 ];
 
 export function getAdmins(): string[] {
+  if (typeof window === 'undefined') return [...INITIAL_ADMINS];
   try {
     const stored = JSON.parse(localStorage.getItem('walform:admins') ?? '[]') as string[];
     return [...new Set([...INITIAL_ADMINS, ...stored])];
@@ -20,6 +21,7 @@ export function isAdmin(address?: string): boolean {
 }
 
 export function addAdmin(address: string) {
+  if (typeof window === 'undefined') return;
   const current = getAdmins();
   if (!isAdmin(address)) {
     const extra = current.filter(a => !INITIAL_ADMINS.includes(a));
@@ -28,22 +30,21 @@ export function addAdmin(address: string) {
 }
 
 export function removeAdmin(address: string) {
+  if (typeof window === 'undefined') return;
   if (INITIAL_ADMINS.includes(address)) return;
   const extra = getAdmins().filter(a => !INITIAL_ADMINS.includes(a) && a !== address);
   localStorage.setItem('walform:admins', JSON.stringify(extra));
 }
 
 // ── Submission index ──────────────────────────────────────────────
-// Submission blob IDs are stored in localStorage keyed by formBlobId.
-// This is local-only, but we also piggyback the list inside the admin
-// config so that when admin exports/re-imports, IDs travel with the config.
-
 export function getSubIds(formId: string): string[] {
+  if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(`walform:subs:${formId}`) ?? '[]'); }
   catch { return []; }
 }
 
 export function addSubId(formId: string, blobId: string) {
+  if (typeof window === 'undefined') return;
   const ids = getSubIds(formId);
   if (!ids.includes(blobId)) {
     const next = [...ids, blobId];
@@ -57,12 +58,14 @@ export function addSubId(formId: string, blobId: string) {
 }
 
 export function getAllSubIds(): string[] {
+  if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem('walform:subs:ALL') ?? '[]'); }
   catch { return []; }
 }
 
 // ── Merge external sub IDs (imported via QR / manual paste) ──────
 export function mergeSubIds(formId: string, incoming: string[]) {
+  if (typeof window === 'undefined') return [];
   const existing = new Set(getSubIds(formId));
   incoming.forEach(id => existing.add(id));
   const merged = [...existing];
@@ -72,9 +75,11 @@ export function mergeSubIds(formId: string, incoming: string[]) {
 
 // ── Form config storage ───────────────────────────────────────────
 export function saveAdminConfig(config: FormConfig) {
+  if (typeof window === 'undefined') return;
   localStorage.setItem('walform:admin:config', JSON.stringify(config));
 }
 export function loadAdminConfig(): FormConfig | null {
+  if (typeof window === 'undefined') return null;
   try { const s = localStorage.getItem('walform:admin:config'); return s ? JSON.parse(s) : null; }
   catch { return null; }
 }

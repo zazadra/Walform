@@ -1,15 +1,9 @@
-/**
- * Ultra-Resilient Walrus upload logic with Byte Conversion for Node Storage.
- * Fixes "Too many failures while writing blob" by ensuring data is in the most stable format (Uint8Array).
- */
-
 import type { WalrusUploadResponse } from '@/types/walform';
-import { dAppKit } from '@/app/dapp-kit';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { WalrusClient } from '@mysten/walrus';
 import { NETWORK } from '@/lib/walrus';
 
-let suiClient: SuiJsonRpcClient | null = null;
+let suiClient: SuiClient | null = null;
 let walrusClient: WalrusClient | null = null;
 
 const WALRUS_MAINNET_SYSTEM_ID = '0x2134d52768ea07e8c43570ef975eb3e4c27a39fa6396bef985b5abc58d03ddd2';
@@ -20,14 +14,15 @@ export const WALFORM_PACKAGE_ID: string = '0x56d0c64c632b581c6efc3fa7b6f058f3d1c
 
 function initClients() {
   if (!suiClient) {
-    console.log("ON-CHAIN SYNC: Initializing with", NETWORK);
-    suiClient = new SuiJsonRpcClient({ 
-      url: getJsonRpcFullnodeUrl(NETWORK as any),
-      network: NETWORK as any
+    suiClient = new SuiClient({ 
+      url: getFullnodeUrl(NETWORK as any),
     });
   }
   if (!walrusClient) {
-    const config: any = { network: NETWORK as any, suiClient: suiClient as any };
+    const config: any = { 
+      network: NETWORK === 'testnet' ? 'testnet' : 'mainnet',
+      suiClient: suiClient as any 
+    };
     if (NETWORK === 'mainnet') {
       config.packageId = WALRUS_MAINNET_PACKAGE_ID;
       config.systemObjectId = WALRUS_MAINNET_SYSTEM_ID;
@@ -46,48 +41,60 @@ export function getSuiClient() {
   return suiClient!;
 }
 
-export async function uploadOnChain(
-  data: any,
-  ownerAddress: string,
-  epochs = 1,
-  targetOwner?: string,
-  onProgress?: (progress: any) => void
-): Promise<WalrusUploadResponse> {
-  
-  if (!ownerAddress) throw new Error("Wallet not connected");
-
-  // 1. Prepare Data as Uint8Array (most stable for nodes)
-  let blob: Blob;
-  if (data instanceof Blob || data instanceof File) {
-    blob = data;
-  } else {
-    const submission = { ...data, wallet: ownerAddress, timestamp: Date.now() };
-    blob = new Blob([JSON.stringify(submission)], { type: "application/json" });
-  }
-
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const client = getWalrusClient();
-
-  try {
-    console.log('[Walrus] Uploading via Resilient Multi-Provider Proxy...');
-    const { uploadBytesToWalrus } = await import('@/lib/walrus');
-    const response = await uploadBytesToWalrus(bytes, epochs, targetOwner || ownerAddress, onProgress);
-    console.log('[Walrus] Upload Success:', response.blobId);
-    return response;
-  } catch (err: any) {
-    console.error("UPLOAD ERROR DETAILS:", err);
-    throw new Error(err.message || "Walrus Upload failed after trying all providers.");
-  }
-}
-
+/**
+ * Uploads data to Walrus using native wallet signing.
+ * This replaces the unreliable backend relay.
+ */
 export async function uploadJsonOnChain<T>(
   data: T, 
   ownerAddress: string, 
   epochs = 1, 
   targetOwner?: string,
   onProgress?: (progress: any) => void
-) {
-  return uploadOnChain(data, ownerAddress, epochs, targetOwner, onProgress);
+): Promise<WalrusUploadResponse> {
+  if (!ownerAddress) throw new Error("Wallet not connected");
+
+  onProgress?.({ message: 'Preparing blob data...' });
+  const submission = { ...data, wallet: ownerAddress, timestamp: Date.now() };
+  const bytes = new Uint8Array(new TextEncoder().encode(JSON.stringify(submission)));
+  
+  const client = getWalrusClient();
+
+  try {
+    onProgress?.({ message: 'Requesting wallet signature for storage...' });
+    
+    // Register the blob on Walrus via the SDK
+    // This creates a transaction that the user must sign
+    const { blobId, txBlock } = await client.register(bytes, epochs);
+    
+    // Request signature from the user's wallet
+    onProgress?.({ message: 'Please approve the transaction in your wallet...' });
+    
+    // Use the global dAppKit or a provider injected by the wallet
+    const provider = (window as any).suiWallet || (window as any).slush || (window as any).sui;
+    if (!provider) throw new Error("Sui Wallet not found. Please install a wallet extension.");
+
+    const result = await provider.signAndExecuteTransaction({
+      transaction: txBlock,
+    });
+
+    console.log('[Walrus] Transaction Success:', result.digest);
+
+    // Certify the blob (make it available to the network)
+    onProgress?.({ message: 'Certifying blob availability...' });
+    await client.certify(bytes, blobId, result.digest);
+
+    onProgress?.({ message: 'Successfully published!' });
+
+    return {
+      blobId,
+      objectId: result.digest, // Using tx digest as a proxy for object tracking
+      endEpoch: epochs,
+    };
+  } catch (err: any) {
+    console.error("SDK UPLOAD ERROR:", err);
+    throw new Error(err.message || "Walrus SDK Upload failed.");
+  }
 }
 
 /**
