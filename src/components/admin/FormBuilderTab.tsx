@@ -5,6 +5,7 @@ import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
 import { motion } from 'framer-motion';
 import { cacheFormId } from '@/lib/form-registry';
+import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -280,9 +281,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
   const [publishing, setPublishing] = useState(false);
   const [pubMsg, setPubMsg]         = useState('');
   const [pubUrl, setPubUrl]         = useState(config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?form=${config.publishedBlobId}` : '');
-  const [pubBlobId, setPubBlobId]   = useState(config.publishedBlobId ?? '');
   const [copied, setCopied]         = useState(false);
-  const [copiedBlobId, setCopiedBlobId] = useState(false);
+
+  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   function updateField(id: string, patch: Partial<SessionField>) {
     onChange({ ...config, fields: config.fields.map(f => f.id === id ? { ...f, ...patch } : f) });
@@ -339,8 +340,8 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
       const { blobId } = await uploadJsonOnChain(
         cfg, 
         ownerAddress, 
+        signAndExecute,
         1, 
-        undefined, 
         (p: any) => setPubMsg(p.message)
       );
       
@@ -352,14 +353,10 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         if (WALFORM_PACKAGE_ID !== '0x0') {
           console.log('[Sui] Creating Form object for native indexing...');
           const txb = await createFormObject(cfg.id, blobId, ownerAddress);
-          const provider = (window as any).suiWallet || (window as any).slush;
-          if (provider) {
-            await (provider.signAndExecuteTransactionBlock || provider.signAndExecuteTransaction).call(provider, {
-              transaction: txb,
-              transactionBlock: txb,
-            });
-            console.log('[Sui] Form object created successfully.');
-          }
+          await signAndExecute({
+            transaction: txb,
+          });
+          console.log('[Sui] Form object created successfully.');
         }
       } catch (err) {
         console.warn('[Sui] Form indexing failed:', err);

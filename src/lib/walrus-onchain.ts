@@ -43,13 +43,13 @@ export function getSuiClient() {
 }
 
 /**
- * Uploads data to Walrus using native wallet signing.
+ * Uploads data to Walrus using the provided wallet signer.
  */
 export async function uploadJsonOnChain<T>(
   data: T, 
   ownerAddress: string, 
+  signAndExecute: (args: any) => Promise<any>, // Passed from dAppKit hook
   epochs = 1, 
-  targetOwner?: string,
   onProgress?: (progress: any) => void
 ): Promise<WalrusUploadResponse> {
   if (!ownerAddress) throw new Error("Wallet not connected");
@@ -76,16 +76,12 @@ export async function uploadJsonOnChain<T>(
 
     onProgress?.({ message: 'Please approve the transaction in your wallet...' });
     
-    const provider = (window as any).suiWallet || (window as any).slush || (window as any).sui;
-    if (!provider) throw new Error("Sui Wallet not found. Please install a wallet extension.");
-
-    // Sign and Execute with object changes enabled so we can find the Blob ID
-    const result = await provider.signAndExecuteTransaction({
+    // Execute via the passed signer (dAppKit hook)
+    const result = await signAndExecute({
       transaction: txb,
       options: { showObjectChanges: true }
     });
 
-    // Find the new Blob object ID from the transaction changes
     const blobObject = result.objectChanges?.find(
       (c: any) => c.type === 'created' && c.objectType.includes('::blob::Blob')
     );
@@ -93,7 +89,6 @@ export async function uploadJsonOnChain<T>(
 
     onProgress?.({ message: 'Uploading to nodes...' });
     
-    // Pass the required objectId and deletable flag
     await client.writeEncodedBlobToNodes({
       blobId,
       objectId,
@@ -135,25 +130,6 @@ export async function createFormObject(formId: string, blobId: string, ownerAddr
       txb.pure.string(formId),
       txb.pure.string(blobId),
       txb.pure.u64(Date.now()),
-    ],
-  });
-  return txb;
-}
-
-/**
- * Creates a Submission object on Sui and transfers it to the form owner.
- */
-export async function createSubmissionObject(formId: string, blobId: string, status: string, owner: string) {
-  const { Transaction } = await import('@mysten/sui/transactions');
-  const txb = new Transaction();
-  txb.moveCall({
-    target: `${WALFORM_PACKAGE_ID}::walform::register_submission`,
-    arguments: [
-      txb.pure.string(formId),
-      txb.pure.string(blobId),
-      txb.pure.u64(Date.now()),
-      txb.pure.string(status),
-      txb.pure.address(owner),
     ],
   });
   return txb;
