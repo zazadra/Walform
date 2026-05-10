@@ -152,7 +152,7 @@ export async function uploadBytesToWalrus(
   );
 
   // Create a flow – this lets us interleave wallet signatures with uploads
-  const file = WalrusFile.from({ contents: bytes });
+  const file = WalrusFile.from({ contents: bytes, identifier: 'upload.bin' });
   const flow = client.walrus.writeFilesFlow({ files: [file] });
 
   // Step 1: Encode (local WASM – no network)
