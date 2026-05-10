@@ -84,16 +84,32 @@ export async function uploadJsonOnChain<T>(
     });
     console.log("[Sui] Transaction Result:", result);
 
-    const blobObject = result.objectChanges?.find(
+    let blobObject = result.objectChanges?.find(
       (c: any) => c.type === 'created' && c.objectType.includes('::blob::Blob')
     );
     
-    if (!blobObject) {
-      console.error("[Sui] CRITICAL: Blob object not found in transaction changes. All changes:", result.objectChanges);
-      throw new Error("Blob object not found in transaction. Please ensure you have enough WAL and SUI.");
+    let objectId = blobObject?.objectId;
+
+    if (!objectId && result.effects?.created) {
+      console.log("[Sui] ObjectChanges empty, scanning effects.created...");
+      try {
+        const createdIds = result.effects.created.map((c: any) => c.reference.objectId);
+        const objects = await getSuiClient().multiGetObjects({
+          ids: createdIds,
+          options: { showType: true }
+        });
+        const found = objects.find(obj => obj.data?.type?.includes('::blob::Blob'));
+        objectId = found?.data?.objectId;
+      } catch (err) {
+        console.warn("[Sui] Failed to scan effects.created:", err);
+      }
     }
 
-    const objectId = blobObject.objectId;
+    if (!objectId) {
+      console.error("[Sui] CRITICAL: Blob object not found in transaction. Result:", result);
+      throw new Error("Blob object not found in transaction. Please ensure you have enough WAL and SUI and try again.");
+    }
+
     console.log("[Sui] Registered Blob Object ID:", objectId);
 
     onProgress?.({ message: 'Uploading to nodes...' });
