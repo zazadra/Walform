@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // output: "export", // Disabled to allow Next.js API routes (Serverless functions) on Vercel
+  // Required so Turbopack/webpack don't try to bundle the Walrus WASM module
+  serverExternalPackages: ['@mysten/walrus', '@mysten/walrus-wasm'],
 };
 
 export default nextConfig;

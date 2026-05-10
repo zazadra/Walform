@@ -304,7 +304,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
     }
 
     setPublishing(true);
-    setPubMsg('Preparing form configuration...');
+    setPubMsg('Preparing form configuration…');
     try {
       console.log("-- PUBLISHING FORM...");
       
@@ -323,12 +323,28 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         publishedBlobId: undefined 
       };
 
+      // Build a WalrusSigner from the connected wallet
+      // Two wallet popups will appear: register + certify
+      const { dAppKit } = await import('@/app/dapp-kit');
+      const signer = {
+        address: ownerAddress,
+        signAndExecute: async (transaction: unknown) => {
+          const result = await dAppKit.signAndExecuteTransaction({
+            transaction: transaction as any,
+          });
+          if (!result?.digest) {
+            throw new Error('Wallet signing failed or was cancelled');
+          }
+          return { digest: result.digest };
+        },
+      };
+
+      setPubMsg('Step 1/4: Encoding data for Walrus…');
       const { blobId } = await uploadJsonOnChain(
         cfg, 
-        ownerAddress, 
-        1,          // Test with 1 epoch first
-        undefined, 
-        (p: any) => setPubMsg(p.message)
+        signer,
+        3,        // 3 epochs ≈ 3-4 months on Mainnet
+        (p: { message: string }) => setPubMsg(p.message),
       );
       
       cfg.publishedBlobId = blobId;
@@ -340,13 +356,10 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
           console.log('[Sui] Creating Form object for native indexing...');
           const txb = await createFormObject(cfg.id, blobId, ownerAddress);
           
-          const { dAppKit } = await import('@/app/dapp-kit');
-          if (dAppKit) {
-            await dAppKit.signAndExecuteTransaction({ 
-              transaction: txb as any,
-            });
-            console.log('[Sui] Form object created successfully.');
-          }
+          await dAppKit.signAndExecuteTransaction({ 
+            transaction: txb as any,
+          });
+          console.log('[Sui] Form object created successfully.');
         }
       } catch (err) {
         console.warn('[Sui] Form indexing failed (non-critical):', err);
