@@ -5,7 +5,7 @@ import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
 import { motion } from 'framer-motion';
 import { cacheFormId } from '@/lib/form-registry';
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useSignAndExecuteTransaction } from '@mysten/dapp-kit-react';
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
