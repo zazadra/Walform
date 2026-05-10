@@ -44,7 +44,6 @@ export function getSuiClient() {
 
 /**
  * Uploads data to Walrus using native wallet signing.
- * Compatible with @mysten/walrus v1.1.x
  */
 export async function uploadJsonOnChain<T>(
   data: T, 
@@ -63,12 +62,9 @@ export async function uploadJsonOnChain<T>(
 
   try {
     onProgress?.({ message: 'Encoding blob...' });
-    // 1. Encode the blob locally to get ID and Root Hash
-    const { blobId, rootHash } = await client.encodeBlob(bytes);
+    const { blobId, rootHash, sliversByNode } = await client.encodeBlob(bytes);
     
     onProgress?.({ message: 'Creating registration transaction...' });
-    
-    // 2. Create the registration transaction
     const txb = client.registerBlobTransaction({
       blobId,
       rootHash,
@@ -83,17 +79,25 @@ export async function uploadJsonOnChain<T>(
     const provider = (window as any).suiWallet || (window as any).slush || (window as any).sui;
     if (!provider) throw new Error("Sui Wallet not found. Please install a wallet extension.");
 
-    // 3. Request signature from the user's wallet
+    // Sign and Execute with object changes enabled so we can find the Blob ID
     const result = await provider.signAndExecuteTransaction({
       transaction: txb,
+      options: { showObjectChanges: true }
     });
 
-    onProgress?.({ message: 'Uploading and Certifying blob...' });
+    // Find the new Blob object ID from the transaction changes
+    const blobObject = result.objectChanges?.find(
+      (c: any) => c.type === 'created' && c.objectType.includes('::blob::Blob')
+    );
+    const objectId = blobObject?.objectId || result.digest;
+
+    onProgress?.({ message: 'Uploading to nodes...' });
     
-    // 4. Upload to nodes and certify (Write + Certify)
-    // In older SDKs, we use writeEncodedBlobToNodes then certify manually or via helper
-    const confirmations = await client.writeEncodedBlobToNodes({
+    // Pass the required objectId and deletable flag
+    await client.writeEncodedBlobToNodes({
       blobId,
+      objectId,
+      deletable: true,
       metadata: { 
         V1: { 
           encoding_type: 'RedStuff', 
@@ -101,15 +105,14 @@ export async function uploadJsonOnChain<T>(
           hashes: [{ primary_hash: { Digest: rootHash }, secondary_hash: { Empty: true } }]
         } 
       },
-      sliversByNode: (await client.encodeBlob(bytes)).sliversByNode
+      sliversByNode
     });
 
-    // Certify on-chain if needed (often handled by the register transaction event, but we ensure it)
     onProgress?.({ message: 'Successfully published!' });
 
     return {
       blobId,
-      objectId: result.digest,
+      objectId,
       endEpoch: epochs,
     };
   } catch (err: any) {
