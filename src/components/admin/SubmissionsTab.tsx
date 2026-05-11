@@ -213,7 +213,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
     }
 
     setSyncing(false);
-  }, [ownerAddress, filterBlobId]);
+  }, [ownerAddress, selectedFormId]);
 
   // -- Initial load ----------------------------------------------------
   const fullLoad = useCallback(async () => {
@@ -244,7 +244,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
         const sub = { ...s, blobId: s.blobId ?? blobId };
         loadedIdsRef.current.add(blobId);
         // If we are filtering by a specific form, apply that filter
-        if (filterBlobId && (sub.formId !== filterBlobId && sub.formBlobId !== filterBlobId)) return;
+        if (selectedFormId && (sub.formId !== selectedFormId && sub.formBlobId !== selectedFormId)) return;
         setSubs(prev => {
           if (prev.some(x => x.id === sub.id)) return prev;
           return [sub, ...prev].sort((a, b) => b.timestamp - a.timestamp);
@@ -252,7 +252,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
       } catch { /* ignore */ }
     });
     return unsub;
-  }, [filterBlobId]);
+  }, [selectedFormId]);
 
   // -- Optimistic status update ----------------------------------------
   async function updateStatus(sub: Submission, status: SubmissionStatus) {
