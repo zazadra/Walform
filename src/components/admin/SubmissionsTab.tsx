@@ -477,6 +477,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
 
               {/* Submissions List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <AnimatePresence mode="popLayout">
                 {subs
                   .filter(s => s.formId === selectedFormId)
                   .filter(s => filter === 'all' || s.status === filter)
