@@ -61,8 +61,8 @@ type InternalTab = 'manager' | 'replies' | 'lookup';
 
 export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, onSelectForm }: SubmissionsTabProps) {
   const [internalTab, setInternalTab] = useState<InternalTab>(initialFormBlobId ? 'replies' : 'manager');
-  const [filterBlobId, setFilterBlobId] = useState<string>(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : '');
-  const [blobIdInput, setBlobIdInput]   = useState(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : '');
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : null);
+  const [selectedForm, setSelectedForm] = useState<FormConfig | null>(null);
 
   const [subs, setSubs]         = useState<Submission[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -120,12 +120,23 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
     valid = valid.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
     
     // Filter by specific formId only if user has set a filter and not explicitly viewing all forms
-    if (filterBlobId) {
-      valid = valid.filter(s => (s.formId === filterBlobId || s.formBlobId === filterBlobId));
+    if (selectedFormId) {
+      valid = valid.filter(s => (s.formId === selectedFormId || s.formBlobId === selectedFormId));
     }
 
     setSubs(valid.sort((a, b) => b.timestamp - a.timestamp));
-  }, [filterBlobId, ownerAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedFormId, ownerAddress]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // -- Fetch selected form config when ID changes --------------------
+  useEffect(() => {
+    if (!selectedFormId) {
+      setSelectedForm(null);
+      return;
+    }
+    readJsonFromWalrus<FormConfig>(selectedFormId).then(cfg => {
+      if (cfg && cfg.title) setSelectedForm(cfg);
+    });
+  }, [selectedFormId]);
 
   // -- On-chain sync: scan blobs owned by admin wallet ----------------
   const syncFromChain = useCallback(async (isAuto = false) => {
@@ -135,9 +146,9 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
     try {
       // 1. Get all forms we care about
       let formIds: string[] = [];
-      if (filterBlobId) {
+      if (selectedFormId) {
         // If filtering, only sync the specific form
-        formIds = [filterBlobId];
+        formIds = [selectedFormId];
       } else {
         // Otherwise, sync all owned forms
         formIds = getCachedFormIds(ownerAddress);
@@ -154,7 +165,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
       // 2. Try Sui Native First (if package deployed)
       if (WALFORM_PACKAGE_ID !== '0x0') {
         console.log('[Sync] Querying Sui Native objects...');
-        const nativeIds = await getSuiNativeSubmissions(ownerAddress, WALFORM_PACKAGE_ID, filterBlobId || undefined);
+        const nativeIds = await getSuiNativeSubmissions(ownerAddress, WALFORM_PACKAGE_ID, selectedFormId || undefined);
         nativeIds.forEach(id => allSubIds.add(id));
       }
 
@@ -269,7 +280,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
   }
 
   const filtered = subs.filter(s => filter === 'all' || s.status === filter);
-  const isShowingAll = !filterBlobId;
+  const isShowingAll = !selectedFormId;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -288,8 +299,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
             if (onSelectForm) onSelectForm(cfg);
           }} 
           onSelectSubmissions={(blobId) => {
-            setFilterBlobId(blobId);
-            setBlobIdInput(blobId);
+            setSelectedFormId(blobId);
             setInternalTab('replies');
           }} 
         />
