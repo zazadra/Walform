@@ -142,6 +142,9 @@ export function MyFormsTab({
         setForms(loaded);
       }
       setIsLoading(false);
+      // Auto-sync in the background to catch forms published from other devices
+      // or forms missing from cache.
+      handleSync();
     }
     if (ownerAddress) load();
   }, [ownerAddress]);

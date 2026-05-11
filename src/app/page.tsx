@@ -1276,7 +1276,7 @@ export default function Home() {
               navigator.clipboard.writeText(submittedBlobId);
               const btn = e.currentTarget;
               const oldText = btn.innerText;
-              btn.innerText = '- Copied to Clipboard!';
+              btn.innerText = '✓ Copied to Clipboard!';
               btn.style.color = '#4ade80';
               setTimeout(() => { btn.innerText = oldText; btn.style.color = ''; }, 2000);
             }}

@@ -61,7 +61,7 @@ type InternalTab = 'forms' | 'submissions' | 'search';
 
 export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, onSelectForm }: SubmissionsTabProps) {
   const [internalTab, setInternalTab] = useState<InternalTab>(initialFormBlobId ? 'submissions' : 'forms');
-  const [filterBlobId, setFilterBlobId] = useState<string>('');
+  const [filterBlobId, setFilterBlobId] = useState<string>(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : '');
   const [blobIdInput, setBlobIdInput]   = useState(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : '');
 
   const [subs, setSubs]         = useState<Submission[]>([]);
@@ -311,11 +311,19 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                     setSearchError('');
                     setSearchLoading(true);
                     setSearchResult(null);
+
+                    const localSub = subs.find(s => (s.blobId === searchBlobId.trim()) || (s.id === searchBlobId.trim()));
+                    if (localSub) {
+                      setSearchResult(localSub);
+                      setSearchLoading(false);
+                      return;
+                    }
+
                     readJsonFromWalrus<Submission>(searchBlobId.trim())
                       .then(s => {
                         setSearchResult({ ...s, blobId: s.blobId ?? searchBlobId.trim() });
                       })
-                      .catch(err => setSearchError(err.message || 'Failed to load submission.'))
+                      .catch(err => setSearchError(err.message || 'Failed to load submission. It may still be propagating.'))
                       .finally(() => setSearchLoading(false));
                   }
                 }}
@@ -327,11 +335,19 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                   setSearchError('');
                   setSearchLoading(true);
                   setSearchResult(null);
+
+                  const localSub = subs.find(s => (s.blobId === searchBlobId.trim()) || (s.id === searchBlobId.trim()));
+                  if (localSub) {
+                    setSearchResult(localSub);
+                    setSearchLoading(false);
+                    return;
+                  }
+
                   readJsonFromWalrus<Submission>(searchBlobId.trim())
                     .then(s => {
                       setSearchResult({ ...s, blobId: s.blobId ?? searchBlobId.trim() });
                     })
-                    .catch(err => setSearchError(err.message || 'Failed to load submission.'))
+                    .catch(err => setSearchError(err.message || 'Failed to load submission. It may still be propagating.'))
                     .finally(() => setSearchLoading(false));
                 }}
                 disabled={searchLoading || !searchBlobId.trim()}
@@ -592,9 +608,25 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                                 {v.map((item, i) => {
                                   if (typeof item === 'string' && /^[A-Za-z0-9_-]{43,44}$/.test(item)) {
                                     return (
-                                      <div key={i} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '200px' }}>
-                                        <a href={getWalrusBlobUrl(item)} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
-                                          <img src={getWalrusBlobUrl(item)} style={{ width: '100%', display: 'block', maxHeight: '200px', objectFit: 'cover' }} onError={(e) => { e.currentTarget.parentElement!.parentElement!.style.display = 'none'; }} />
+                                      <div key={i} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '200px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100px' }}>
+                                        <a href={getWalrusBlobUrl(item)} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
+                                          <img 
+                                            src={getWalrusBlobUrl(item)} 
+                                            style={{ width: '100%', display: 'block', maxHeight: '200px', objectFit: 'cover' }} 
+                                            onError={(e) => { 
+                                              const img = e.currentTarget;
+                                              if (!img.dataset.retried) {
+                                                img.dataset.retried = 'true';
+                                                setTimeout(() => { if (img) img.src = getWalrusBlobUrl(item) + '?retry=' + Date.now(); }, 2500);
+                                              } else {
+                                                img.style.display = 'none';
+                                                const fallback = document.createElement('div');
+                                                fallback.style.cssText = 'padding:20px; text-align:center; color:var(--text-3); font-size:12px;';
+                                                fallback.innerText = 'Image pending network sync...';
+                                                img.parentElement?.appendChild(fallback);
+                                              }
+                                            }} 
+                                          />
                                         </a>
                                       </div>
                                     );
