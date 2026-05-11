@@ -679,6 +679,9 @@ export default function Home() {
         }
       );
 
+      const { publishSubmission } = await import('@/lib/submission-index');
+      publishSubmission(blobId, formBlobId);
+
       setSubmittedBlobId(blobId);
       setStatus('success');
     } catch (e: unknown) {
@@ -1278,7 +1281,7 @@ export default function Home() {
               setTimeout(() => { btn.innerText = oldText; btn.style.color = ''; }, 2000);
             }}
           >
-            Copy ID to share with Admin
+            Copy ID
           </button>
         </div>
 

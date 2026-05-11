@@ -63,10 +63,12 @@ function BlobIdImporter({ onImport }: { onImport: (cfg: FormConfig) => void }) {
 
 export function MyFormsTab({
   ownerAddress,
-  onSelectForm
+  onSelectForm,
+  onSelectSubmissions
 }: {
   ownerAddress: string;
   onSelectForm: (formConfig: FormConfig) => void;
+  onSelectSubmissions?: (formBlobId: string) => void;
 }) {
   const [forms, setForms] = useState<FormConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,8 +209,7 @@ export function MyFormsTab({
             <div
               key={f.publishedBlobId ?? f.id}
               className="card"
-              style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', border: '1px solid var(--border)', position: 'relative' }}
-              onClick={() => onSelectForm(f)}
+              style={{ padding: '20px', transition: 'all 0.2s', border: '1px solid var(--border)', position: 'relative' }}
               onMouseEnter={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.borderColor = 'var(--accent-2)';
@@ -265,11 +266,31 @@ export function MyFormsTab({
                 )}
               </div>
 
-              {/* Click hint */}
-              <p style={{ marginTop: '14px', fontSize: '11px', color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                Click to view submissions
-              </p>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1, fontSize: '11px', padding: '6px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onSelectSubmissions && f.publishedBlobId) {
+                      onSelectSubmissions(f.publishedBlobId);
+                    }
+                  }}
+                >
+                  View Submissions
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1, fontSize: '11px', padding: '6px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectForm(f);
+                  }}
+                >
+                  Edit Form
+                </button>
+              </div>
             </div>
           ))}
         </div>

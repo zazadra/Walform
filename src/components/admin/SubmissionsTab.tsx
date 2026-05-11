@@ -9,6 +9,10 @@ import { getCachedSubIds, getCachedFormIds } from '@/lib/form-registry';
 import { getFormRegistry, getSuiNativeSubmissions } from '@/lib/registry';
 import { WALFORM_PACKAGE_ID } from '@/lib/walrus-onchain';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { FormConfig } from '@/types/walform';
+import dynamic from 'next/dynamic';
+
+const MyFormsTab = dynamic(() => import('@/components/admin/MyFormsTab').then(m=>m.MyFormsTab), { ssr:false });
 
 function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
 
@@ -49,9 +53,14 @@ interface SubmissionsTabProps {
   ownerAddress: string;
   /** Currently published form blob ID - used as default filter hint, but can be cleared */
   formBlobId?: string;
+  /** Callback to switch to form builder */
+  onSelectForm?: (config: FormConfig) => void;
 }
 
-export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: SubmissionsTabProps) {
+type InternalTab = 'forms' | 'submissions' | 'search';
+
+export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, onSelectForm }: SubmissionsTabProps) {
+  const [internalTab, setInternalTab] = useState<InternalTab>(initialFormBlobId ? 'submissions' : 'forms');
   const [filterBlobId, setFilterBlobId] = useState<string>('');
   const [blobIdInput, setBlobIdInput]   = useState(initialFormBlobId && initialFormBlobId !== 'default' ? initialFormBlobId : '');
 
@@ -62,6 +71,12 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
   const [filter, setFilter]     = useState<SubmissionStatus | 'all'>('all');
   const [notes, setNotes]       = useState<Record<string, string>>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  const [searchBlobId, setSearchBlobId] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState<Submission | null>(null);
+  const [searchError, setSearchError] = useState('');
+
   const loadedIdsRef = useRef<Set<string>>(new Set());
 
   // -- Fast load from localStorage first ------------------------------
@@ -103,7 +118,8 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     // Deduplicate by id
     const seen = new Set<string>();
     valid = valid.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
-    // Filter by specific formId only if user has set a filter
+    
+    // Filter by specific formId only if user has set a filter and not explicitly viewing all forms
     if (filterBlobId) {
       valid = valid.filter(s => (s.formId === filterBlobId || s.formBlobId === filterBlobId));
     }
@@ -118,14 +134,19 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
     
     try {
       // 1. Get all forms we care about
-      let formIds = getCachedFormIds(ownerAddress);
-      if (filterBlobId && !formIds.includes(filterBlobId)) formIds.push(filterBlobId);
-      
-      if (formIds.length === 0) {
-        // Quick scan for forms if cache is empty
-        const { scanOwnedBlobs } = await import('@/lib/form-registry');
-        const { forms } = await scanOwnedBlobs(ownerAddress);
-        formIds = forms.map(f => f.publishedBlobId!).filter(Boolean);
+      let formIds: string[] = [];
+      if (filterBlobId) {
+        // If filtering, only sync the specific form
+        formIds = [filterBlobId];
+      } else {
+        // Otherwise, sync all owned forms
+        formIds = getCachedFormIds(ownerAddress);
+        if (formIds.length === 0) {
+          // Quick scan for forms if cache is empty
+          const { scanOwnedBlobs } = await import('@/lib/form-registry');
+          const { forms } = await scanOwnedBlobs(ownerAddress);
+          formIds = forms.map(f => f.publishedBlobId!).filter(Boolean);
+        }
       }
 
       const allSubIds = new Set<string>();
@@ -251,23 +272,139 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
   const isShowingAll = !filterBlobId;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-      {/* -- Info banner --------------------------------------- */}
-      <div style={{ 
-        padding: '12px 16px', borderRadius: '12px',
-        background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)',
-        display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-2)'
-      }}>
-        <span style={{ fontSize: '18px' }}>--</span>
-        <span>
-          Showing submissions for blobs owned by your wallet <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--accent-2)' }}>{shorten(ownerAddress)}</span>.
-          {isShowingAll
-            ? ' Displaying all forms.'
-            : <> Filtered to form <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--accent-2)' }}>{filterBlobId.slice(0,16)}-</span>.</>
-          }
-        </span>
+      {/* Internal Tabs */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+        <button className={`btn btn-sm ${internalTab === 'forms' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('forms')}>My Forms</button>
+        <button className={`btn btn-sm ${internalTab === 'submissions' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('submissions')}>Submissions List</button>
+        <button className={`btn btn-sm ${internalTab === 'search' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('search')}>Search by ID</button>
       </div>
+
+      {internalTab === 'forms' && (
+        <MyFormsTab 
+          ownerAddress={ownerAddress} 
+          onSelectForm={(cfg) => {
+            if (onSelectForm) onSelectForm(cfg);
+          }} 
+          onSelectSubmissions={(blobId) => {
+            setFilterBlobId(blobId);
+            setBlobIdInput(blobId);
+            setInternalTab('submissions');
+          }} 
+        />
+      )}
+
+      {internalTab === 'search' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Search Specific Submission</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>Paste the specific Walrus Blob ID of a single submission to view it instantly without syncing.</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                className="input"
+                placeholder="e.g. xyz123..."
+                value={searchBlobId}
+                onChange={e => setSearchBlobId(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    setSearchError('');
+                    setSearchLoading(true);
+                    setSearchResult(null);
+                    readJsonFromWalrus<Submission>(searchBlobId.trim())
+                      .then(s => {
+                        setSearchResult({ ...s, blobId: s.blobId ?? searchBlobId.trim() });
+                      })
+                      .catch(err => setSearchError(err.message || 'Failed to load submission.'))
+                      .finally(() => setSearchLoading(false));
+                  }
+                }}
+                style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: '14px' }}
+              />
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  setSearchError('');
+                  setSearchLoading(true);
+                  setSearchResult(null);
+                  readJsonFromWalrus<Submission>(searchBlobId.trim())
+                    .then(s => {
+                      setSearchResult({ ...s, blobId: s.blobId ?? searchBlobId.trim() });
+                    })
+                    .catch(err => setSearchError(err.message || 'Failed to load submission.'))
+                    .finally(() => setSearchLoading(false));
+                }}
+                disabled={searchLoading || !searchBlobId.trim()}
+              >
+                {searchLoading ? 'Loading...' : 'Search'}
+              </button>
+            </div>
+            {searchError && <p style={{ color: 'var(--error)', fontSize: '13px' }}>⚠ {searchError}</p>}
+          </div>
+
+          {searchResult && (
+             <div className="card" style={{ padding: '20px', borderLeft: `4px solid ${STATUS_COLORS[searchResult.status || 'pending']}` }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                 <div>
+                   <p style={{ fontSize: '12px', color: 'var(--text-3)' }}>Submission ID</p>
+                   <p style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>{shorten(searchResult.id)}</p>
+                 </div>
+                 <div style={{ textAlign: 'right' }}>
+                   <p style={{ fontSize: '12px', color: 'var(--text-3)' }}>Status</p>
+                   <span style={{ 
+                     display: 'inline-block', padding: '4px 10px', borderRadius: '20px', 
+                     fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                     backgroundColor: `${STATUS_COLORS[searchResult.status || 'pending']}15`,
+                     color: STATUS_COLORS[searchResult.status || 'pending']
+                   }}>
+                     {searchResult.status || 'pending'}
+                   </span>
+                 </div>
+               </div>
+               
+               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', marginBottom: '16px' }}>
+                 {Object.entries(searchResult.data).map(([key, val]) => (
+                   <div key={key} style={{ marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                     <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-2)', textTransform: 'uppercase', marginBottom: '6px' }}>{key}</p>
+                     {Array.isArray(val) ? (
+                       <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '14px', color: 'var(--text-1)' }}>
+                         {val.map((v, i) => <li key={i}>{String(v)}</li>)}
+                       </ul>
+                     ) : (
+                       <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-1)' }}>{String(val || '')}</p>
+                     )}
+                   </div>
+                 ))}
+               </div>
+
+               {searchResult.blobId && (
+                 <a href={getWalrusScanUrl(searchResult.blobId)} target="_blank" rel="noopener noreferrer"
+                   className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', width: 'auto', display: 'inline-flex', alignItems: 'center', borderRadius: '12px' }}>
+                   View on Walrus Scan ↗
+                 </a>
+               )}
+             </div>
+          )}
+        </div>
+      )}
+
+      {internalTab === 'submissions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* -- Info banner --------------------------------------- */}
+          <div style={{ 
+            padding: '12px 16px', borderRadius: '12px',
+            background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)',
+            display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-2)'
+          }}>
+            <span style={{ fontSize: '18px' }}>--</span>
+            <span>
+              Showing submissions for blobs owned by your wallet <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--accent-2)' }}>{shorten(ownerAddress)}</span>.
+              {isShowingAll
+                ? ' Displaying all forms.'
+                : <> Filtered to form <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--accent-2)' }}>{filterBlobId.slice(0,16)}-</span>.</>
+              }
+            </span>
+          </div>
 
       {/* -- Filter bar --------------------------------------- */}
       <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -537,6 +674,8 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId }: 
             ))}
           </AnimatePresence>
         </div>
+      )}
+      </div>
       )}
 
     </div>

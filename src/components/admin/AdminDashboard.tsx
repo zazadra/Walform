@@ -13,14 +13,14 @@ const SubmissionsTab = dynamic(() => import('@/components/admin/SubmissionsTab')
 const MyFormsTab = dynamic(() => import('@/components/admin/MyFormsTab').then(m=>m.MyFormsTab), { ssr:false });
 import { ToastContainer } from '@/components/ui/Toast';
 
-type Tab = 'forms' | 'builder' | 'submissions';
+type Tab = 'builder' | 'submissions';
 
 function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
 
 export function AdminDashboard() {
   const account = useCurrentAccount();
   const disconnect = () => dAppKit.disconnectWallet();
-  const [tab, setTab]         = useState<Tab>('forms');
+  const [tab, setTab]         = useState<Tab>('submissions');
   const [config, setConfig]   = useState<FormConfig>(DEFAULT_CONFIG);
   const [copied, setCopied]   = useState(false);
 
@@ -35,9 +35,8 @@ export function AdminDashboard() {
   }
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key:'forms',       label:'My Forms',      icon:'📂' },
-    { key:'builder',     label:'Form Builder',  icon:'🏗️' },
-    { key:'submissions', label:'Submissions',   icon:'📥' },
+    { key:'builder',     label:'Form Builder',          icon:'🏗️' },
+    { key:'submissions', label:'Forms & Submissions',   icon:'📥' },
   ];
 
   // -- Not connected --------------------------------------------
@@ -118,9 +117,8 @@ export function AdminDashboard() {
       {/* Content */}
       <main style={{ maxWidth:'1600px', margin:'0 auto', padding:'32px 48px' }}>
         <motion.div key={tab} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.25 }}>
-          {tab === 'forms'       && <MyFormsTab ownerAddress={account.address} onSelectForm={(f) => { handleConfigChange(f); setTab('builder'); }} />}
           {tab === 'builder'     && <FormBuilderTab config={config} onChange={handleConfigChange} ownerAddress={account.address} />}
-          {tab === 'submissions' && <SubmissionsTab ownerAddress={account.address} formBlobId={config.publishedBlobId} />}
+          {tab === 'submissions' && <SubmissionsTab ownerAddress={account.address} formBlobId={config.publishedBlobId} onSelectForm={(f) => { handleConfigChange(f); setTab('builder'); }} />}
         </motion.div>
       </main>
       <ToastContainer />
