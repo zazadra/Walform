@@ -86,7 +86,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
       ...getIndexedBlobIds(),
       ...getAllSubIds(),
       ...getCachedSubIds(ownerAddress),
-      ...(filterBlobId ? getSubIds(filterBlobId) : []),
+      ...(selectedFormId ? getSubIds(selectedFormId) : []),
     ];
     allIds = [...new Set(allIds)];
 
