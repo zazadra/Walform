@@ -97,16 +97,17 @@ export function parseWalrusResponse(result: Record<string, unknown>): WalrusUplo
 // Main upload – uses official SDK + Upload Relay + wallet signer
 // ---------------------------------------------------------------------------
 
+import { WALRUS_PROVIDERS, buildUploadUrl } from './walrus-providers';
+
 /**
- * Upload bytes to Walrus Mainnet using the official TypeScript SDK.
+ * Upload bytes to Walrus Mainnet using the HTTP Publisher API.
  *
- * Requires a connected Sui wallet (via WalrusSigner) to pay for storage.
- * The Upload Relay handles distributing shard data to storage nodes,
- * so the browser only needs 2 wallet signature popups.
+ * This bypasses the need for wallet signatures (and avoids 'no balance changes' errors)
+ * by utilizing community or official publishers that accept direct HTTP uploads.
  *
  * @param data        Raw bytes, string, File, or Blob to store
- * @param signer      Wallet signer (address + signAndExecute)
- * @param epochs      Storage duration in epochs (default: 3 ≈ ~3-4 months)
+ * @param signer      Wallet signer (kept for API compatibility but unused)
+ * @param epochs      Storage duration (ignored by v1 publishers, they use default/sponsored epochs)
  * @param onProgress  Optional progress callback
  */
 export async function uploadBytesToWalrus(
@@ -125,70 +126,32 @@ export async function uploadBytesToWalrus(
     bytes = new Uint8Array(await (data as Blob).arrayBuffer());
   }
 
-  onProgress?.({ status: 'encoding', message: 'Encoding data for Walrus…' });
+  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus via HTTP Publisher…' });
 
-  // Lazy-import SDK (avoids WASM loading at module init time)
-  const { SuiGrpcClient } = await import('@mysten/sui/grpc');
-  const { walrus, WalrusFile } = await import('@mysten/walrus');
+  // Use the primary working publisher for mainnet
+  const provider = WALRUS_PROVIDERS[0];
+  const url = buildUploadUrl(provider);
 
-  const suiClient = new SuiGrpcClient({
-    network: NETWORK,
-    baseUrl: `https://fullnode.${NETWORK}.sui.io:443`,
-  });
+  try {
+    const res = await fetch(url, {
+      method: provider.method,
+      body: bytes as any,
+    });
 
-  const client = suiClient.$extend(
-    walrus({
-      uploadRelay: {
-        host: UPLOAD_RELAY_HOST,
-        // SDK auto-discovers the tip config from /v1/tip-config
-        sendTip: { max: 50_000_000 }, // max 0.05 SUI tip to relay
-      },
-      storageNodeClientOptions: {
-        timeout: 60_000,
-        onError: (err: unknown) =>
-          console.warn('[Walrus SDK node error]', err),
-      },
-    }),
-  );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Walrus Publisher error (${res.status}): ${text}`);
+    }
 
-  // Create a flow – this lets us interleave wallet signatures with uploads
-  const file = WalrusFile.from({ contents: bytes, identifier: 'upload.bin' });
-  const flow = client.walrus.writeFilesFlow({ files: [file] });
+    const result = await res.json();
+    const parsed = parseWalrusResponse(result);
 
-  // Step 1: Encode (local WASM – no network)
-  await flow.encode();
-
-  // Step 2: Register on Sui chain (first wallet popup)
-  onProgress?.({ status: 'registering', message: 'Waiting for wallet approval (register)…' });
-  const registerTx = flow.register({
-    epochs,
-    owner: signer.address,
-    deletable: false,
-  });
-
-  const registerResult = await signer.signAndExecute(registerTx);
-
-  // Step 3: Upload encoded slivers to storage nodes via relay (no wallet needed)
-  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus storage nodes…' });
-  await flow.upload({ digest: registerResult.digest });
-
-  // Step 4: Certify on Sui chain (second wallet popup)
-  onProgress?.({ status: 'certifying', message: 'Waiting for wallet approval (certify)…' });
-  const certifyTx = flow.certify();
-  await signer.signAndExecute(certifyTx);
-
-  // Step 5: Retrieve the final file list with blobId
-  const files = await flow.listFiles();
-  if (!files || files.length === 0) {
-    throw new Error('Upload succeeded but no blob metadata returned');
+    onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (blobId: ${parsed.blobId.slice(0, 12)}…)` });
+    return parsed;
+  } catch (err: any) {
+    onProgress?.({ status: 'failed', message: `Upload failed: ${err.message}` });
+    throw err;
   }
-
-  const uploaded = files[0];
-  const blobId = uploaded.id ?? '';
-
-  onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (blobId: ${blobId.slice(0, 12)}…)` });
-
-  return { blobId, objectId: '', endEpoch: undefined };
 }
 
 // ---------------------------------------------------------------------------
