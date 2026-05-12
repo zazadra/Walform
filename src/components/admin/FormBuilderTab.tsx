@@ -324,43 +324,22 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         publishedBlobId: undefined 
       };
 
-      // Build a WalrusSigner from the connected wallet
-      // Two wallet popups will appear: register + certify
-      const { dAppKit } = await import('@/app/dapp-kit');
-      const signer = {
-        address: ownerAddress,
-        signAndExecute: async (transaction: unknown) => {
-          const result = await dAppKit.signAndExecuteTransaction({
-            transaction: transaction as any,
-          });
-          // dAppKit v2 returns a discriminated union: { $kind, Transaction: { digest } }
-          const digest = (result as any)?.Transaction?.digest ?? (result as any)?.digest;
-          if (!digest) throw new Error('Wallet signing failed or was cancelled');
-          return { digest };
-        },
-      };
-
-      setPubMsg('Step 1/4: Encoding data for Walrus…');
-      const { blobId } = await uploadJsonOnChain(
-        cfg, 
-        signer,
-        3,        // 3 epochs ≈ 3-4 months on Mainnet
-        (p: { message: string }) => setPubMsg(p.message),
-      );
-      
-      cfg.publishedBlobId = blobId;
-
-      // ── Sui Native Indexing: create Form object, capture object ID ──
+      // ── Sui Native Indexing: create Form object with JSON payload ──
       let suiObjectId = '';
       try {
         const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
         if (WALFORM_PACKAGE_ID && WALFORM_PACKAGE_ID.startsWith('0x')) {
-          console.log('[Sui] Creating Form object for native indexing...');
-          setPubMsg('Step 4/4: Creating Sui Form object…');
-          const txb = await createFormObject(cfg.id, blobId, ownerAddress);
+          console.log('[Sui] Creating Form object on-chain...');
+          setPubMsg('Step 1/2: Creating Sui Form object…');
           
+          const configJson = JSON.stringify(cfg);
+          const txb = await createFormObject(cfg.id, configJson, ownerAddress);
+          
+          setPubMsg('Step 2/2: Awaiting wallet signature…');
+          const { dAppKit } = await import('@/app/dapp-kit');
           const txResult = await dAppKit.signAndExecuteTransaction({ 
             transaction: txb as any,
+            options: { showEffects: true, showObjectChanges: true }
           });
           console.log('[Sui] Form object created:', txResult);
           
@@ -371,32 +350,33 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
             suiObjectId = created.objectId;
             cfg.publishedSuiObjectId = suiObjectId;
             console.log('[Sui] Form object ID captured:', suiObjectId);
+          } else {
+             throw new Error('Failed to capture Sui Form object ID from transaction result.');
           }
+        } else {
+          throw new Error('WALFORM_PACKAGE_ID is not configured.');
         }
-      } catch (err) {
-        console.warn('[Sui] Form indexing failed (non-critical):', err);
+      } catch (err: any) {
+        console.error('[Sui] Form indexing failed:', err);
+        throw new Error(`Sui transaction failed: ${err.message}`);
       }
 
       onChange(cfg);
       saveAdminConfig(cfg);
-      cacheFormId(ownerAddress, blobId);
-
-      // Register server-side so My Forms works across browsers/devices
+      // Removed Walrus cacheFormId since we don't have a blobId anymore
+      // We will just register the form object ID in the registry
       try {
         await fetch('/api/registry/forms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ownerAddress, formBlobId: blobId, formObjectId: suiObjectId }),
+          body: JSON.stringify({ ownerAddress, formObjectId: suiObjectId }),
         });
       } catch (regErr) {
         console.warn('[Registry] Forms registration failed (non-critical):', regErr);
       }
 
-      // Use Sui object ID if captured, otherwise fallback to blob ID
-      const formIdForUrl = suiObjectId || blobId;
-      setPubUrl(`${window.location.origin}/f/?formId=${formIdForUrl}`);
-      setPubBlobId(blobId);
-      if (suiObjectId) setPubObjectId(suiObjectId);
+      setPubUrl(`${window.location.origin}/f/?formId=${suiObjectId}`);
+      setPubObjectId(suiObjectId);
     } catch (e) { 
       console.error("Publish Error:", e);
       alert('Publish failed: ' + (e as Error).message); 

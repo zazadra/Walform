@@ -8,7 +8,7 @@ module walform::walform {
     struct Form has key, store {
         id: UID,
         form_id: String,
-        walrus_blob_id: String,
+        config_json: String,
         created_at: u64,
     }
 
@@ -16,32 +16,32 @@ module walform::walform {
     struct Submission has key, store {
         id: UID,
         form_id: String,
-        walrus_blob_id: String,
+        payload_json: String,
         submitter: address,
         timestamp: u64,
         status: String,
     }
 
     /// Create a new form object and transfer it to the sender
-    public entry fun create_form(
+    public fun create_form(
         form_id: String, 
-        blob_id: String, 
+        config_json: String, 
         created_at: u64,
         ctx: &mut TxContext
     ) {
         let form = Form {
             id: object::new(ctx),
             form_id,
-            walrus_blob_id: blob_id,
+            config_json,
             created_at,
         };
         transfer::transfer(form, tx_context::sender(ctx));
     }
 
     /// Register a new submission and transfer the object to the form owner for indexing
-    public entry fun register_submission(
+    public fun register_submission(
         form_id: String, 
-        blob_id: String, 
+        payload_json: String, 
         timestamp: u64,
         status: String,
         owner: address,
@@ -50,7 +50,7 @@ module walform::walform {
         let sub = Submission {
             id: object::new(ctx),
             form_id,
-            walrus_blob_id: blob_id,
+            payload_json,
             submitter: tx_context::sender(ctx),
             timestamp,
             status,

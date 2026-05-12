@@ -199,8 +199,15 @@ function FormPageContent() {
       try {
         const obj = await getFormByObjectId(formObjectId);
         if (!obj) throw new Error('Form object not found on Sui.');
-        const cfg = await readJsonFromWalrus<FormConfig>(obj.walrusBlobId);
-        if (!cfg || !cfg.fields) throw new Error('Could not read form data from Walrus.');
+        
+        let cfg: FormConfig;
+        try {
+          cfg = JSON.parse(obj.configJson);
+        } catch (e) {
+          throw new Error('Form configuration on Sui is malformed.');
+        }
+
+        if (!cfg || !cfg.fields) throw new Error('Invalid form configuration format.');
         setConfig(cfg);
       } catch (e: any) {
         setLoadErr(e.message || 'Failed to load form.');
@@ -269,8 +276,8 @@ function FormPageContent() {
         },
       };
 
-      // Step 1: Walrus writeBlob
-      const { blobId } = await uploadJsonToWalrus(submission, signer, 3);
+      // Step 1: Serialize submission payload
+      const payloadJson = JSON.stringify(submission);
       setFlow({ walrus: 'done', suiTx: 'uploading', receipt: 'idle' });
 
       // Step 2: Sui submit_response tx
@@ -278,23 +285,26 @@ function FormPageContent() {
       try {
         const { createSubmissionObject } = await import('@/lib/walrus-onchain');
         const adminAddr = config.publishedBy || account.address;
-        const txb = await createSubmissionObject(formObjectId, blobId, 'new', adminAddr);
-        const txResult = await dAppKit.signAndExecuteTransaction({ transaction: txb as any });
+        const txb = await createSubmissionObject(formObjectId, payloadJson, 'new', adminAddr);
+        const txResult = await dAppKit.signAndExecuteTransaction({ 
+          transaction: txb as any,
+          options: { showEffects: true, showObjectChanges: true }
+        });
         txDigest = (txResult as any)?.Transaction?.digest ?? (txResult as any)?.digest ?? '';
       } catch (txErr) {
-        console.warn('[Sui] submit_response tx failed (non-fatal):', txErr);
-        // Continue – Walrus storage is the source of truth
+        console.error('[Sui] submit_response tx failed:', txErr);
+        throw new Error('Failed to register submission on Sui.');
       }
       setFlow({ walrus: 'done', suiTx: 'done', receipt: 'uploading' });
 
       // Register in server registry
       try {
         const walrusBlobId = config.publishedBlobId || '';
-        await fetch('/api/registry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ formBlobId: walrusBlobId, submissionBlobId: blobId, formObjectId }) });
+        await fetch('/api/registry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ formBlobId: walrusBlobId, submissionBlobId: 'sui-native', formObjectId }) });
       } catch { /* non-fatal */ }
 
       setFlow({ walrus: 'done', suiTx: 'done', receipt: 'done' });
-      setReceipt({ blobId, txDigest, rootHash: blobId.slice(0, 32) + '…' });
+      setReceipt({ blobId: 'Stored on Sui', txDigest, rootHash: 'N/A' });
       setStatus('success');
     } catch (e: any) {
       setFlow(f => ({ ...f, walrus: f.walrus === 'uploading' ? 'error' : f.walrus, suiTx: f.suiTx === 'uploading' ? 'error' : f.suiTx }));

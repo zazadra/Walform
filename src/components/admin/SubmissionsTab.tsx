@@ -6,6 +6,7 @@ import { dAppKit } from '@/app/dapp-kit';
 import { getSubIds, getAllSubIds } from '@/lib/fields';
 import { getIndexedBlobIds, onNewSubmission } from '@/lib/submission-index';
 import { getCachedFormIds } from '@/lib/form-registry';
+import { getOwnedSubmissions } from '@/lib/walrus-onchain';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FormConfig } from '@/types/walform';
 import dynamic from 'next/dynamic';
@@ -77,138 +78,57 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
 
   const loadedIdsRef = useRef<Set<string>>(new Set());
 
-  // -- Fast load from localStorage first ------------------------------
-  const loadFromIndex = useCallback(async (existingSubs?: Submission[]) => {
-    // Collect all known blobIds from localStorage indexes
-    let allIds: string[] = [
-      ...getIndexedBlobIds(),
-      ...getAllSubIds(),
-      ...(selectedFormId ? getSubIds(selectedFormId) : []),
-    ];
-    allIds = [...new Set(allIds)];
-
-    // Filter out already-loaded IDs
-    const newIds = allIds.filter(id => !loadedIdsRef.current.has(id));
-    if (!newIds.length) return;
-
-    const base = existingSubs ?? subs;
-    const results = await Promise.allSettled(
-      newIds.map(id =>
-        readJsonFromWalrus<Submission>(id)
-          .then(s => ({ ...s, blobId: s.blobId ?? id }))
-      )
-    );
-
-    const fetched: Submission[] = [];
-    results.forEach((r, i) => {
-      if (r.status === 'fulfilled') {
-        loadedIdsRef.current.add(newIds[i]);
-        fetched.push(r.value);
-      }
-    });
-
-    if (!fetched.length) return;
-
-    let merged = [...base, ...fetched];
-    // Keep only valid submissions
-    let valid = merged.filter(s => s && s.status !== undefined && (s.formBlobId || s.formId));
-    // Deduplicate by id
-    const seen = new Set<string>();
-    valid = valid.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
-    
-    // Filter by specific formId only if user has set a filter and not explicitly viewing all forms
-    if (selectedFormId) {
-      valid = valid.filter(s => (s.formId === selectedFormId || s.formBlobId === selectedFormId));
-    }
-
-    setSubs(valid.sort((a, b) => b.timestamp - a.timestamp));
-  }, [selectedFormId, ownerAddress]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // -- Fetch selected form config when ID changes --------------------
-  useEffect(() => {
-    if (!selectedFormId) {
-      setSelectedForm(null);
-      return;
-    }
-    readJsonFromWalrus<FormConfig>(selectedFormId).then(cfg => {
-      if (cfg && cfg.title) setSelectedForm(cfg);
-    });
-  }, [selectedFormId]);
-
-
-  // -- Sync: server registry (primary) + localStorage (fallback) ----------
+  // -- Sync from Sui directly ------------------------------
   const syncFromChain = useCallback(async (isAuto = false) => {
     if (typeof window === 'undefined' || !ownerAddress) return;
     if (!isAuto) setSyncing(true);
 
     try {
-      const allSubIds = new Set<string>();
-
-      // 1. PRIMARY: Server-side registry (works across all devices/browsers)
-      const formIds = selectedFormId
-        ? [selectedFormId]
-        : getCachedFormIds(ownerAddress);
-
-      if (formIds.length > 0) {
-        const registryResults = await Promise.allSettled(
-          formIds.map(fid =>
-            fetch(`/api/registry?formId=${encodeURIComponent(fid)}`)
-              .then(r => r.json())
-              .then((d: { submissionBlobIds?: string[] }) => d.submissionBlobIds ?? [])
-          )
-        );
-        registryResults.forEach(r => {
-          if (r.status === 'fulfilled') r.value.forEach((id: string) => allSubIds.add(id));
-        });
-        console.log(`[Sync] Server registry returned ${allSubIds.size} submission IDs`);
-      }
-
-      // 2. FALLBACK: localStorage (same-browser fast path — catches recent submissions before server sync)
-      const localIds = selectedFormId
-        ? getSubIds(selectedFormId)
-        : getAllSubIds();
-      localIds.forEach(id => allSubIds.add(id));
-
-      // 3. Fetch only IDs we haven't loaded yet
-      const newIds = Array.from(allSubIds).filter(id => !loadedIdsRef.current.has(id));
-
-      if (newIds.length > 0) {
-        console.log(`[Sync] Fetching ${newIds.length} new submission blobs from Walrus...`);
-        const results = await Promise.allSettled(
-          newIds.map(id => readJsonFromWalrus<Submission>(id).then(s => ({ ...s, blobId: id })))
-        );
-
-        const fetched: Submission[] = [];
-        results.forEach((r, i) => {
-          if (r.status === 'fulfilled') {
-            loadedIdsRef.current.add(newIds[i]);
-            fetched.push(r.value);
-          }
-        });
-
-        if (fetched.length > 0) {
-          setSubs(prev => {
-            const combined = [...prev, ...fetched];
-            const seen = new Set<string>();
-            const deduped = combined.filter(s => {
-              if (seen.has(s.id)) return false;
-              seen.add(s.id);
-              return true;
-            });
-            // Apply form filter
-            const filtered = selectedFormId
-              ? deduped.filter(s => s.formId === selectedFormId || s.formBlobId === selectedFormId)
-              : deduped;
-            return filtered.sort((a, b) => b.timestamp - a.timestamp);
+      // Pass selectedFormId (which is the Sui object ID for forms) to filter
+      const onchainSubs = await getOwnedSubmissions(ownerAddress, selectedFormId || undefined);
+      
+      const parsedSubs: Submission[] = [];
+      for (const sub of onchainSubs) {
+        try {
+          const s = JSON.parse(sub.payloadJson) as Submission;
+          // Merge metadata
+          parsedSubs.push({
+            ...s,
+            suiObjectId: sub.suiObjectId,
+            timestamp: sub.timestamp || s.timestamp,
+            status: sub.status || s.status || 'new',
+            submitterAddress: sub.submitter || s.submitterAddress
           });
+          loadedIdsRef.current.add(sub.suiObjectId);
+        } catch (e) {
+          console.warn('[Sync] Failed to parse payloadJson for submission', sub.suiObjectId);
         }
       }
+
+      if (parsedSubs.length > 0) {
+        setSubs(prev => {
+          const combined = [...prev, ...parsedSubs];
+          const seen = new Set<string>();
+          const deduped = combined.filter(s => {
+            // Using suiObjectId or id as uniqueness
+            const key = (s as any).suiObjectId || s.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          return deduped.sort((a, b) => b.timestamp - a.timestamp);
+        });
+      }
     } catch (e) {
-      console.error('[Sync] Registry sync failed:', e);
+      console.error('[Sync] Sui sync failed:', e);
     }
 
     setSyncing(false);
-  }, [ownerAddress, selectedFormId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ownerAddress, selectedFormId]);
+
+  const loadFromIndex = useCallback(async () => {
+    // Left empty for compatibility, Sui loads fast enough.
+  }, []);
 
 
   // -- Initial load ----------------------------------------------------
@@ -216,10 +136,9 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
     setLoading(true);
     loadedIdsRef.current = new Set();
     setSubs([]);
-    await loadFromIndex([]);
+    await syncFromChain();
     setLoading(false);
-    syncFromChain();
-  }, [loadFromIndex, syncFromChain]);
+  }, [syncFromChain]);
 
   useEffect(() => { 
     fullLoad(); 

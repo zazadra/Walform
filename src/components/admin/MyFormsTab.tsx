@@ -93,22 +93,29 @@ export function MyFormsTab({
       // 2. FALLBACK: localStorage cache
       getCachedFormIds(ownerAddress).forEach(id => allBlobIds.add(id));
 
-      // 3. FALLBACK: On-chain scan
+      let chainForms: FormConfig[] = [];
+
+      // 3. On-chain scan
       if (allBlobIds.size === 0) {
-        const { WALFORM_PACKAGE_ID } = await import('@/lib/walrus-onchain');
-        const { getSuiNativeForms } = await import('@/lib/registry');
+        const { WALFORM_PACKAGE_ID, getOwnedForms } = await import('@/lib/walrus-onchain');
         if (WALFORM_PACKAGE_ID !== '0x0') {
           console.log('[Sync] Discovering forms via Sui Native...');
-          const chainIds = await getSuiNativeForms(ownerAddress, WALFORM_PACKAGE_ID);
-          chainIds.forEach(id => allBlobIds.add(id));
+          try {
+            chainForms = await getOwnedForms(ownerAddress);
+            console.log(`[Sync] Found ${chainForms.length} native Sui forms.`);
+          } catch (e) {
+            console.error('[Sync] Error getting native forms:', e);
+          }
         } else {
           console.log('[Sync] Falling back to blob scan (Legacy)...');
+          const { scanOwnedBlobs } = await import('@/lib/form-registry');
           const { forms: legacyForms } = await scanOwnedBlobs(ownerAddress);
           legacyForms.map(f => f.publishedBlobId || f.id).filter(Boolean).forEach(id => allBlobIds.add(id!));
         }
       }
 
       const chainBlobIds = [...allBlobIds];
+      let loaded: FormConfig[] = [];
 
       if (chainBlobIds.length > 0) {
         const results = await Promise.allSettled(
@@ -117,22 +124,23 @@ export function MyFormsTab({
               .then(cfg => ({ ...cfg, publishedBlobId: cfg.publishedBlobId ?? id }))
           )
         );
-        const loaded = results
+        loaded = results
           .filter(r => r.status === 'fulfilled')
           .map(r => (r as PromiseFulfilledResult<FormConfig>).value)
           .filter(cfg => cfg && Array.isArray(cfg.fields));
-
-        setForms(prev => {
-          const combined = [...loaded, ...prev];
-          const seen = new Set<string>();
-          return combined.filter(f => {
-            const id = f.publishedBlobId || f.id;
-            if (!id || seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          });
-        });
       }
+
+      setForms(prev => {
+        const combined = [...chainForms, ...loaded, ...prev];
+        const seen = new Set<string>();
+        return combined.filter(f => {
+          // Use formId as the primary unique key for Sui-native forms, fallback to publishedBlobId/id
+          const id = f.formId || f.publishedBlobId || f.id;
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      });
     } catch (e) {
       console.error('Sync failed:', e);
     }

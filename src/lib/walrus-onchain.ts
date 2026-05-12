@@ -10,7 +10,7 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { getSuiRpcUrl } from '@/lib/walrus';
 
 export const WALFORM_PACKAGE_ID: string =
-  '0x56d0c64c632b581c6efc3fa7b6f058f3d1cdbd1d83fb7399a9da2cac48267e3f';
+  '0xebb99d93ce26307c536308339144b05c32c0ac20f04156b61b1805e713a11693';
 
 // ---------------------------------------------------------------------------
 // Tatum-powered Sui client
@@ -70,14 +70,14 @@ export async function uploadJsonOnChain<T>(
 // Sui Move contract interactions
 // ---------------------------------------------------------------------------
 
-export async function createFormObject(formId: string, blobId: string, _ownerAddress: string) {
+export async function createFormObject(formId: string, configJson: string, _ownerAddress: string) {
   const { Transaction } = await import('@mysten/sui/transactions');
   const txb = new Transaction();
   txb.moveCall({
     target: `${WALFORM_PACKAGE_ID}::walform::create_form`,
     arguments: [
       txb.pure.string(formId),
-      txb.pure.string(blobId),
+      txb.pure.string(configJson),
       txb.pure.u64(BigInt(Date.now())),
     ],
   });
@@ -86,7 +86,7 @@ export async function createFormObject(formId: string, blobId: string, _ownerAdd
 
 export async function createSubmissionObject(
   formId: string,
-  blobId: string,
+  payloadJson: string,
   status: string,
   owner: string,
 ) {
@@ -96,7 +96,7 @@ export async function createSubmissionObject(
     target: `${WALFORM_PACKAGE_ID}::walform::register_submission`,
     arguments: [
       txb.pure.string(formId),
-      txb.pure.string(blobId),
+      txb.pure.string(payloadJson),
       txb.pure.u64(BigInt(Date.now())),
       txb.pure.string(status),
       txb.pure.address(owner),
@@ -110,11 +110,11 @@ export async function createSubmissionObject(
 // ---------------------------------------------------------------------------
 
 /**
- * Given a Sui Form object ID, returns the walrus_blob_id stored inside it.
- * This is the key bridge: URL uses objectId, data lives in Walrus.
+ * Given a Sui Form object ID, returns the config_json stored inside it.
+ * This is the key bridge: URL uses objectId, configuration lives directly in Sui.
  */
 export async function getFormByObjectId(objectId: string): Promise<{
-  walrusBlobId: string;
+  configJson: string;
   formId: string;
   createdAt: number;
 } | null> {
@@ -127,7 +127,7 @@ export async function getFormByObjectId(objectId: string): Promise<{
     if (obj.data?.content?.dataType !== 'moveObject') return null;
     const fields = (obj.data.content as any).fields as Record<string, string>;
     return {
-      walrusBlobId: fields.walrus_blob_id,
+      configJson: fields.config_json,
       formId: fields.form_id,
       createdAt: Number(fields.created_at ?? 0),
     };
@@ -139,11 +139,11 @@ export async function getFormByObjectId(objectId: string): Promise<{
 
 /**
  * Query Submission objects owned by a wallet address.
- * Returns array of { suiObjectId, walrusBlobId, formId, submitter, timestamp, status }
+ * Returns array of { suiObjectId, payloadJson, formId, submitter, timestamp, status }
  */
 export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: string): Promise<Array<{
   suiObjectId: string;
-  walrusBlobId: string;
+  payloadJson: string;
   formId: string;
   submitter: string;
   timestamp: number;
@@ -164,7 +164,7 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
       if (formObjectId && fields.form_id !== formObjectId) continue;
       results.push({
         suiObjectId: item.data.objectId,
-        walrusBlobId: fields.walrus_blob_id,
+        payloadJson: fields.payload_json,
         formId: fields.form_id,
         submitter: fields.submitter,
         timestamp: Number(fields.timestamp ?? 0),
@@ -183,7 +183,7 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
  */
 export async function getOwnedForms(ownerAddress: string): Promise<Array<{
   suiObjectId: string;
-  walrusBlobId: string;
+  configJson: string;
   formId: string;
   createdAt: number;
 }>> {
@@ -200,7 +200,7 @@ export async function getOwnedForms(ownerAddress: string): Promise<Array<{
         const fields = (item.data!.content as any).fields as Record<string, string>;
         return {
           suiObjectId: item.data!.objectId,
-          walrusBlobId: fields.walrus_blob_id,
+          configJson: fields.config_json,
           formId: fields.form_id,
           createdAt: Number(fields.created_at ?? 0),
         };
