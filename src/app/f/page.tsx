@@ -289,7 +289,7 @@ function FormPageContent() {
         const txResult = await dAppKit.signAndExecuteTransaction({ 
           transaction: txb as any,
           options: { showEffects: true, showObjectChanges: true }
-        });
+        } as any);
         txDigest = (txResult as any)?.Transaction?.digest ?? (txResult as any)?.digest ?? '';
       } catch (txErr) {
         console.error('[Sui] submit_response tx failed:', txErr);
