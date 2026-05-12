@@ -182,12 +182,12 @@ export function AdminDashboard() {
     setFormsLoading(true);
     getOwnedForms(account.address).then(async (ownedForms) => {
       // Also try server registry
-      const enriched = await Promise.all(ownedForms.map(async (f) => {
+      const enriched = ownedForms.map((f) => {
         try {
-          const cfg = await readJsonFromWalrus<FormConfig>(f.walrusBlobId);
+          const cfg = JSON.parse(f.configJson) as FormConfig;
           return { ...f, title: cfg?.title };
         } catch { return f; }
-      }));
+      });
       setForms(enriched);
       if (enriched.length > 0 && !selectedFormId) setSelectedFormId(enriched[0].suiObjectId);
     }).finally(() => setFormsLoading(false));
