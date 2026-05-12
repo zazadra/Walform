@@ -45,6 +45,14 @@ export interface WalrusProvider {
  */
 export const WALRUS_PROVIDERS: WalrusProvider[] = [
   {
+    name: 'Mysten Labs Mainnet',
+    uploadUrl: 'https://upload-relay.mainnet.walrus.space/v1/blobs',
+    method: 'PUT',
+    apiVersion: 'v1',
+    streaming: true,
+    supportedParams: ['send_object_to'],
+  },
+  {
     name: 'Staketab Mainnet',
     // DNS resolves – confirmed working, responds to v1/blobs PUT
     uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
