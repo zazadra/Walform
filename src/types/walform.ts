@@ -1,4 +1,4 @@
-export type SessionFieldType = 'text' | 'email' | 'url' | 'textarea' | 'checkbox' | 'select' | 'file';
+export type SessionFieldType = 'text' | 'email' | 'url' | 'textarea' | 'checkbox' | 'select' | 'file' | 'rating';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 
 export interface SessionField {
@@ -8,6 +8,7 @@ export interface SessionField {
   required: boolean;
   enabled: boolean;
   helpText?: string;
+  description?: string; // field-level description shown below label
   placeholder?: string;
   options?: string[];   // for select
   linkText?: string;
@@ -24,6 +25,7 @@ export interface FormConfig {
   admins: string[];
   createdAt: number;
   publishedBlobId?: string;
+  publishedSuiObjectId?: string; // Sui Form object ID (used as formId in /f/?formId=)
   publishedBy?: string; // ownerWallet
   encryptionEnabled?: boolean; // Seal encryption flag
 }
@@ -39,7 +41,7 @@ export interface Submission {
   signature?: string;
   timestamp: number;
   blobId?: string;
-  status: SubmissionStatus;
+  status: string;
   adminNotes?: string;
 }
 

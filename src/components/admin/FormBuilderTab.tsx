@@ -281,8 +281,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
 }) {
   const [publishing, setPublishing] = useState(false);
   const [pubMsg, setPubMsg]         = useState('');
-  const [pubUrl, setPubUrl]         = useState(config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?form=${config.publishedBlobId}` : '');
+  const [pubUrl, setPubUrl]         = useState(config.publishedSuiObjectId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/f/?formId=${config.publishedSuiObjectId}` : config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/f/?formId=${config.publishedBlobId}` : '');
   const [pubBlobId, setPubBlobId]   = useState(config.publishedBlobId ?? '');
+  const [pubObjectId, setPubObjectId] = useState(config.publishedSuiObjectId ?? '');
   const [copied, setCopied]         = useState(false);
 
   function updateField(id: string, patch: Partial<SessionField>) {
@@ -349,17 +350,28 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
       
       cfg.publishedBlobId = blobId;
 
-      // ── Sui Native Indexing ──────────────────────────────────────────
+      // ── Sui Native Indexing: create Form object, capture object ID ──
+      let suiObjectId = '';
       try {
         const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
         if (WALFORM_PACKAGE_ID && WALFORM_PACKAGE_ID.startsWith('0x')) {
           console.log('[Sui] Creating Form object for native indexing...');
+          setPubMsg('Step 4/4: Creating Sui Form object…');
           const txb = await createFormObject(cfg.id, blobId, ownerAddress);
           
-          await dAppKit.signAndExecuteTransaction({ 
+          const txResult = await dAppKit.signAndExecuteTransaction({ 
             transaction: txb as any,
           });
-          console.log('[Sui] Form object created successfully.');
+          console.log('[Sui] Form object created:', txResult);
+          
+          // Extract the newly created Form object ID from the tx result
+          const objectChanges = (txResult as any)?.objectChanges ?? (txResult as any)?.Transaction?.objectChanges ?? [];
+          const created = objectChanges.find((c: any) => c.type === 'created' && c.objectType?.includes('::walform::Form'));
+          if (created?.objectId) {
+            suiObjectId = created.objectId;
+            cfg.publishedSuiObjectId = suiObjectId;
+            console.log('[Sui] Form object ID captured:', suiObjectId);
+          }
         }
       } catch (err) {
         console.warn('[Sui] Form indexing failed (non-critical):', err);
@@ -374,14 +386,17 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         await fetch('/api/registry/forms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ownerAddress, formBlobId: blobId }),
+          body: JSON.stringify({ ownerAddress, formBlobId: blobId, formObjectId: suiObjectId }),
         });
       } catch (regErr) {
         console.warn('[Registry] Forms registration failed (non-critical):', regErr);
       }
 
-      setPubUrl(`${window.location.origin}/?form=${blobId}`);
+      // Use Sui object ID if captured, otherwise fallback to blob ID
+      const formIdForUrl = suiObjectId || blobId;
+      setPubUrl(`${window.location.origin}/f/?formId=${formIdForUrl}`);
       setPubBlobId(blobId);
+      if (suiObjectId) setPubObjectId(suiObjectId);
     } catch (e) { 
       console.error("Publish Error:", e);
       alert('Publish failed: ' + (e as Error).message); 
@@ -470,17 +485,18 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
 
         {pubUrl && (
           <div style={{ marginTop:'12px', display:'flex', flexDirection:'column', gap:'12px' }}>
-            <div style={{ padding:'12px', borderRadius:'12px', background:'rgba(74,222,128,0.1)', border:'1px solid rgba(74,222,128,0.2)', display:'flex', alignItems:'center', gap:'10px' }}>
-              <span style={{ fontSize:'20px' }}>✅</span>
-              <div>
-                <p style={{ fontSize:'14px', fontWeight:600, color:'#4ade80' }}>Published Successfully!</p>
-                <p style={{ fontSize:'12px', color:'var(--text-3)' }}>It may take 30-60 seconds for the decentralized link to update.</p>
+            <div style={{ padding:'16px', borderRadius:'12px', background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.2)', display:'flex', alignItems:'center', gap:'12px' }}>
+              <span style={{ fontSize:'24px' }}>✅</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize:'14px', fontWeight:700, color:'#4ade80' }}>Published Successfully!</p>
+                {pubObjectId && <p className="mono" style={{ fontSize:'11px', color:'var(--text-3)', marginTop:4 }}>Object: {pubObjectId}</p>}
+                <p style={{ fontSize:'12px', color:'var(--text-3)', marginTop:2 }}>Share the link below to collect responses.</p>
               </div>
             </div>
 
             {/* Form URL */}
             <div style={{ display:'flex', gap:'8px' }}>
-              <div style={{ flex:1, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', fontFamily:'var(--mono)', color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              <div style={{ flex:1, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', fontFamily:'var(--mono)', color:'var(--accent-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {pubUrl}
               </div>
               <button className="btn btn-secondary" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>

@@ -14,7 +14,7 @@ const MyFormsTab = dynamic(() => import('@/components/admin/MyFormsTab').then(m=
 
 function shorten(a: string) { return `${a.slice(0,6)}-${a.slice(-4)}`; }
 
-const STATUS_COLORS: Record<SubmissionStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   pending: '#fbbf24', approved: '#4ade80', rejected: '#f87171',
 };
 

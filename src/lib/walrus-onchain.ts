@@ -104,3 +104,110 @@ export async function createSubmissionObject(
   });
   return txb;
 }
+
+// ---------------------------------------------------------------------------
+// Read Sui objects for form/submission discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * Given a Sui Form object ID, returns the walrus_blob_id stored inside it.
+ * This is the key bridge: URL uses objectId, data lives in Walrus.
+ */
+export async function getFormByObjectId(objectId: string): Promise<{
+  walrusBlobId: string;
+  formId: string;
+  createdAt: number;
+} | null> {
+  try {
+    const client = getSuiClient();
+    const obj = await client.getObject({
+      id: objectId,
+      options: { showContent: true },
+    });
+    if (obj.data?.content?.dataType !== 'moveObject') return null;
+    const fields = (obj.data.content as any).fields as Record<string, string>;
+    return {
+      walrusBlobId: fields.walrus_blob_id,
+      formId: fields.form_id,
+      createdAt: Number(fields.created_at ?? 0),
+    };
+  } catch (e) {
+    console.error('[Sui] getFormByObjectId failed:', e);
+    return null;
+  }
+}
+
+/**
+ * Query Submission objects owned by a wallet address.
+ * Returns array of { suiObjectId, walrusBlobId, formId, submitter, timestamp, status }
+ */
+export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: string): Promise<Array<{
+  suiObjectId: string;
+  walrusBlobId: string;
+  formId: string;
+  submitter: string;
+  timestamp: number;
+  status: string;
+}>> {
+  try {
+    const client = getSuiClient();
+    const resp = await client.getOwnedObjects({
+      owner: ownerAddress,
+      filter: { StructType: `${WALFORM_PACKAGE_ID}::walform::Submission` },
+      options: { showContent: true },
+    });
+    const results = [];
+    for (const item of resp.data) {
+      if (item.data?.content?.dataType !== 'moveObject') continue;
+      const fields = (item.data.content as any).fields as Record<string, string>;
+      // If filtering by formObjectId, only return submissions for that form
+      if (formObjectId && fields.form_id !== formObjectId) continue;
+      results.push({
+        suiObjectId: item.data.objectId,
+        walrusBlobId: fields.walrus_blob_id,
+        formId: fields.form_id,
+        submitter: fields.submitter,
+        timestamp: Number(fields.timestamp ?? 0),
+        status: fields.status ?? 'new',
+      });
+    }
+    return results;
+  } catch (e) {
+    console.error('[Sui] getOwnedSubmissions failed:', e);
+    return [];
+  }
+}
+
+/**
+ * Query Form objects owned by a wallet address.
+ */
+export async function getOwnedForms(ownerAddress: string): Promise<Array<{
+  suiObjectId: string;
+  walrusBlobId: string;
+  formId: string;
+  createdAt: number;
+}>> {
+  try {
+    const client = getSuiClient();
+    const resp = await client.getOwnedObjects({
+      owner: ownerAddress,
+      filter: { StructType: `${WALFORM_PACKAGE_ID}::walform::Form` },
+      options: { showContent: true },
+    });
+    return resp.data
+      .filter(item => item.data?.content?.dataType === 'moveObject')
+      .map(item => {
+        const fields = (item.data!.content as any).fields as Record<string, string>;
+        return {
+          suiObjectId: item.data!.objectId,
+          walrusBlobId: fields.walrus_blob_id,
+          formId: fields.form_id,
+          createdAt: Number(fields.created_at ?? 0),
+        };
+      });
+  } catch (e) {
+    console.error('[Sui] getOwnedForms failed:', e);
+    return [];
+  }
+}
+
