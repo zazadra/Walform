@@ -136,36 +136,37 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
             </div>
           ) : (
             Object.entries(displayData).map(([key, val]) => {
-            const s = String(val ?? '');
-            const isUrl = s.startsWith('http');
-            const isBlob = s.length >= 43 && !s.includes(' ') && !s.startsWith('0x');
-            const isImgKey = /image|screenshot|visual|proof|file/i.test(key);
-            
-            return (
-              <div key={key}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', marginBottom: 4 }}>
-                  {key.replace(/_/g, ' ')}
+              const s = String(val ?? '')
+              const isUrl = s.startsWith('http')
+              const isBlob = s.length >= 43 && !s.includes(' ') && !s.startsWith('0x')
+              const isImgKey = /image|screenshot|visual|proof|file/i.test(key)
+              
+              return (
+                <div key={key}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', marginBottom: 4 }}>
+                    {key.replace(/_/g, ' ')}
+                  </div>
+                  <div style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6 }}>
+                    {isUrl ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <a href={s} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
+                        {(/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(s) || s.includes('aggregator')) && (
+                          <img src={s} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
+                        )}
+                      </div>
+                    ) : isBlob ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <a href={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
+                        {isImgKey && (
+                          <img src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
+                        )}
+                      </div>
+                    ) : (
+                      Array.isArray(val) ? val.join(', ') : s || '—'
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6 }}>
-                  {isUrl ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <a href={s} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
-                      {(/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(s) || s.includes('aggregator')) && (
-                        <img src={s} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
-                      )}
-                    </div>
-                  ) : isBlob ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <a href={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
-                      {isImgKey && (
-                        <img src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
-                      )}
-                    </div>
-                  ) : (
-                    Array.isArray(val) ? val.join(', ') : s || '—'
-                  )}
-                </div>
-              );
+              )
             })
           )}
         </div>
