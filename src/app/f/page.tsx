@@ -191,6 +191,8 @@ function FormPageContent() {
   const [errMsg, setErrMsg] = useState('');
   const [flow, setFlow] = useState<FlowState>({ walrus: 'idle', suiTx: 'idle', receipt: 'idle' });
   const [receipt, setReceipt] = useState<{ blobId: string; txDigest: string; rootHash: string } | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   // ── Load form from Sui object ──
   useEffect(() => {
@@ -283,14 +285,18 @@ function FormPageContent() {
       // Step 2: Sui submit_response tx
       let txDigest = '';
       try {
-        const { createSubmissionObject } = await import('@/lib/walrus-onchain');
-        const adminAddr = config.publishedBy || account.address;
-        const txb = await createSubmissionObject(formObjectId, payloadJson, 'new', adminAddr);
-        const txResult = await dAppKit.signAndExecuteTransaction({ 
-          transaction: txb as any,
-          options: { showEffects: true, showObjectChanges: true }
-        } as any);
-        txDigest = (txResult as any)?.Transaction?.digest ?? (txResult as any)?.digest ?? '';
+        const { createSubmissionObject, getSuiClient } = await import('@/lib/walrus-onchain');
+        // Owner harus submitter, bukan admin
+        const txb = await createSubmissionObject(formObjectId, payloadJson, 'new', account.address);
+        const { bytes, signature } = await dAppKit.signTransaction({ transaction: txb as any } as any);
+        const client = getSuiClient() as any;
+        const execResult = await client.executeTransactionBlock({
+          transactionBlock: bytes,
+          signature,
+          options: { showEffects: true },
+          requestType: 'WaitForLocalExecution',
+        });
+        txDigest = execResult?.digest ?? '';
       } catch (txErr) {
         console.error('[Sui] submit_response tx failed:', txErr);
         throw new Error('Failed to register submission on Sui.');
@@ -342,83 +348,111 @@ function FormPageContent() {
   );
 
   const enabledFields = config.fields.filter(f => f.enabled);
-  const requiredCount = enabledFields.filter(f => f.required).length;
+  const totalSteps = enabledFields.length;
+  const progress = totalSteps > 0 ? ((currentStep) / totalSteps) * 100 : 0;
+
+  function goNext() {
+    const field = enabledFields[currentStep];
+    if (field?.required) {
+      const v = data[field.id];
+      if (!v || v === '' || (Array.isArray(v) && v.length === 0)) {
+        setErrors(e => ({ ...e, [field.id]: 'This field is required.' }));
+        return;
+      }
+    }
+    setErrors(e => { const n = { ...e }; if (field) delete n[field.id]; return n; });
+    if (currentStep < totalSteps - 1) { setDirection(1); setCurrentStep(s => s + 1); }
+  }
+
+  function goBack() {
+    if (currentStep > 0) { setDirection(-1); setCurrentStep(s => s - 1); }
+  }
+
+  const field = enabledFields[currentStep];
+  const isLast = currentStep === totalSteps - 1;
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 32, alignItems: 'start' }}>
-      {/* Left: Form */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        {/* Form header */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--text-1)' }}>{config.title || 'Untitled Form'}</h1>
-            {requiredCount > 0 && (
-              <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--accent-2)' }}>
-                {requiredCount} required
-              </span>
-            )}
-          </div>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>{formObjectId}</div>
-          {config.description && <p style={{ fontSize: 15, color: 'var(--text-2)', lineHeight: 1.6 }}>{config.description}</p>}
+    <div
+      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}
+      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && status !== 'submitting') { e.preventDefault(); if (status === 'success') return; if (isLast) handleSubmit(); else goNext(); } }}
+      tabIndex={-1}
+    >
+      {/* Progress bar */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 100, background: 'rgba(255,255,255,0.06)' }}>
+        <motion.div
+          animate={{ width: `${progress}%` }}
+          transition={{ ease: 'easeOut', duration: 0.4 }}
+          style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' }}
+        />
+      </div>
+
+      {/* Header */}
+      <div style={{ padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>{config.title || 'Form'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{currentStep + 1} / {totalSteps}</span>
+          {!account ? <ConnectButton instance={dAppKit} /> : <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--accent-2)', fontFamily: 'var(--mono)' }}>{account.address.slice(0,6)}…{account.address.slice(-4)}</span>}
         </div>
+      </div>
 
-        {/* Success state */}
-        {status === 'success' && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="alert-success" style={{ padding: '24px', borderRadius: 'var(--r-lg)', marginBottom: 24, textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--success)', marginBottom: 8 }}>Response submitted!</div>
-            <div style={{ fontSize: 14, color: 'var(--text-2)' }}>Your response has been stored on Walrus and anchored on Sui.</div>
-          </motion.div>
-        )}
+      {/* Content */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+        <div style={{ width: '100%', maxWidth: 640 }}>
 
-        {/* Fields */}
-        {status !== 'success' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {enabledFields.map((field, i) => (
-              <motion.div key={field.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                {field.type !== 'checkbox' && (
-                  <label className="input-label">
-                    {field.label}
-                    {field.required && <span className="input-required">*</span>}
-                  </label>
-                )}
-                {field.description && <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 8 }}>{field.description}</p>}
-                <FieldInput
-                  field={field}
-                  value={data[field.id] ?? (field.type === 'checkbox' && field.options ? [] : '')}
-                  onChange={v => setData(d => ({ ...d, [field.id]: v }))}
-                  onFile={files => handleFile(field.id, files)}
-                  uploading={!!fileUploading[field.id]}
-                />
-                {errors[field.id] && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 6 }}>{errors[field.id]}</p>}
-              </motion.div>
-            ))}
-
-            {/* Wallet + submit */}
-            <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {!account && (
-                <div style={{ padding: '16px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Connect your wallet to submit.</span>
-                  <ConnectButton instance={dAppKit} />
-                </div>
-              )}
-              {errMsg && <div className="alert-error">{errMsg}</div>}
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmit}
-                disabled={status === 'submitting' || !account}
-                style={{ alignSelf: 'flex-start', padding: '12px 28px', gap: 10 }}
+          {status === 'success' ? (
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '2px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>✓</div>
+              <h2 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-1)', letterSpacing: '-0.03em' }}>All done!</h2>
+              <p style={{ fontSize: 16, color: 'var(--text-2)', lineHeight: 1.6 }}>Your response has been anchored on Sui.</p>
+              {receipt?.txDigest && <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', padding: '8px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 8, wordBreak: 'break-all' }}>Tx: {receipt.txDigest}</div>}
+            </motion.div>
+          ) : field ? (
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={field.id}
+                custom={direction}
+                initial={{ opacity: 0, y: direction * 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: direction * -40 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
-                {status === 'submitting' ? <><span className="spinner" />Submitting…</> : <>🛡️ Submit response</>}
-              </button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Right: Flow sidebar */}
-      <div style={{ position: 'sticky', top: 80 }}>
-        <FlowSidebar flow={flow} receipt={receipt} />
+                <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 700, color: 'var(--accent-2)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{currentStep + 1} →</div>
+                <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-1)', marginBottom: 8, lineHeight: 1.3, letterSpacing: '-0.02em' }}>
+                  {field.label}{field.required && <span style={{ color: 'var(--accent-2)', marginLeft: 4 }}>*</span>}
+                </h2>
+                {field.description && <p style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 20, lineHeight: 1.6 }}>{field.description}</p>}
+                <div style={{ marginBottom: 24 }}>
+                  <FieldInput
+                    field={field}
+                    value={data[field.id] ?? (field.type === 'checkbox' && field.options ? [] : '')}
+                    onChange={v => { setData(d => ({ ...d, [field.id]: v })); setErrors(e => { const n = {...e}; delete n[field.id]; return n; }); }}
+                    onFile={files => handleFile(field.id, files)}
+                    uploading={!!fileUploading[field.id]}
+                  />
+                </div>
+                {errors[field.id] && <p style={{ fontSize: 13, color: 'var(--error)', marginBottom: 16 }}>{errors[field.id]}</p>}
+                {errMsg && <div className="alert-error" style={{ marginBottom: 16 }}>{errMsg}</div>}
+                {!account && isLast && (
+                  <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-2)', flex: 1 }}>Connect wallet to submit</span>
+                    <ConnectButton instance={dAppKit} />
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {isLast ? (
+                    <button className="btn btn-primary" onClick={handleSubmit} disabled={status === 'submitting' || !account} style={{ padding: '13px 28px', fontSize: 15 }}>
+                      {status === 'submitting' ? <><span className="spinner" />Submitting…</> : '🛡️ Submit'}
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={goNext} style={{ padding: '13px 28px', fontSize: 15 }}>OK →</button>
+                  )}
+                  {currentStep > 0 && <button className="btn btn-secondary btn-sm" onClick={goBack} style={{ opacity: 0.6 }}>↑ Back</button>}
+                  <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4 }}>press <kbd style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: '1px 5px', fontFamily: 'inherit' }}>Enter</kbd></span>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -427,7 +461,7 @@ function FormPageContent() {
 export default function FormPage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-3)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-3)' }}>
         <span className="spinner" style={{ width: 20, height: 20 }} />Loading…
       </div>
     }>
@@ -435,3 +469,4 @@ export default function FormPage() {
     </Suspense>
   );
 }
+
