@@ -69,13 +69,13 @@ function SubmissionDetail({ sub, idx, onStatusChange }: { sub: Submission; idx: 
           { label: 'ROOT HASH', value: sub.blobId || sub.id },
         ].map(({ label, value }) => (
           <div key={label}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }}>{label}</div>
             {label === 'STATUS' ? (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {STATUSES.map(st => (
                   <button key={st} onClick={() => onStatusChange(sub.id, st)}
                     className={`btn btn-sm ${sub.status === st ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6 }}>
+                    style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, fontWeight: 700 }}>
                     {st}
                   </button>
                 ))}
