@@ -135,9 +135,25 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
               <p style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 4 }}>Click unlock and sign to view.</p>
             </div>
           ) : (
-            Object.entries(displayData).map(([key, val]) => {
+            Object.entries(displayData).map(([key, rawVal]) => {
               const isImgKey = /image|screenshot|visual|proof|file/i.test(key)
               
+              // Normalize val into an array of items
+              let items: any[] = [];
+              if (Array.isArray(rawVal)) {
+                items = rawVal;
+              } else if (typeof rawVal === 'string') {
+                if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+                  try { items = JSON.parse(rawVal); } catch { items = [rawVal]; }
+                } else if (rawVal.includes(',')) {
+                  items = rawVal.split(',').map(s => s.trim());
+                } else {
+                  items = [rawVal];
+                }
+              } else {
+                items = [rawVal];
+              }
+
               const renderItem = (itemVal: any) => {
                 const s = String(itemVal ?? '')
                 const isUrl = s.startsWith('http')
@@ -148,18 +164,21 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <a href={s} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
                       {(/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(s) || s.includes('aggregator')) && (
-                        <img src={s} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
+                        <img src={s} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }} />
                       )}
                     </div>
                   )
                 }
                 
                 if (isBlob) {
+                  const blobId = s.slice(0, 43);
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <a href={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all' }}>{s}</a>
+                      <a href={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${blobId}`} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'underline', wordBreak: 'break-all', fontSize: 12 }}>{s}</a>
                       {isImgKey && (
-                        <img src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${s.slice(0, 43)}`} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, border: '1px solid var(--border)' }} />
+                        <div style={{ position: 'relative' }}>
+                          <img src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${blobId}`} alt="" style={{ maxWidth: '100%', maxHeight: 400, borderRadius: 10, marginTop: 4, border: '1px solid var(--border)', display: 'block' }} />
+                        </div>
                       )}
                     </div>
                   )
@@ -169,20 +188,16 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
               }
               
               return (
-                <div key={key}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', marginBottom: 4 }}>
+                <div key={key} style={{ paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', marginBottom: 8 }}>
                     {key.replace(/_/g, ' ')}
                   </div>
                   <div style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.6 }}>
-                    {Array.isArray(val) ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {val.map((item, idx) => (
-                          <div key={idx}>{renderItem(item)}</div>
-                        ))}
-                      </div>
-                    ) : (
-                      renderItem(val)
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {items.map((item, idx) => (
+                        <div key={idx}>{renderItem(item)}</div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )
@@ -386,7 +401,7 @@ export function AdminDashboard() {
   return (
     <div style={{ height: 'calc(100dvh - 56px)', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* ── Page layout: left sidebar + main content ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
+      <div className="mobile-grid-stack" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
 
         {/* ── Left: Forms sidebar ── */}
         <aside style={{ borderRight: '1px solid var(--border)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', background: 'rgba(5,6,11,0.5)' }}>
@@ -412,7 +427,10 @@ export function AdminDashboard() {
 
           {/* Form header */}
           {selectedForm ? (
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <div 
+              className="mobile-p-4 mobile-stack mobile-gap-4"
+              style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <motion.img 
                   src="/walform-mascot.png" 
@@ -451,12 +469,15 @@ export function AdminDashboard() {
 
           {/* Content */}
           {selectedForm && (
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' }}>
+            <div className="mobile-grid-stack" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' }}>
 
               {/* Submissions list */}
               <div style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 8 }}>
+                <div 
+                  className="mobile-stack"
+                  style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 8 }}
+                >
                   {[['OPEN', statNew, '#22d3ee'], ['REVIEWING', statReviewing, '#fbbf24'], ['DONE', statDone, '#4ade80']].map(([label, count, color]) => (
                     <div key={label as string} className="card" style={{ padding: '12px 16px', borderRadius: 'var(--r)', textAlign: 'center' }}>
                       <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: color as string, marginBottom: 4 }}>{label as string}</div>

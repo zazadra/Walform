@@ -122,6 +122,34 @@ export async function uploadBytesToWalrus(
 
   onProgress?.({ status: 'encoding', message: 'Encoding data...' });
 
+  // 1. Try API relay first (No wallet approval required)
+  try {
+    onProgress?.({ status: 'uploading', message: 'Uploading to Walrus (Relay)...' });
+    const res = await fetch('/api/walrus/upload?epochs=' + epochs, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: bytes as any,
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.blobId) {
+        const cleanId = data.blobId.slice(0, 43);
+        onProgress?.({ status: 'success', message: `Stored via Relay ✓ (${cleanId.slice(0, 12)}…)` });
+        return {
+          blobId: cleanId,
+          objectId: data.objectId || '',
+          endEpoch: data.endEpoch || epochs,
+        };
+      }
+    }
+    const txt = await res.text();
+    console.warn('[Walrus] Relay failed, trying Native SDK...', res.status, txt);
+  } catch (err) {
+    console.warn('[Walrus] Relay exception, trying Native SDK...', err);
+  }
+
+  // 2. Fallback to Native SDK (Requires wallet approval)
   try {
     const walrusClient = getWalrusClient();
     const flow = walrusClient.writeBlobFlow({ blob: bytes });
@@ -130,61 +158,35 @@ export async function uploadBytesToWalrus(
     const blobId = encoded.blobId;
 
     // Pre-check: if already on Walrus, skip wallet popups
-  try {
-    const existing = await readBlobFromWalrus(blobId);
-    if (existing) {
-      onProgress?.({ status: 'success', message: 'Already on Walrus ✓' });
-      return { blobId, objectId: '', endEpoch: 0 };
-    }
-  } catch { /* not found, continue with upload */ }
-
-  // 1. Register (wallet popup #1)
-  onProgress?.({ status: 'registering', message: 'Waiting for wallet approval (register)...' });
-  const registerTx = flow.register({ owner: signer.address, deletable: false, epochs });
-
-  if (registerTx && registerTx.getData().commands.length > 0) {
     try {
+      const existing = await readBlobFromWalrus(blobId);
+      if (existing) {
+        onProgress?.({ status: 'success', message: 'Already on Walrus ✓' });
+        return { blobId, objectId: '', endEpoch: 0 };
+      }
+    } catch { /* not found, continue */ }
+
+    // Register (wallet popup #1)
+    onProgress?.({ status: 'registering', message: 'Waiting for wallet approval (register)...' });
+    const registerTx = flow.register({ owner: signer.address, deletable: false, epochs });
+
+    if (registerTx && registerTx.getData().commands.length > 0) {
       await signer.signAndExecute(registerTx);
-    } catch (err: any) {
-      const msg = err.message || String(err);
-      if (msg.includes('User rejected') || msg.includes('rejected')) {
-        onProgress?.({ status: 'failed', message: 'Upload cancelled by user.' });
-        throw err;
-      }
-      if (!msg.includes('no balance changes')) {
-        console.warn('Register tx warning (may be pre-registered):', msg);
-      }
     }
-  }
 
-  // 2. Upload via relay (no wallet popup — relay handles storage node distribution)
-  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus network...' });
-  // FIX: No `digest` argument — that is only for resume from a previous encode step
-  const uploaded = await flow.upload();
+    // Upload via SDK (direct to nodes)
+    onProgress?.({ status: 'uploading', message: 'Uploading to Walrus network...' });
+    const uploaded = await flow.upload();
 
-  // 3. Certify (wallet popup #2)
-  onProgress?.({ status: 'certifying', message: 'Waiting for wallet approval (certify)...' });
-  const certifyTx = flow.certify();
-  if (certifyTx && certifyTx.getData().commands.length > 0) {
-    try {
+    // Certify (wallet popup #2)
+    onProgress?.({ status: 'certifying', message: 'Waiting for wallet approval (certify)...' });
+    const certifyTx = flow.certify();
+    if (certifyTx && certifyTx.getData().commands.length > 0) {
       await signer.signAndExecute(certifyTx);
-    } catch (err: any) {
-      const msg = err.message || String(err);
-      if (msg.includes('User rejected') || msg.includes('rejected')) {
-        onProgress?.({ status: 'failed', message: 'Upload cancelled by user.' });
-        throw err;
-      }
-      if (!msg.includes('no balance changes')) {
-        console.warn('Certify tx warning (may be pre-certified):', msg);
-      }
     }
-  }
 
-  // Extract clean 43-char blobId
-  const rawBlobId = uploaded.blobId ?? blobId;
-  const cleanBlobId = rawBlobId.slice(0, 43);
-
-  onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (${cleanBlobId.slice(0, 12)}…)` });
+    const cleanBlobId = (uploaded.blobId ?? blobId).slice(0, 43);
+    onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (${cleanBlobId.slice(0, 12)}…)` });
 
     return {
       blobId: cleanBlobId,
@@ -192,30 +194,8 @@ export async function uploadBytesToWalrus(
       endEpoch: 0,
     };
   } catch (err: any) {
-    console.warn('[Walrus] Native SDK failed, falling back to API relay...', err);
-    onProgress?.({ status: 'uploading', message: 'Native upload failed, trying server relay...' });
-    
-    // Fallback to our robust server-side /api/walrus/upload
-    const res = await fetch('/api/walrus/upload?epochs=' + epochs, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: bytes as any,
-    });
-    
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`API Relay failed: ${res.status} ${txt}`);
-    }
-    
-    const data = await res.json();
-    if (!data.blobId) throw new Error('API Relay failed to return blobId');
-    
-    onProgress?.({ status: 'success', message: `Stored via Relay ✓ (${data.blobId.slice(0, 12)}…)` });
-    return {
-      blobId: data.blobId,
-      objectId: data.objectId || '',
-      endEpoch: data.endEpoch || epochs,
-    };
+    console.error('[Walrus] Native upload failed:', err);
+    throw new Error(`Upload failed: ${err.message || 'Unknown error'}`);
   }
 }
 

@@ -408,4 +408,25 @@ body::after {
 /* ── Responsive helpers ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
+  .mobile-stack { flex-direction: column !important; display: flex !important; }
+  .mobile-grid-stack { grid-template-columns: 1fr !important; }
+  .mobile-p-4 { padding: 16px !important; }
+  .mobile-p-6 { padding: 24px !important; }
+  .mobile-m-0 { margin: 0 !important; }
+  .mobile-w-full { width: 100% !important; }
+  
+  :root {
+    --r-xl: 16px;
+    --r-lg: 12px;
+  }
+
+  .btn-xl { padding: 16px 32px; font-size: 16px; }
+  .btn-lg { padding: 14px 28px; font-size: 15px; }
+}
+
+@media (max-width: 480px) {
+  .mobile-p-2 { padding: 8px !important; }
+  .mobile-gap-4 { gap: 16px !important; }
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.5rem !important; }
 }

@@ -120,13 +120,31 @@ function FieldInput({ field, value, onChange, onFile, uploading, allData, onData
             {uploading ? <><span className="spinner" />Uploading…</> : 'Choose File'}
           </button>
           {Array.isArray(value) && (value as string[]).map((blobId, i) => (
-            <div key={i} style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-              📎 blob-{blobId.slice(0, 20)}…
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+                <span>📎</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>blob-{blobId.slice(0, 24)}…</span>
+              </div>
+              <img 
+                src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${blobId}`} 
+                alt="" 
+                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }} 
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
             </div>
           ))}
           {value && typeof value === 'string' && (
-            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-              📎 blob-{(value as string).slice(0, 20)}…
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+                <span>📎</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>blob-{(value as string).slice(0, 24)}…</span>
+              </div>
+              <img 
+                src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${value}`} 
+                alt="" 
+                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }} 
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
             </div>
           )}
         </div>
@@ -360,9 +378,13 @@ function FormPageContent() {
         // Execute using the current wallet signer
         const execResult = await signer.signAndExecute(txb);
         txDigest = execResult?.digest ?? '';
-      } catch (txErr) {
-        console.error('[Sui] submit_response tx failed:', txErr);
-        throw new Error('Failed to register submission on Sui.');
+      } catch (txErr: any) {
+        console.error('[Sui] register_submission tx failed:', txErr);
+        // Robust error extraction
+        let detail = txErr?.message || txErr?.toString() || 'Unknown error';
+        if (txErr?.data) detail += ` | Data: ${JSON.stringify(txErr.data)}`;
+        if (detail.includes('Rejected')) detail = 'Transaction rejected by user.';
+        throw new Error(`Sui registration failed: ${detail.slice(0, 100)}${detail.length > 100 ? '…' : ''}`);
       }
       setFlow({ walrus: 'done', suiTx: 'done', receipt: 'uploading' });
 
@@ -453,34 +475,45 @@ function FormPageContent() {
       </div>
 
       {/* Unified Professional Header */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(16px)', zIndex: 90 }}>
+      <div 
+        className="mobile-p-4"
+        style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, 
+          padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+          borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(16px)', zIndex: 90 
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, minWidth: 0 }}>
           {/* Logo */}
           <a href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             <motion.img 
               src="/walform-mascot.png" 
               alt="Walform" 
+              className="mobile-w-8"
               style={{ height: '32px', width: 'auto', filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.4))' }}
               whileHover={{ scale: 1.1, rotate: -5 }}
             />
-            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.04em', color: '#fff' }}>Walform</span>
+            <span className="hide-mobile" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.04em', color: '#fff' }}>Walform</span>
           </a>
 
-          <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+          <div className="hide-mobile" style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
           
           <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-2)', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {config.title || 'Form'}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 999 }}>{currentStep + 1} of {totalSteps}</span>
-          {!account ? <ConnectButton instance={dAppKit} /> : <span style={{ fontSize: 13, padding: '6px 12px', borderRadius: 999, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--accent-2)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{account.address.slice(0,6)}…{account.address.slice(-4)}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="hide-mobile" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 999 }}>{currentStep + 1} of {totalSteps}</span>
+          {!account ? <ConnectButton instance={dAppKit} /> : <span style={{ fontSize: 12, padding: '6px 12px', borderRadius: 999, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--accent-2)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{account.address.slice(0,6)}…{account.address.slice(-4)}</span>}
         </div>
       </div>
 
       {/* Content wrapper with top padding to account for fixed header */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 60px' }}>
+      <div 
+        className="mobile-p-4"
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 60px' }}
+      >
         <div style={{ width: '100%', maxWidth: 720 }}>
 
           {status === 'success' ? (
@@ -515,27 +548,8 @@ function FormPageContent() {
                     allData={data}
                     onDataChange={(id, v) => { setData(d => ({ ...d, [id]: v })); setErrors(e => { const n = {...e}; delete n[id]; return n; }); }}
                   />
-                  
-                  {field.id === 'leader_email' && (() => {
-                    const newsletterField = config.fields.find(f => f.id === 'newsletter' && f.enabled);
-                    if (newsletterField) {
-                      return (
-                        <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-                          <FieldInput 
-                            field={newsletterField} 
-                            value={data[newsletterField.id] ?? false} 
-                            onChange={v => setData(d => ({ ...d, [newsletterField.id]: v }))} 
-                            onFile={async () => {}} 
-                            uploading={false}
-                            allData={data}
-                            onDataChange={(id, v) => setData(d => ({ ...d, [id]: v }))}
-                          />
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
+
                 {errors[field.id] && <p style={{ fontSize: 13, color: 'var(--error)', marginBottom: 16 }}>{errors[field.id]}</p>}
                 {errMsg && <div className="alert-error" style={{ marginBottom: 16 }}>{errMsg}</div>}
                 {!account && isLast && (

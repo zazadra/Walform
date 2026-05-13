@@ -147,7 +147,10 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
           style={{ padding:'0 20px 20px', borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:'16px', paddingTop: '20px' }}
         >
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+          <div 
+            className="mobile-grid-stack"
+            style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}
+          >
             <div>
               <label className="input-label">Field Type</label>
               <select className="select" value={field.type}
@@ -240,7 +243,10 @@ function CustomFieldCreator({ onAdd }: { onAdd: (f: SessionField) => void }) {
               onChange={e => { setDraft(d=>({...d,label:e.target.value})); setErr(''); }} />
             {err && <p style={{ fontSize:'11px', color:'#f87171', marginTop:'3px' }}>{err}</p>}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+          <div 
+            className="mobile-grid-stack"
+            style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}
+          >
             <div>
               <label className="input-label" style={{fontSize:'11px'}}>Type</label>
               <select className="select" value={draft.type} onChange={e => setDraft(d=>({...d,type:e.target.value as SessionFieldType}))}
@@ -503,14 +509,19 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
             </div>
 
             {/* Form URL */}
-            <div style={{ display:'flex', gap:'8px' }}>
+            <div 
+              className="mobile-stack"
+              style={{ display:'flex', gap:'8px' }}
+            >
               <div style={{ flex:1, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', fontFamily:'var(--mono)', color:'var(--accent-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {pubUrl}
               </div>
-              <button className="btn btn-secondary" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
-              <a href={pubUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ padding:'0 12px', display:'flex', alignItems:'center' }}>
-                ↗ Open
-              </a>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary mobile-w-full" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+                <a href={pubUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ padding:'0 12px', display:'flex', alignItems:'center' }}>
+                  ↗ Open
+                </a>
+              </div>
             </div>
           </div>
         )}
