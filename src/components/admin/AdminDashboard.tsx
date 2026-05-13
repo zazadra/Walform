@@ -248,10 +248,10 @@ export function AdminDashboard() {
     try {
       const obj = await getFormByObjectId(id);
       if (!obj) throw new Error('Form object not found.');
-      const form = await readJsonFromWalrus<FormConfig>(obj.walrusBlobId);
-      if (!form) throw new Error('Could not read form data.');
+      let form: FormConfig;
+      try { form = JSON.parse(obj.configJson); } catch { throw new Error('Could not read form data.'); }
       // Add to forms list if not there
-      setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ suiObjectId: id, walrusBlobId: obj.walrusBlobId, formId: obj.formId, createdAt: obj.createdAt, title: form.title }, ...prev]);
+      setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ suiObjectId: id, configJson: obj.configJson, formId: obj.formId, createdAt: obj.createdAt, title: form.title }, ...prev]);
       setSelectedFormId(id);
       setTab('responses');
       if (account) loadSubs(id, account.address);
