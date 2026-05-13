@@ -153,16 +153,41 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
 }>> {
   try {
     const client = getSuiClient();
-    const resp = await client.getOwnedObjects({
-      owner: ownerAddress,
-      filter: { StructType: `${WALFORM_PACKAGE_ID}::walform::Submission` },
+
+    // Strategy: query all tx blocks that called our package's register_submission
+    // This finds ALL submissions across ALL wallets (not just admin's own)
+    const txResp = await (client as any).queryTransactionBlocks({
+      filter: { MoveFunction: { package: WALFORM_PACKAGE_ID, module: 'walform', function: 'register_submission' } },
+      options: { showObjectChanges: true, showEffects: true },
+      limit: 200,
+    });
+
+    const subObjectIds: string[] = [];
+    for (const tx of (txResp?.data ?? [])) {
+      for (const change of (tx.objectChanges ?? [])) {
+        if (
+          change.type === 'created' &&
+          typeof change.objectType === 'string' &&
+          change.objectType.includes('::walform::Submission')
+        ) {
+          subObjectIds.push(change.objectId);
+        }
+      }
+    }
+
+    if (subObjectIds.length === 0) return [];
+
+    // Batch fetch all submission objects
+    const multiResp = await client.multiGetObjects({
+      ids: subObjectIds,
       options: { showContent: true },
     });
+
     const results = [];
-    for (const item of resp.data) {
+    for (const item of multiResp) {
       if (item.data?.content?.dataType !== 'moveObject') continue;
       const fields = (item.data.content as any).fields as Record<string, string>;
-      // If filtering by formObjectId, only return submissions for that form
+      // Filter by formObjectId if specified
       if (formObjectId && fields.form_id !== formObjectId) continue;
       results.push({
         suiObjectId: item.data.objectId,
@@ -173,7 +198,7 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
         status: fields.status ?? 'new',
       });
     }
-    return results;
+    return results.sort((a, b) => b.timestamp - a.timestamp);
   } catch (e) {
     console.error('[Sui] getOwnedSubmissions failed:', e);
     return [];

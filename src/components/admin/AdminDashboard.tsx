@@ -91,9 +91,9 @@ function SubmissionDetail({ sub, idx, onStatusChange }: { sub: Submission; idx: 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
 
       {/* Answers */}
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 14 }}>ANSWERS</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 14, flexShrink: 0 }}>ANSWERS</div>
+        <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '45vh', overflowY: 'auto', paddingRight: 8 }}>
           {Object.entries(sub.data).map(([key, val]) => (
             <div key={key}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', marginBottom: 4 }}>
@@ -284,7 +284,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: 'calc(100dvh - 56px)', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* ── Page layout: left sidebar + main content ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
 

@@ -91,8 +91,8 @@ export function Navbar() {
         )}
         {isLanding && <div style={{ flex: 1 }} />}
 
-        {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+        {/* Right side — hidden entirely on landing page */}
+        {!isLanding && <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
           {account ? (
             <>
               <button
@@ -133,7 +133,7 @@ export function Navbar() {
               ☰
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Mobile dropdown */}

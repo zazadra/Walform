@@ -393,6 +393,24 @@ function FormPageContent() {
       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && status !== 'submitting') { e.preventDefault(); if (status === 'success') return; if (isLast) handleSubmit(); else goNext(); } }}
       tabIndex={-1}
     >
+      {/* Header with Walform Logo */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, padding: '24px 32px', display: 'flex', alignItems: 'center', zIndex: 90 }}>
+        <a href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 20px rgba(168,85,247,0.4)', border: '1px solid rgba(255,255,255,0.2)'
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+              <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+              <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+            </svg>
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-1)' }}>Walform</span>
+        </a>
+      </div>
+
       {/* Progress bar */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 100, background: 'rgba(255,255,255,0.06)' }}>
         <motion.div
