@@ -1,28 +1,28 @@
 /**
  * Walrus On-Chain Integration
- * - Tatum Sui RPC for reliable chain queries
+ * - Public Sui mainnet RPC (no Tatum — avoids CORS issues from browser)
  * - Move contract interactions for form/submission indexing
  */
 
 import type { WalrusUploadResponse } from '@/types/walform';
 import type { WalrusSigner } from '@/lib/walrus';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import { getSuiRpcUrl } from '@/lib/walrus';
 
 export const WALFORM_PACKAGE_ID: string =
   '0xebb99d93ce26307c536308339144b05c32c0ac20f04156b61b1805e713a11693';
 
 // ---------------------------------------------------------------------------
-// Tatum-powered Sui client
+// Sui client — public mainnet RPC, no Tatum
 // ---------------------------------------------------------------------------
+
+const SUI_MAINNET_RPC = 'https://fullnode.mainnet.sui.io';
 
 let _suiClient: SuiJsonRpcClient | null = null;
 
-/** Returns a singleton Sui JSON-RPC client, preferring Tatum RPC for reliability. */
+/** Returns a singleton Sui JSON-RPC client using the public mainnet fullnode. */
 export function getSuiClient(): SuiJsonRpcClient {
   if (!_suiClient) {
-    const url = getSuiRpcUrl(); // Uses Tatum if NEXT_PUBLIC_TATUM_API_KEY is set
-    _suiClient = new SuiJsonRpcClient({ url, network: 'mainnet' });
+    _suiClient = new SuiJsonRpcClient({ url: SUI_MAINNET_RPC, network: 'mainnet' });
   }
   return _suiClient;
 }

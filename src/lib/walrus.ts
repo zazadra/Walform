@@ -8,7 +8,7 @@
  */
 
 import type { WalrusUploadResponse } from '@/types/walform';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { WalrusClient } from '@mysten/walrus';
 
 export const NETWORK = 'mainnet' as const;
@@ -28,17 +28,8 @@ const AGGREGATORS = [
 
 export const WALRUS_AGGREGATOR = AGGREGATOR;
 
-// ---------------------------------------------------------------------------
-// Tatum RPC helper
-// ---------------------------------------------------------------------------
 
-export function getSuiRpcUrl(): string {
-  const tatumKey = process.env.NEXT_PUBLIC_TATUM_API_KEY;
-  if (tatumKey) {
-    return `https://api.tatum.io/v3/blockchain/node/sui-mainnet/${tatumKey}`;
-  }
-  return getJsonRpcFullnodeUrl(NETWORK);
-}
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,7 +87,7 @@ let _walrusClient: WalrusClient | null = null;
 
 function getWalrusClient(): WalrusClient {
   if (!_walrusClient) {
-    const suiClient = new SuiJsonRpcClient({ url: getSuiRpcUrl(), network: NETWORK });
+    const suiClient = new SuiJsonRpcClient({ url: 'https://fullnode.mainnet.sui.io', network: NETWORK });
     _walrusClient = new WalrusClient({
       network: NETWORK,
       suiClient: suiClient as any,
