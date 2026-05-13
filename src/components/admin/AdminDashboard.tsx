@@ -205,15 +205,16 @@ export function AdminDashboard() {
       const loaded: Submission[] = [];
       for (const s of suiSubs) {
         try {
-          const data = await readJsonFromWalrus<Submission>(s.walrusBlobId);
-          if (data) loaded.push({ ...data, blobId: s.walrusBlobId, status: s.status || data.status || 'new' });
+          const data = JSON.parse(s.payloadJson) as Submission;
+          if (data) loaded.push({ ...data, blobId: s.suiObjectId, status: s.status || data.status || 'new' });
         } catch { /* skip unreadable */ }
       }
       // Fallback: server registry
       if (loaded.length === 0) {
         try {
           const form = forms.find(f => f.suiObjectId === formObjectId);
-          const blobId = form?.walrusBlobId;
+          const formCfg = form ? JSON.parse(form.configJson) : null;
+          const blobId = formCfg?.publishedBlobId;
           if (blobId) {
             const resp = await fetch(`/api/registry?formBlobId=${blobId}`);
             if (resp.ok) {
