@@ -340,7 +340,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
           const txResult = await dAppKit.signAndExecuteTransaction({ 
             transaction: txb as any,
             options: { showEffects: true, showObjectChanges: true }
-          });
+          } as any);
           console.log('[Sui] Form object created:', txResult);
           
           // Extract the newly created Form object ID from the tx result
