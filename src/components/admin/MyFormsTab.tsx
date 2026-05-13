@@ -101,7 +101,15 @@ export function MyFormsTab({
         if (WALFORM_PACKAGE_ID !== '0x0') {
           console.log('[Sync] Discovering forms via Sui Native...');
           try {
-            chainForms = await getOwnedForms(ownerAddress);
+            const nativeForms = await getOwnedForms(ownerAddress);
+            chainForms = nativeForms.map((nf: any) => {
+              try {
+                const parsed = JSON.parse(nf.configJson);
+                return { ...parsed, publishedSuiObjectId: nf.suiObjectId };
+              } catch (e) {
+                return null;
+              }
+            }).filter(Boolean) as FormConfig[];
             console.log(`[Sync] Found ${chainForms.length} native Sui forms.`);
           } catch (e) {
             console.error('[Sync] Error getting native forms:', e);
@@ -134,8 +142,8 @@ export function MyFormsTab({
         const combined = [...chainForms, ...loaded, ...prev];
         const seen = new Set<string>();
         return combined.filter(f => {
-          // Use formId as the primary unique key for Sui-native forms, fallback to publishedBlobId/id
-          const id = f.formId || f.publishedBlobId || f.id;
+          // Use publishedSuiObjectId as the primary unique key for Sui-native forms, fallback to publishedBlobId/id
+          const id = f.publishedSuiObjectId || f.publishedBlobId || f.id;
           if (!id || seen.has(id)) return false;
           seen.add(id);
           return true;

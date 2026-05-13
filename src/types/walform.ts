@@ -41,6 +41,7 @@ export interface Submission {
   signature?: string;
   timestamp: number;
   blobId?: string;
+  suiObjectId?: string;
   status: string;
   adminNotes?: string;
 }
