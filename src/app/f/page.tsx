@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useCurrentAccount, useCurrentWallet, useSignMessage, useSignAndExecuteTransaction, useSignTransaction } from '@mysten/dapp-kit';
-import { ConnectButton } from '@mysten/dapp-kit/ui';
+import { useCurrentAccount, useCurrentWallet, useSignMessage, useSignAndExecuteTransaction, useSignTransaction } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus, uploadJsonToWalrus, uploadBytesToWalrus } from '@/lib/walrus';
 import { getFormByObjectId } from '@/lib/walrus-onchain';

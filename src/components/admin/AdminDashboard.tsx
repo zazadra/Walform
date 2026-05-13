@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSignMessage } from '@mysten/dapp-kit';
-import { ConnectButton } from '@mysten/dapp-kit/ui';
+import { useCurrentAccount, useSignMessage } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus } from '@/lib/walrus';
 import { getOwnedForms, getOwnedSubmissions, getFormByObjectId } from '@/lib/walrus-onchain';
