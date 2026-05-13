@@ -399,12 +399,12 @@ export function AdminDashboard() {
   }
 
   return (
-    <div style={{ height: 'calc(100dvh - 56px)', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+    <div className="mobile-min-h-screen mobile-h-auto" style={{ height: 'calc(100dvh - 56px)', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* ── Page layout: left sidebar + main content ── */}
-      <div className="mobile-grid-stack" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
+      <div className="mobile-grid-stack mobile-overflow-visible" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
 
         {/* ── Left: Forms sidebar ── */}
-        <aside style={{ borderRight: '1px solid var(--border)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', background: 'rgba(5,6,11,0.5)' }}>
+        <aside className="mobile-overflow-visible" style={{ borderRight: '1px solid var(--border)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', background: 'rgba(5,6,11,0.5)' }}>
           <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }}>OPEN BY FORM ID</div>
             <input className="input" placeholder="0x…" value={openByIdInput} onChange={e => setOpenByIdInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleOpenById()} style={{ fontSize: 12 }} />
@@ -423,7 +423,7 @@ export function AdminDashboard() {
         </aside>
 
         {/* ── Right: Main content ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="mobile-overflow-visible" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Form header */}
           {selectedForm ? (
@@ -469,10 +469,10 @@ export function AdminDashboard() {
 
           {/* Content */}
           {selectedForm && (
-            <div className="mobile-grid-stack" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' }}>
+            <div className="mobile-grid-stack mobile-overflow-visible" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' }}>
 
               {/* Submissions list */}
-              <div style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="mobile-overflow-visible" style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* Stats */}
                 <div 
                   className="mobile-stack"
@@ -520,7 +520,7 @@ export function AdminDashboard() {
               </div>
 
               {/* Detail panel */}
-              <div style={{ overflow: 'auto', padding: '24px' }}>
+              <div className="mobile-overflow-visible" style={{ overflow: 'auto', padding: '24px' }}>
                 {selectedSub ? (
                   <SubmissionDetail 
                     sub={selectedSub} 

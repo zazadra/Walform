@@ -58,7 +58,10 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
       marginBottom: '12px'
     }}>
       {/* Row header */}
-      <div style={{ display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', position: 'relative' }}>
+      <div 
+        className="mobile-stack mobile-gap-4"
+        style={{ display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', position: 'relative' }}
+      >
         <div style={{ 
           width: 32, height: 32, borderRadius: 8, 
           background: `${FIELD_TYPE_COLORS[field.type]}15`, 
@@ -122,20 +125,22 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
             <input type="checkbox" className="toggle" checked={field.enabled} onChange={() => onChange({ enabled: !field.enabled })} />
           </div>
 
-          {onRemove && (
-            <button 
-              onClick={onRemove} 
-              style={{ 
-                width: 30, height: 30, borderRadius: '8px', border: 'none', background: 'transparent',
-                color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                cursor: 'pointer', transition: 'all 0.2s' 
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {onRemove && (
+              <button 
+                onClick={onRemove} 
+                style={{ 
+                  width: 30, height: 30, borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent',
+                  color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  cursor: 'pointer', transition: 'all 0.2s' 
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
