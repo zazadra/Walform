@@ -418,19 +418,12 @@ body::after {
   .mobile-min-h-screen { min-height: 100dvh !important; }
   .mobile-overflow-visible { overflow: visible !important; }
   
-  /* Dashboard specific stacks */
   .dashboard-layout { 
-    display: grid; 
-    grid-template-columns: 260px 1fr; 
-    height: calc(100vh - 56px);
+    grid-template-columns: 1fr !important; 
+    height: auto !important;
+    overflow: visible !important;
   }
-  @media (max-width: 768px) {
-    .dashboard-layout { 
-      grid-template-columns: 1fr; 
-      height: auto;
-      overflow: visible;
-    }
-  }
+}
 
 @media (max-width: 480px) {
   .mobile-p-2 { padding: 8px !important; }
