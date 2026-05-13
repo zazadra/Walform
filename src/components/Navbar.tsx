@@ -14,21 +14,25 @@ export function Navbar() {
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Hide navbar entirely on form fill page
+  if (pathname.startsWith('/f')) return null;
+
   const NAV = [
     { href: '/builder', label: 'Builder' },
     { href: '/templates', label: 'Templates' },
     { href: '/admin', label: 'Admin' },
   ];
 
+  const isLanding = pathname === '/';
   const isActive = (href: string) => pathname.startsWith(href);
 
   return (
     <header style={{
       position: 'sticky', top: 0, zIndex: 100,
-      borderBottom: '1px solid var(--border)',
+      borderBottom: isLanding ? 'none' : '1px solid var(--border)',
       backdropFilter: 'blur(24px)',
       WebkitBackdropFilter: 'blur(24px)',
-      background: 'rgba(5,6,11,0.85)',
+      background: isLanding ? 'transparent' : 'rgba(5,6,11,0.85)',
     }}>
       <div style={{
         maxWidth: '1400px', margin: '0 auto',
@@ -49,40 +53,43 @@ export function Navbar() {
           </span>
         </a>
 
-        {/* Nav Links – desktop */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1 }} className="hide-mobile">
-          {NAV.map(({ href, label }) => (
-            <a
-              key={href}
-              href={href}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: isActive(href) ? 700 : 500,
-                color: isActive(href) ? 'var(--accent-2)' : 'var(--text-2)',
-                textDecoration: 'none',
-                background: isActive(href) ? 'rgba(139,92,246,0.1)' : 'transparent',
-                border: `1px solid ${isActive(href) ? 'rgba(139,92,246,0.25)' : 'transparent'}`,
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                if (!isActive(href)) {
-                  e.currentTarget.style.color = 'var(--text-1)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive(href)) {
-                  e.currentTarget.style.color = 'var(--text-2)';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
+        {/* Nav Links — hidden on landing page */}
+        {!isLanding && (
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1 }} className="hide-mobile">
+            {NAV.map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: isActive(href) ? 700 : 500,
+                  color: isActive(href) ? 'var(--accent-2)' : 'var(--text-2)',
+                  textDecoration: 'none',
+                  background: isActive(href) ? 'rgba(139,92,246,0.1)' : 'transparent',
+                  border: `1px solid ${isActive(href) ? 'rgba(139,92,246,0.25)' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => {
+                  if (!isActive(href)) {
+                    e.currentTarget.style.color = 'var(--text-1)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive(href)) {
+                    e.currentTarget.style.color = 'var(--text-2)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        )}
+        {isLanding && <div style={{ flex: 1 }} />}
 
         {/* Right side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
@@ -111,24 +118,27 @@ export function Navbar() {
               </button>
             </>
           ) : (
-            <ConnectButton instance={dAppKit} />
+            // Only show connect button on non-landing pages
+            !isLanding && <ConnectButton instance={dAppKit} />
           )}
 
-          {/* Mobile menu toggle */}
-          <button
-            onClick={() => setMenuOpen(v => !v)}
-            style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', padding: '4px' }}
-            className="show-mobile"
-            aria-label="Menu"
-          >
-            ☰
-          </button>
+          {/* Mobile menu toggle — hidden on landing */}
+          {!isLanding && (
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', padding: '4px' }}
+              className="show-mobile"
+              aria-label="Menu"
+            >
+              ☰
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile dropdown */}
       <AnimatePresence>
-        {menuOpen && (
+        {menuOpen && !isLanding && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -146,3 +156,5 @@ export function Navbar() {
     </header>
   );
 }
+
+

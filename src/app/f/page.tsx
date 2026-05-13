@@ -183,7 +183,14 @@ function FormPageContent() {
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState('');
 
-  const [data, setData] = useState<Record<string, string | string[] | boolean>>({});
+  const draftKey = formObjectId ? `walform-draft-${formObjectId}` : null;
+
+  const [data, setData] = useState<Record<string, string | string[] | boolean>>(() => {
+    if (typeof window !== 'undefined' && formObjectId) {
+      try { const saved = localStorage.getItem(`walform-draft-${formObjectId}`); if (saved) return JSON.parse(saved); } catch {}
+    }
+    return {};
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
 
@@ -193,6 +200,13 @@ function FormPageContent() {
   const [receipt, setReceipt] = useState<{ blobId: string; txDigest: string; rootHash: string } | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
+
+  // ── Draft: auto-save on every data change ──
+  useEffect(() => {
+    if (draftKey && Object.keys(data).length > 0) {
+      try { localStorage.setItem(draftKey, JSON.stringify(data)); } catch {}
+    }
+  }, [data, draftKey]);
 
   // ── Load form from Sui object ──
   useEffect(() => {
@@ -311,6 +325,8 @@ function FormPageContent() {
 
       setFlow({ walrus: 'done', suiTx: 'done', receipt: 'done' });
       setReceipt({ blobId: 'Stored on Sui', txDigest, rootHash: 'N/A' });
+      // Clear draft after successful submission
+      if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} }
       setStatus('success');
     } catch (e: any) {
       setFlow(f => ({ ...f, walrus: f.walrus === 'uploading' ? 'error' : f.walrus, suiTx: f.suiTx === 'uploading' ? 'error' : f.suiTx }));

@@ -744,7 +744,7 @@ export default function Home() {
             <span style={{ fontSize:'24px', fontWeight:900, letterSpacing:'-0.05em', background: 'linear-gradient(to bottom, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Walform</span>
           </div>
           <div style={{ display:'flex', gap:'16px' }}>
-            <a href="/admin" className="btn btn-primary btn-sm" style={{ padding: '10px 24px' }}>Launch App</a>
+            {/* No Launch App button on landing page */}
           </div>
         </header>
 
@@ -875,7 +875,7 @@ export default function Home() {
                   transition={{ duration: 0.8, delay: 1 }}
                   style={{ display:'flex', gap:'20px', flexDirection: isMobile ? 'column' : 'row', justifyContent: isMobile ? 'center' : 'flex-start', width: '100%' }}
                 >
-                  <a href="/admin" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)', textAlign: 'center' }}>
+                  <a href="/builder" className="btn btn-primary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 700, boxShadow: '0 20px 40px rgba(124,58,237,0.3)', textAlign: 'center' }}>
                     Enter Walform
                   </a>
                   <a href="https://walrus.xyz" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-xl" style={{ textDecoration:'none', padding: '18px 40px', borderRadius: '16px', fontSize: '18px', fontWeight: 600, textAlign: 'center' }}>
