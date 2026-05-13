@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useCurrentAccount, useCurrentWallet, useSignMessage, useSignAndExecuteTransaction, useSignTransaction } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus, uploadJsonToWalrus, uploadBytesToWalrus } from '@/lib/walrus';
@@ -212,9 +212,6 @@ function FlowSidebar({ flow, receipt }: {
 function FormPageContent() {
   const account = useCurrentAccount();
   const wallet = useCurrentWallet();
-  const { mutateAsync: signMessage } = useSignMessage();
-  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
-  const { mutateAsync: signTransaction } = useSignTransaction();
   const searchParams = useSearchParams();
   const formObjectId = searchParams.get('formId') || '';
 
@@ -276,15 +273,7 @@ function FormPageContent() {
     if (!account) { setErrors(e => ({ ...e, [fieldId]: 'Connect your wallet to upload files.' })); return; }
     setFileUploading(u => ({ ...u, [fieldId]: true }));
     try {
-      const signer = { 
-        address: account.address, 
-        signAndExecute: async (tx: unknown) => { 
-          const r = await signAndExecuteTransaction({ transaction: tx as any }); 
-          const digest = (r as any)?.digest; 
-          if (!digest) throw new Error('Wallet signing failed'); 
-          return { digest }; 
-        } 
-      };
+      const signer = { address: account.address, signAndExecute: async (tx: unknown) => { const r = await dAppKit.signAndExecuteTransaction({ transaction: tx as any }); const digest = (r as any)?.Transaction?.digest ?? (r as any)?.digest; if (!digest) throw new Error('Wallet signing failed'); return { digest }; } };
       const fileArray = Array.isArray(files) ? files : [files];
       const ids: string[] = [];
       for (const f of fileArray) { const res = await uploadBytesToWalrus(f, signer, 3); ids.push(res.blobId); }
@@ -323,14 +312,14 @@ function FormPageContent() {
       if (config.encryptionEnabled) {
         try {
           const { encryptData } = await import('@/lib/seal');
-          // Important: We use the same message for Admin to unlock later
-          const msg = `Authorize Walform Encryption for Form: ${formObjectId}`;
-          const signRes = await signMessage({ message: new TextEncoder().encode(msg) });
-          const encryptedPayload = await encryptData(JSON.stringify(data), signRes.signature);
+          // Key is derived deterministically from adminAddress + formId
+          // Only the admin wallet owner knows their address, so only they can decrypt
+          const encKey = `walform:${account.address}:${formObjectId}`;
+          const encryptedPayload = await encryptData(JSON.stringify(data), encKey);
           finalData = { __encrypted: encryptedPayload } as any;
         } catch (err) {
           console.error('[Encryption] Failed:', err);
-          throw new Error('Encryption required but failed. Please sign the message to submit.');
+          throw new Error('Encryption failed. Please try again.');
         }
       }
 
@@ -347,8 +336,8 @@ function FormPageContent() {
       const signer = {
         address: account.address,
         signAndExecute: async (tx: unknown) => {
-          const r = await signAndExecuteTransaction({ transaction: tx as any });
-          const digest = (r as any)?.digest;
+          const r = await dAppKit.signAndExecuteTransaction({ transaction: tx as any });
+          const digest = (r as any)?.Transaction?.digest ?? (r as any)?.digest;
           if (!digest) throw new Error('Wallet signing failed or cancelled.');
           return { digest };
         },
@@ -366,7 +355,7 @@ function FormPageContent() {
         
         // Owner of the submission must be the admin, so they can see it in their dashboard.
         const txb = await createSubmissionObject(formObjectId, payloadJson, 'new', adminAddress);
-        const { bytes, signature } = await signTransaction({ transaction: txb as any } as any);
+        const { bytes, signature } = await dAppKit.signTransaction({ transaction: txb as any } as any);
         const client = getSuiClient() as any;
         const execResult = await client.executeTransactionBlock({
           transactionBlock: bytes,

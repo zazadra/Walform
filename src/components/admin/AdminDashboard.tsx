@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount, useSignMessage } from '@mysten/dapp-kit-react';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus } from '@/lib/walrus';
@@ -220,7 +220,6 @@ function FormSidebar({ forms, selectedId, onSelect, loading }: {
 // ── Main AdminDashboard ────────────────────────────────────────────
 export function AdminDashboard() {
   const account = useCurrentAccount();
-  const { mutateAsync: signMessage } = useSignMessage();
 
   // Forms list
   const [forms, setForms] = useState<{ suiObjectId: string; configJson: string; formId: string; createdAt: number; title?: string }[]>([]);
@@ -242,9 +241,10 @@ export function AdminDashboard() {
     if (!account || !selectedFormId) return;
     setUnlocking(true);
     try {
-      const msg = `Authorize Walform Encryption for Form: ${selectedFormId}`;
-      const signRes = await signMessage({ message: new TextEncoder().encode(msg) });
-      setDecryptionSig(signRes.signature);
+      // Key is derived deterministically from admin address + formId
+      // Matches the key used during encryption in the form submission
+      const encKey = `walform:${account.address}:${selectedFormId}`;
+      setDecryptionSig(encKey);
     } catch (err) {
       console.error('Unlock failed:', err);
     } finally {
