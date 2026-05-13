@@ -121,7 +121,7 @@ function SubmissionDetail({ sub, idx, onStatusChange }: { sub: Submission; idx: 
 
 // ── Form selector sidebar ─────────────────────────────────────────
 function FormSidebar({ forms, selectedId, onSelect, loading }: {
-  forms: { suiObjectId: string; walrusBlobId: string; formId: string; createdAt: number; title?: string }[];
+  forms: { suiObjectId: string; configJson: string; formId: string; createdAt: number; title?: string }[];
   selectedId: string;
   onSelect: (id: string) => void;
   loading: boolean;
