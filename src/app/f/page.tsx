@@ -308,11 +308,26 @@ function FormPageContent() {
       const submissionId = uid();
       const timestamp = Date.now();
 
+      let finalData = data;
+      if (config.encryptionEnabled) {
+        try {
+          const { encryptData } = await import('@/lib/seal');
+          // Important: We use the same message for Admin to unlock later
+          const msg = `Authorize Walform Encryption for Form: ${formObjectId}`;
+          const signRes = await dAppKit.signMessage({ message: new TextEncoder().encode(msg) });
+          const encryptedPayload = await encryptData(JSON.stringify(data), signRes.signature);
+          finalData = { __encrypted: encryptedPayload } as any;
+        } catch (err) {
+          console.error('[Encryption] Failed:', err);
+          throw new Error('Encryption required but failed. Please sign the message to submit.');
+        }
+      }
+
       const submission: Submission = {
         id: submissionId,
         formId: formObjectId,
         formBlobId: formObjectId,
-        data,
+        data: finalData,
         submitterAddress: account.address,
         timestamp,
         status: 'new',

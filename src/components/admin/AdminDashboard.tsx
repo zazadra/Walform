@@ -50,8 +50,33 @@ function StatusBadge({ status, onClick }: { status: string; onClick?: () => void
 }
 
 // ── Submission detail panel ───────────────────────────────────────
-function SubmissionDetail({ sub, idx, onStatusChange }: { sub: Submission; idx: number; onStatusChange: (id: string, status: string) => void }) {
+function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }: { 
+  sub: Submission; 
+  idx: number; 
+  onStatusChange: (id: string, status: string) => void;
+  decryptionSig: string | null;
+  onUnlock: () => void;
+}) {
   const [note, setNote] = useState(sub.adminNotes || '');
+  const [decryptedData, setDecryptedData] = useState<Record<string, any> | null>(null);
+  const [decryptErr, setDecryptErr] = useState(false);
+
+  useEffect(() => {
+    if (sub.data?.__encrypted && decryptionSig) {
+      const { decryptData } = require('@/lib/seal');
+      decryptData(sub.data.__encrypted, decryptionSig)
+        .then((dec: string) => {
+          setDecryptedData(JSON.parse(dec));
+          setDecryptErr(false);
+        })
+        .catch(() => setDecryptErr(true));
+    } else {
+      setDecryptedData(null);
+    }
+  }, [sub.data, decryptionSig]);
+
+  const displayData = sub.data?.__encrypted ? (decryptedData || {}) : sub.data;
+  const isEncrypted = !!sub.data?.__encrypted;
   const STATUSES = ['new', 'reviewing', 'done', 'rejected'];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -91,9 +116,26 @@ function SubmissionDetail({ sub, idx, onStatusChange }: { sub: Submission; idx: 
 
       {/* Answers */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 14, flexShrink: 0 }}>ANSWERS</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)' }}>ANSWERS</div>
+          {isEncrypted && !decryptionSig && (
+            <button className="btn btn-primary btn-sm" onClick={onUnlock} style={{ fontSize: 11, height: 26, padding: '0 12px' }}>
+              Unlock Data
+            </button>
+          )}
+          {isEncrypted && decryptionSig && !decryptedData && !decryptErr && <span className="spinner-sm" />}
+          {decryptErr && <span style={{ fontSize: 11, color: 'var(--error)' }}>Unlock failed (Check Wallet)</span>}
+        </div>
+        
         <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '45vh', overflowY: 'auto', paddingRight: 8 }}>
-          {Object.entries(sub.data).map(([key, val]) => {
+          {isEncrypted && !decryptionSig ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)' }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🔒</div>
+              <p style={{ fontSize: 13, color: 'var(--text-3)' }}>This response is E2E encrypted.</p>
+              <p style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 4 }}>Click unlock and sign to view.</p>
+            </div>
+          ) : (
+            Object.entries(displayData).map(([key, val]) => {
             const s = String(val ?? '');
             const isUrl = s.startsWith('http');
             const isBlob = s.length >= 43 && !s.includes(' ') && !s.startsWith('0x');
@@ -188,10 +230,25 @@ export function AdminDashboard() {
   const [subsLoading, setSubsLoading] = useState(false);
   const [selectedSubIdx, setSelectedSubIdx] = useState(0);
 
-  // Open-by-FormID
-  const [openByIdInput, setOpenByIdInput] = useState('');
-  const [openByIdLoading, setOpenByIdLoading] = useState(false);
   const [openByIdError, setOpenByIdError] = useState('');
+  
+  // E2E Encryption state
+  const [decryptionSig, setDecryptionSig] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+
+  const handleUnlock = async () => {
+    if (!account || !selectedFormId) return;
+    setUnlocking(true);
+    try {
+      const msg = `Authorize Walform Encryption for Form: ${selectedFormId}`;
+      const signRes = await dAppKit.signMessage({ message: new TextEncoder().encode(msg) });
+      setDecryptionSig(signRes.signature);
+    } catch (err) {
+      console.error('Unlock failed:', err);
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
 
   // Load owned forms from Sui
@@ -421,7 +478,13 @@ export function AdminDashboard() {
               {/* Detail panel */}
               <div style={{ overflow: 'auto', padding: '24px' }}>
                 {selectedSub ? (
-                  <SubmissionDetail sub={selectedSub} idx={selectedSubIdx} onStatusChange={handleStatusChange} />
+                  <SubmissionDetail 
+                    sub={selectedSub} 
+                    idx={selectedSubIdx} 
+                    onStatusChange={handleStatusChange} 
+                    decryptionSig={decryptionSig}
+                    onUnlock={handleUnlock}
+                  />
                 ) : (
                   <div className="empty-state">
                     <p>Select a response to view details.</p>
