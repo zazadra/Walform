@@ -67,7 +67,9 @@ export const WALRUS_PROVIDERS: WalrusProvider[] = [
  */
 export const WALRUS_AGGREGATORS: string[] = [
   'https://aggregator.walrus-mainnet.walrus.space',
-  'https://wal-aggregator-mainnet.staketab.org',
+  'https://walrus-aggregator.brightlystake.com',
+  'https://mainnet-aggregator.walrus.graphyte.dev',
+  'https://walrus.globalstake.io',
 ];
 
 export const PRIMARY_AGGREGATOR = WALRUS_AGGREGATORS[0];

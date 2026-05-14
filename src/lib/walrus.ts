@@ -210,9 +210,8 @@ export async function uploadBytesToWalrus(
     
     if (!res.ok) {
       const txt = await res.text();
-      // If server relay also fails, provide a specific error message
-      if (res.status === 502 || res.status === 504) {
-        throw new Error(`Walrus Mainnet Infrastructure is currently unstable (502/504). Please try again later or check https://status.wal.app`);
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new Error(`Walrus Mainnet requires a wallet-signed upload. Please ensure your wallet is connected and funded with SUI/WAL. (Status: ${res.status})`);
       }
       throw new Error(`API Relay failed: ${res.status} ${txt}`);
     }
