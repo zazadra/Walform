@@ -43,19 +43,18 @@ export interface WalrusProvider {
  * Ordering: most reliable first (used as primary).
  * DNS-verified domains are marked with their resolved IPs in comments.
  */
+/**
+ * Verified active Walrus Mainnet publishers/relays.
+ *
+ * NOTE: As of 2026-05, there are no public, unauthenticated publishers on Mainnet.
+ * All uploads MUST use the Walrus SDK (which utilizes the user's wallet for registration)
+ * and an Upload Relay.
+ */
 export const WALRUS_PROVIDERS: WalrusProvider[] = [
   {
-    name: 'Mysten Labs Mainnet',
-    uploadUrl: 'https://upload-relay.mainnet.walrus.space/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'Staketab Mainnet',
-    // DNS resolves – confirmed working, responds to v1/blobs PUT
-    uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
+    name: 'Mysten Labs Relay',
+    // This is an SDK Relay host, not a standalone publisher.
+    uploadUrl: 'https://upload-relay.mainnet.walrus.space',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
@@ -65,10 +64,9 @@ export const WALRUS_PROVIDERS: WalrusProvider[] = [
 
 /**
  * Verified active Walrus Mainnet aggregators for reads.
- * Aggregator.walrus-mainnet.walrus.space is DNS-confirmed (Cloudflare IPs).
  */
 export const WALRUS_AGGREGATORS: string[] = [
-  'https://aggregator.walrus-mainnet.walrus.space', // DNS: 104.18.36.9, 172.64.151.247
+  'https://aggregator.walrus-mainnet.walrus.space',
   'https://wal-aggregator-mainnet.staketab.org',
 ];
 

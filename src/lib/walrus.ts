@@ -17,14 +17,11 @@ export const NETWORK = 'mainnet' as const;
 // Constants
 // ---------------------------------------------------------------------------
 
+import { WALRUS_AGGREGATORS, PRIMARY_AGGREGATOR } from './walrus-providers';
+
 const UPLOAD_RELAY_HOST = 'https://upload-relay.mainnet.walrus.space';
-const AGGREGATOR = 'https://aggregator.walrus-mainnet.walrus.space';
-const AGGREGATORS = [
-  AGGREGATOR,
-  'https://walrus-mainnet-aggregator.nodes.guru',
-  'https://wal-aggregator-mainnet.staketab.org',
-  'https://aggregator.walrus.space',
-];
+const AGGREGATOR = PRIMARY_AGGREGATOR;
+const AGGREGATORS = WALRUS_AGGREGATORS;
 
 export const WALRUS_AGGREGATOR = AGGREGATOR;
 
@@ -192,6 +189,15 @@ export async function uploadBytesToWalrus(
       endEpoch: 0,
     };
   } catch (err: any) {
+    const msg = err.message || String(err);
+    const isUserRejection = /user rejected|cancelled|rejected/i.test(msg);
+
+    // If user rejected, don't fallback to server (server can't bypass wallet)
+    if (isUserRejection) {
+      onProgress?.({ status: 'failed', message: 'Upload cancelled by user.' });
+      throw err;
+    }
+
     console.warn('[Walrus] Native SDK failed, falling back to API relay...', err);
     onProgress?.({ status: 'uploading', message: 'Native upload failed, trying server relay...' });
     
@@ -204,6 +210,10 @@ export async function uploadBytesToWalrus(
     
     if (!res.ok) {
       const txt = await res.text();
+      // If server relay also fails, provide a specific error message
+      if (res.status === 502 || res.status === 504) {
+        throw new Error(`Walrus Mainnet Infrastructure is currently unstable (502/504). Please try again later or check https://status.wal.app`);
+      }
       throw new Error(`API Relay failed: ${res.status} ${txt}`);
     }
     

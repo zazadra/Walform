@@ -126,6 +126,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
     }
 
+    if (WALRUS_PROVIDERS.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'No Walrus publishers configured',
+          hint: 'Walrus Mainnet requires authenticated publishers or direct SDK uploads. Public publishers are currently unavailable.',
+        },
+        { status: 503 },
+      );
+    }
+
     const errors: string[] = [];
 
     for (const provider of WALRUS_PROVIDERS) {
@@ -135,11 +145,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(result.data);
       }
 
-      // Build a human-readable error entry
       errors.push(`[${provider.name}] ${result.kind}: ${result.message}`);
-
-      // Short back-off before next provider to avoid thundering-herd on the
-      // same infrastructure (several providers share Cloudflare WAF)
       await new Promise((r) => setTimeout(r, 400));
     }
 
@@ -147,7 +153,7 @@ export async function POST(req: NextRequest) {
       {
         error: 'All Walrus publishers failed',
         detail: errors,
-        hint: 'Check https://github.com/MystenLabs/awesome-walrus for updated publisher endpoints',
+        hint: 'Mainnet infrastructure is currently restricted. Please use the direct SDK upload in the browser which utilizes your wallet for registration.',
       },
       { status: 502 },
     );
