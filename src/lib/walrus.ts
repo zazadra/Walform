@@ -201,17 +201,35 @@ export async function uploadBytesToWalrus(
     let blobObjectId = '';
     if (registerTx && registerTx.getData().commands.length > 0) {
       const txRes = await signer.signAndExecute(registerTx);
-      // Try to extract object ID if we can (simplified)
-      console.log('[Walrus] Registered:', txRes.digest);
+      console.log('[Walrus] Registered transaction:', txRes.digest);
+
+      // Extract blobObjectId from transaction effects
+      try {
+        // Wait a moment for indexer
+        await new Promise(r => setTimeout(r, 1000));
+        const txInfo = await (walrusClient as any).suiClient.getTransactionBlock({
+          digest: txRes.digest,
+          options: { showObjectChanges: true }
+        });
+        const created = txInfo.objectChanges?.find(
+          (oc: any) => oc.type === 'created' && oc.objectType?.includes('::blob::Blob')
+        );
+        if (created) {
+          blobObjectId = (created as any).objectId;
+          console.log('[Walrus] Extracted Blob Object ID:', blobObjectId);
+        }
+      } catch (err) {
+        console.warn('[Walrus] Failed to extract blobObjectId:', err);
+      }
     }
 
-    // Upload via SDK (direct to nodes)
+    // Upload via SDK (direct to nodes or relay)
     onProgress?.({ status: 'uploading', message: 'Uploading to Walrus network...' });
     
-    // IMPORTANT FIX: For native SDK, if relay is configured, it handles registration/upload coordination.
-    // If we get "resume.blobObjectId" error, it means the flow object is confused.
-    // We try a fresh upload via the configured relay in the client.
-    const uploaded = await flow.upload();
+    // Pass the extracted blobObjectId to help the SDK resume the flow
+    const uploaded = await flow.upload({ 
+      blobObjectId: blobObjectId || undefined 
+    } as any);
 
     // Certify (wallet popup #2)
     onProgress?.({ status: 'certifying', message: 'Waiting for wallet approval (certify)...' });
@@ -220,12 +238,16 @@ export async function uploadBytesToWalrus(
       await signer.signAndExecute(certifyTx);
     }
 
-    const cleanBlobId = (uploaded.blobId ?? blobId).slice(0, 43);
+    const finalBlobId = uploaded.blobId || blobId;
+    // Base64url 32-byte hash is always 43 chars. 
+    // We trim any whitespace or unexpected trailing chars from some publishers.
+    const cleanBlobId = finalBlobId.trim().slice(0, 43);
+    
     onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (${cleanBlobId.slice(0, 12)}…)` });
 
     return {
       blobId: cleanBlobId,
-      objectId: uploaded.blobObjectId ?? '',
+      objectId: uploaded.blobObjectId || blobObjectId || '',
       endEpoch: 0,
     };
   } catch (err: any) {

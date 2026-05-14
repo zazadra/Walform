@@ -45,16 +45,16 @@ export interface WalrusProvider {
  */
 export const WALRUS_PROVIDERS: WalrusProvider[] = [
   {
-    name: 'Mysten Labs Mainnet',
-    uploadUrl: 'https://publisher.walrus-mainnet.walrus.space/v1/blobs',
+    name: 'Staketab Mainnet',
+    uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
     supportedParams: ['send_object_to'],
   },
   {
-    name: 'Staketab Mainnet',
-    uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
+    name: 'NodesGuru Mainnet',
+    uploadUrl: 'https://walrus-mainnet-publisher.nodes.guru/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
@@ -69,16 +69,16 @@ export const WALRUS_PROVIDERS: WalrusProvider[] = [
     supportedParams: ['send_object_to'],
   },
   {
-    name: 'Dzdaic Mainnet',
-    uploadUrl: 'https://walrus-mainnet-publisher.dzdaic.com/v1/blobs',
+    name: 'Mysten Labs (Standard)',
+    uploadUrl: 'https://publisher.walrus.space/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
     supportedParams: ['send_object_to'],
   },
   {
-    name: 'BrightlyStake Mainnet',
-    uploadUrl: 'https://walrus-mainnet-publisher.brightlystake.com/v1/blobs',
+    name: 'Mysten Labs (Mainnet)',
+    uploadUrl: 'https://publisher.mainnet.walrus.space/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
