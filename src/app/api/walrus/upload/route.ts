@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
     const bodyBuffer = await req.arrayBuffer();
     
     let lastError: any;
-    // Try up to 3 providers
-    for (let i = 0; i < Math.min(3, WALRUS_PROVIDERS.length); i++) {
+    // Try all configured providers
+    for (let i = 0; i < WALRUS_PROVIDERS.length; i++) {
       const provider = WALRUS_PROVIDERS[i];
       const url = buildUploadUrl(provider, { sendObjectTo });
 

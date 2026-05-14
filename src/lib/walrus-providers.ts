@@ -45,6 +45,22 @@ export interface WalrusProvider {
  */
 export const WALRUS_PROVIDERS: WalrusProvider[] = [
   {
+    name: 'Mysten Labs (Mainnet)',
+    uploadUrl: 'https://publisher.mainnet.walrus.space/v1/blobs',
+    method: 'PUT',
+    apiVersion: 'v1',
+    streaming: true,
+    supportedParams: ['send_object_to'],
+  },
+  {
+    name: 'Mysten Labs (Standard)',
+    uploadUrl: 'https://publisher.walrus.space/v1/blobs',
+    method: 'PUT',
+    apiVersion: 'v1',
+    streaming: true,
+    supportedParams: ['send_object_to'],
+  },
+  {
     name: 'Staketab Mainnet',
     uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
     method: 'PUT',
@@ -69,16 +85,8 @@ export const WALRUS_PROVIDERS: WalrusProvider[] = [
     supportedParams: ['send_object_to'],
   },
   {
-    name: 'Mysten Labs (Standard)',
-    uploadUrl: 'https://publisher.walrus.space/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'Mysten Labs (Mainnet)',
-    uploadUrl: 'https://publisher.mainnet.walrus.space/v1/blobs',
+    name: 'Nami Cloud',
+    uploadUrl: 'https://walrus-publisher.nami.cloud/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
