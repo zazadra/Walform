@@ -259,6 +259,7 @@ export function AdminDashboard() {
   const [forms, setForms] = useState<{ suiObjectId: string; configJson: string; formId: string; createdAt: number; title?: string }[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState('');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Submissions
   const [subs, setSubs] = useState<Submission[]>([]);
