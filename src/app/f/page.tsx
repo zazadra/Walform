@@ -11,29 +11,6 @@ import { useSearchParams } from 'next/navigation';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function shorten(a: string) { return `${a.slice(0, 6)}…${a.slice(-4)}`; }
-function compressImage(file: File, maxW = 1200, maxH = 1200, quality = 0.8): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (e) => {
-      const img = new Image();
-      img.src = e.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
-        if (width > maxW || height > maxH) {
-          if (width > height) { height *= maxW / width; width = maxW; }
-          else { width *= maxH / height; height = maxH; }
-        }
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
-      };
-      img.onerror = () => resolve(null);
-    };
-    reader.onerror = () => resolve(null);
-  });
-}
 
 // ── Flow step state ──────────────────────────────────────────────
 type FlowStep = 'idle' | 'uploading' | 'done' | 'error';
@@ -315,21 +292,8 @@ function FormPageContent() {
       
       const fileArray = Array.isArray(files) ? files : [files];
       const ids: string[] = [];
-      
       for (const f of fileArray) {
-        let uploadTarget: File | Blob = f;
-        
-        // Compress images to ensure they pass through the relay
-        if (f.type.startsWith('image/')) {
-          try {
-            const compressed = await compressImage(f);
-            if (compressed) uploadTarget = compressed;
-          } catch (e) {
-            console.warn('[Compression] Failed, using original file:', e);
-          }
-        }
-        
-        const res = await uploadBytesToWalrus(uploadTarget, signer, 3);
+        const res = await uploadBytesToWalrus(f, signer, 3);
         ids.push(res.blobId);
       }
       setData(d => { const ex = d[fieldId]; const arr = Array.isArray(ex) ? ex : (ex && typeof ex === 'string' ? [ex] : []); const combined = [...(arr as string[]), ...ids]; return { ...d, [fieldId]: combined.length === 1 ? combined[0] : combined }; });

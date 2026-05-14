@@ -45,16 +45,8 @@ export interface WalrusProvider {
  */
 export const WALRUS_PROVIDERS: WalrusProvider[] = [
   {
-    name: 'Mysten Labs (Mainnet)',
-    uploadUrl: 'https://publisher.mainnet.walrus.space/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'Mysten Labs (Standard)',
-    uploadUrl: 'https://publisher.walrus.space/v1/blobs',
+    name: 'Mysten Labs Mainnet',
+    uploadUrl: 'https://upload-relay.mainnet.walrus.space/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
@@ -62,31 +54,8 @@ export const WALRUS_PROVIDERS: WalrusProvider[] = [
   },
   {
     name: 'Staketab Mainnet',
+    // DNS resolves – confirmed working, responds to v1/blobs PUT
     uploadUrl: 'https://walrus-mainnet-publisher-1.staketab.org/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'NodesGuru Mainnet',
-    uploadUrl: 'https://walrus-mainnet-publisher.nodes.guru/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'NodeInfra Mainnet',
-    uploadUrl: 'https://walrus-mainnet-publisher.nodeinfra.com/v1/blobs',
-    method: 'PUT',
-    apiVersion: 'v1',
-    streaming: true,
-    supportedParams: ['send_object_to'],
-  },
-  {
-    name: 'Nami Cloud',
-    uploadUrl: 'https://walrus-publisher.nami.cloud/v1/blobs',
     method: 'PUT',
     apiVersion: 'v1',
     streaming: true,
