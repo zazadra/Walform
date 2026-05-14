@@ -410,6 +410,7 @@ body::after {
   .hide-mobile { display: none !important; }
   .mobile-stack { flex-direction: column !important; display: flex !important; }
   .mobile-grid-stack { grid-template-columns: 1fr !important; }
+  .mobile-grid-1 { grid-template-columns: 1fr !important; }
   .mobile-p-4 { padding: 16px !important; }
   .mobile-p-6 { padding: 24px !important; }
   .mobile-m-0 { margin: 0 !important; }
@@ -417,11 +418,35 @@ body::after {
   .mobile-h-auto { height: auto !important; }
   .mobile-min-h-screen { min-height: 100dvh !important; }
   .mobile-overflow-visible { overflow: visible !important; }
+  .mobile-stack-sm { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; display: flex !important; }
+  
+  .dashboard-layout-root {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+  }
   
   .dashboard-layout { 
-    grid-template-columns: 1fr !important; 
+    display: flex !important;
+    flex-direction: column !important;
     height: auto !important;
     overflow: visible !important;
+  }
+  
+  .dashboard-sidebar {
+    position: relative !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  .dashboard-content {
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 }
 
@@ -435,4 +460,46 @@ body::after {
   
   h1 { font-size: 1.75rem !important; }
   h2 { font-size: 1.5rem !important; }
+}
+
+.input-minimal {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-1);
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.input-minimal:hover {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--border);
+}
+
+.input-minimal:focus {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.dashboard-layout-root {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.dashboard-layout {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-sidebar {
+  border-right: 1px solid var(--border);
+  background: rgba(5,6,11,0.5);
+  overflow-y: auto;
+}
+
+.dashboard-content {
+  overflow: hidden;
 }

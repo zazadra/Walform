@@ -516,7 +516,7 @@ function FormPageContent() {
         className="mobile-p-4"
         style={{ 
           position: 'fixed', top: 0, left: 0, right: 0, 
-          padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+          padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
           borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(16px)', zIndex: 90 
         }}
       >
@@ -549,7 +549,7 @@ function FormPageContent() {
       {/* Content wrapper with top padding to account for fixed header */}
       <div 
         className="mobile-p-4"
-        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 60px' }}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '100px 24px 40px' }}
       >
         <div style={{ width: '100%', maxWidth: 720 }}>
 

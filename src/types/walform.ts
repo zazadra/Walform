@@ -52,6 +52,8 @@ export interface WalrusUploadResponse {
   blobId: string;
   objectId: string;
   endEpoch?: number;
+  success?: boolean;
+  url?: string;
 }
 
 // Re-export for legacy compat

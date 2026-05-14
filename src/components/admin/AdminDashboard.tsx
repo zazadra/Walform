@@ -399,12 +399,16 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="mobile-min-h-screen mobile-h-auto" style={{ height: 'calc(100dvh - 56px)', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+    <div className="dashboard-layout-root mobile-min-h-screen mobile-h-auto" style={{ backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* ── Page layout: left sidebar + main content ── */}
-      <div className="mobile-grid-stack mobile-overflow-visible" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', flex: 1, minHeight: 0 }}>
+      <div className="dashboard-layout" style={{ 
+        flex: 1, 
+        minHeight: 0,
+        gridTemplateColumns: isSidebarCollapsed ? '64px 1fr' : '260px 1fr'
+      }}>
 
         {/* ── Left: Forms sidebar ── */}
-        <aside className="mobile-overflow-visible" style={{ borderRight: '1px solid var(--border)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', background: 'rgba(5,6,11,0.5)' }}>
+        <aside className="dashboard-sidebar" style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }}>OPEN BY FORM ID</div>
             <input className="input" placeholder="0x…" value={openByIdInput} onChange={e => setOpenByIdInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleOpenById()} style={{ fontSize: 12 }} />
@@ -414,16 +418,18 @@ export function AdminDashboard() {
             </button>
           </div>
 
-          <div>
+          <div style={{ overflowY: 'auto', flex: 1 }} className="custom-scrollbar hide-mobile">
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 12 }}>MY FORMS</div>
             <FormSidebar forms={forms} selectedId={selectedFormId} onSelect={id => setSelectedFormId(id)} loading={formsLoading} />
           </div>
 
-
+          <div className="hide-desktop" style={{ marginTop: 'auto' }}>
+             <FormSidebar forms={forms} selectedId={selectedFormId} onSelect={id => setSelectedFormId(id)} loading={formsLoading} />
+          </div>
         </aside>
 
         {/* ── Right: Main content ── */}
-        <div className="mobile-overflow-visible" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="dashboard-content" style={{ display: 'flex', flexDirection: 'column' }}>
 
           {/* Form header */}
           {selectedForm ? (
@@ -469,7 +475,7 @@ export function AdminDashboard() {
 
           {/* Content */}
           {selectedForm && (
-            <div className="mobile-grid-stack mobile-overflow-visible" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', minHeight: 0 }}>
+            <div className="mobile-grid-1" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', minHeight: 0 }}>
 
               {/* Submissions list */}
               <div className="mobile-overflow-visible" style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>

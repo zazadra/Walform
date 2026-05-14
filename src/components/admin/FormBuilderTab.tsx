@@ -59,7 +59,7 @@ function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountCh
     }}>
       {/* Row header */}
       <div 
-        className="mobile-stack mobile-gap-4 mobile-items-start"
+        className="mobile-stack-sm"
         style={{ display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', position: 'relative' }}
       >
         <div style={{ 
@@ -427,7 +427,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
   function copy() { navigator.clipboard.writeText(pubUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+    <div className="mobile-grid-1" style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
 
       {/* 1. Meta */}
       <div className="card" style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'12px' }}>

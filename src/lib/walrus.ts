@@ -1,15 +1,11 @@
 /**
- * Walrus Upload – Official SDK (writeBlobFlow + Upload Relay)
- *
- * Key fixes vs previous version:
- *  - Added uploadRelay config → routes through relay instead of 2200+ direct storage node requests
- *  - Switched writeFilesFlow → writeBlobFlow (simpler, same result for raw bytes)
- *  - Removed incorrect `digest: blobId` arg from flow.upload() — digest is for resume only
+ * Walrus Upload – Simple Direct Upload (Relay + Direct PUT)
+ * 
+ * Removed resumable/SDK flows as per USER_REQUEST.
+ * Implementation focused on reliability and simplicity.
  */
 
 import type { WalrusUploadResponse } from '@/types/walform';
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { WalrusClient } from '@mysten/walrus';
 import { WALRUS_PROVIDERS } from './walrus-providers';
 
 export const NETWORK = 'mainnet' as const;
@@ -18,7 +14,6 @@ export const NETWORK = 'mainnet' as const;
 // Constants
 // ---------------------------------------------------------------------------
 
-const UPLOAD_RELAY_HOST = 'https://upload-relay.mainnet.walrus.space';
 const AGGREGATOR = 'https://aggregator.walrus-mainnet.walrus.space';
 const AGGREGATORS = [
   AGGREGATOR,
@@ -29,18 +24,14 @@ const AGGREGATORS = [
 
 export const WALRUS_AGGREGATOR = AGGREGATOR;
 
-
-
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type UploadStatus = 'pending' | 'encoding' | 'registering' | 'uploading' | 'certifying' | 'success' | 'failed';
+export type UploadStatus = 'pending' | 'uploading' | 'success' | 'failed';
 export interface UploadProgress {
   status: UploadStatus;
   provider?: string;
-  attempt?: number;
   message?: string;
 }
 
@@ -50,65 +41,39 @@ export interface WalrusSigner {
 }
 
 // ---------------------------------------------------------------------------
-// Response parser
+// Response Parser
 // ---------------------------------------------------------------------------
 
-export function parseWalrusResponse(result: Record<string, unknown>): WalrusUploadResponse {
-  if (typeof result.blobId === 'string') {
+function extractBlobInfo(data: any) {
+  if (!data) return null;
+  
+  // Case 1: Simple/Direct response
+  if (data.blobId) return data;
+  
+  // Case 2: Standard Walrus Publisher response (newlyCreated)
+  if (data.newlyCreated?.blobObject) {
     return {
-      blobId: result.blobId,
-      objectId: (result.id as string | undefined) ?? '',
-      endEpoch: result.endEpoch as number | undefined,
+      ...data.newlyCreated.blobObject,
+      objectId: data.newlyCreated.blobObject.id || data.newlyCreated.blobObject.objectId
     };
   }
-  if (result.newlyCreated) {
-    const blob = (result.newlyCreated as Record<string, unknown>).blobObject as Record<string, unknown>;
-    return {
-      blobId: blob.blobId as string,
-      objectId: blob.id as string,
-      endEpoch: (blob.storage as Record<string, unknown>)?.endEpoch as number,
-    };
+  
+  // Case 3: Standard Walrus Publisher response (alreadyCertified)
+  if (data.alreadyCertified) {
+    return data.alreadyCertified;
   }
-  if (result.alreadyCertified) {
-    const ac = result.alreadyCertified as Record<string, unknown>;
-    return {
-      blobId: ac.blobId as string,
-      objectId: ((ac.event as Record<string, unknown>)?.txDigest as string) ?? '',
-      endEpoch: ac.endEpoch as number,
-    };
-  }
-  throw new Error('Unrecognised Walrus response: ' + JSON.stringify(result).slice(0, 200));
+  
+  return null;
 }
 
 // ---------------------------------------------------------------------------
-// Singleton WalrusClient (avoids re-loading WASM on every call)
-// ---------------------------------------------------------------------------
-
-let _walrusClient: WalrusClient | null = null;
-
-function getWalrusClient(): WalrusClient {
-  if (!_walrusClient) {
-    const suiClient = new SuiJsonRpcClient({ url: 'https://fullnode.mainnet.sui.io', network: NETWORK });
-    _walrusClient = new WalrusClient({
-      network: NETWORK,
-      suiClient: suiClient as any,
-      // FIX: Upload relay routes through relay server instead of hitting 2200+ storage nodes
-      uploadRelay: {
-        host: UPLOAD_RELAY_HOST,
-      },
-    });
-  }
-  return _walrusClient;
-}
-
-// ---------------------------------------------------------------------------
-// Main upload – writeBlobFlow (simpler + faster than writeFilesFlow)
+// Main upload – Direct & Relay only
 // ---------------------------------------------------------------------------
 
 export async function uploadBytesToWalrus(
   data: string | Uint8Array | File | Blob,
-  signer: WalrusSigner,
-  epochs = 3,
+  _signer?: WalrusSigner, // Kept for signature compatibility if needed elsewhere
+  epochs = 1, // Default to 1 if not specified, but we will omit from URL if possible
   onProgress?: (p: UploadProgress) => void,
 ): Promise<WalrusUploadResponse> {
   // Normalise to Uint8Array
@@ -121,54 +86,58 @@ export async function uploadBytesToWalrus(
     bytes = new Uint8Array(await (data as Blob).arrayBuffer());
   }
 
-  onProgress?.({ status: 'encoding', message: 'Encoding data...' });
+  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus...' });
 
-  // 1. Try API relay first (No wallet approval required)
+  // 1. Try API relay first
   try {
-    onProgress?.({ status: 'uploading', message: 'Uploading to Walrus (Relay)...' });
-    const res = await fetch('/api/walrus/upload?epochs=' + epochs, {
+    const res = await fetch('/api/walrus/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: bytes as any,
     });
     
     if (res.ok) {
-      const data = await res.json();
-      if (data.blobId) {
-        const cleanId = data.blobId.slice(0, 43);
-        onProgress?.({ status: 'success', message: `Stored via Relay ✓ (${cleanId.slice(0, 12)}…)` });
+      const result = await res.json();
+      const info = extractBlobInfo(result);
+      
+      if (info && info.blobId) {
+        const cleanId = info.blobId.trim().slice(0, 43);
+        onProgress?.({ status: 'success', message: 'Stored via Relay ✓' });
         return {
+          success: true,
           blobId: cleanId,
-          objectId: data.objectId || '',
-          endEpoch: data.endEpoch || epochs,
+          objectId: info.objectId || info.id || '',
+          url: getWalrusBlobUrl(cleanId),
+          endEpoch: info.endEpoch || info.storage?.endEpoch || epochs,
         };
       }
     }
-    const txt = await res.text();
-    console.warn('[Walrus] Relay failed:', res.status, txt);
   } catch (err) {
-    console.warn('[Walrus] Relay exception:', err);
+    console.warn('[Walrus] Relay failed:', err);
   }
 
-  // 2. Try Direct Client-side PUT to publishers (No wallet approval required for some)
+  // 2. Try Direct Client-side PUT to publishers
   for (const provider of WALRUS_PROVIDERS) {
     try {
-      onProgress?.({ status: 'uploading', message: `Trying direct upload to ${provider.name}...` });
       const res = await fetch(provider.uploadUrl, {
         method: provider.method,
         headers: { 'Content-Type': 'application/octet-stream' },
         body: bytes as any,
       });
+      
       if (res.ok) {
-        const data = await res.json();
-        const info = data.newlyCreated?.blobObject || data.alreadyCertified || data;
-        if (info.blobId) {
-          const cleanId = info.blobId.slice(0, 43);
+        const result = await res.json();
+        const info = extractBlobInfo(result);
+        
+        if (info && info.blobId) {
+          const cleanId = info.blobId.trim().slice(0, 43);
           onProgress?.({ status: 'success', message: `Stored via ${provider.name} ✓` });
           return {
+            success: true,
             blobId: cleanId,
-            objectId: info.id || info.objectId || '',
-            endEpoch: info.storage?.endEpoch || 0,
+            objectId: info.objectId || info.id || '',
+            url: getWalrusBlobUrl(cleanId),
+            endEpoch: info.endEpoch || info.storage?.endEpoch || 0,
           };
         }
       }
@@ -177,83 +146,7 @@ export async function uploadBytesToWalrus(
     }
   }
 
-  // 3. Fallback to Native SDK (Requires wallet approval & SUI payment)
-  try {
-    const walrusClient = getWalrusClient();
-    const flow = walrusClient.writeBlobFlow({ blob: bytes });
-
-    const encoded = await flow.encode();
-    const blobId = encoded.blobId;
-
-    // Pre-check: if already on Walrus, skip wallet popups
-    try {
-      const existing = await readBlobFromWalrus(blobId);
-      if (existing) {
-        onProgress?.({ status: 'success', message: 'Already on Walrus ✓' });
-        return { blobId, objectId: '', endEpoch: 0 };
-      }
-    } catch { /* not found, continue */ }
-
-    // Register (wallet popup #1)
-    onProgress?.({ status: 'registering', message: 'Waiting for wallet approval (register)...' });
-    const registerTx = flow.register({ owner: signer.address, deletable: false, epochs });
-
-    let blobObjectId = '';
-    if (registerTx && registerTx.getData().commands.length > 0) {
-      const txRes = await signer.signAndExecute(registerTx);
-      console.log('[Walrus] Registered transaction:', txRes.digest);
-
-      // Extract blobObjectId from transaction effects
-      try {
-        // Wait a moment for indexer
-        await new Promise(r => setTimeout(r, 1000));
-        const txInfo = await (walrusClient as any).suiClient.getTransactionBlock({
-          digest: txRes.digest,
-          options: { showObjectChanges: true }
-        });
-        const created = txInfo.objectChanges?.find(
-          (oc: any) => oc.type === 'created' && oc.objectType?.includes('::blob::Blob')
-        );
-        if (created) {
-          blobObjectId = (created as any).objectId;
-          console.log('[Walrus] Extracted Blob Object ID:', blobObjectId);
-        }
-      } catch (err) {
-        console.warn('[Walrus] Failed to extract blobObjectId:', err);
-      }
-    }
-
-    // Upload via SDK (direct to nodes or relay)
-    onProgress?.({ status: 'uploading', message: 'Uploading to Walrus network...' });
-    
-    // Pass the extracted blobObjectId to help the SDK resume the flow
-    const uploaded = await flow.upload({ 
-      blobObjectId: blobObjectId || undefined 
-    } as any);
-
-    // Certify (wallet popup #2)
-    onProgress?.({ status: 'certifying', message: 'Waiting for wallet approval (certify)...' });
-    const certifyTx = flow.certify();
-    if (certifyTx && certifyTx.getData().commands.length > 0) {
-      await signer.signAndExecute(certifyTx);
-    }
-
-    const finalBlobId = uploaded.blobId || blobId;
-    // Base64url 32-byte hash is always 43 chars. 
-    // We trim any whitespace or unexpected trailing chars from some publishers.
-    const cleanBlobId = finalBlobId.trim().slice(0, 43);
-    
-    onProgress?.({ status: 'success', message: `Stored on Walrus ✓ (${cleanBlobId.slice(0, 12)}…)` });
-
-    return {
-      blobId: cleanBlobId,
-      objectId: uploaded.blobObjectId || blobObjectId || '',
-      endEpoch: 0,
-    };
-  } catch (err: any) {
-    console.error('[Walrus] Native upload failed:', err);
-    throw new Error(`Upload failed: ${err.message || 'Unknown error'}`);
-  }
+  throw new Error('Upload failed: All publishers are currently unreachable. Please try again.');
 }
 
 // ---------------------------------------------------------------------------
@@ -262,7 +155,7 @@ export async function uploadBytesToWalrus(
 
 export async function uploadJsonToWalrus<T>(
   data: T,
-  signer: WalrusSigner,
+  signer?: WalrusSigner,
   epochs = 3,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<WalrusUploadResponse> {
@@ -271,7 +164,7 @@ export async function uploadJsonToWalrus<T>(
 
 export async function uploadFileToWalrus(
   file: File,
-  signer: WalrusSigner,
+  signer?: WalrusSigner,
   epochs = 3,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<WalrusUploadResponse> {
@@ -280,11 +173,11 @@ export async function uploadFileToWalrus(
 }
 
 // ---------------------------------------------------------------------------
-// Read operations (no wallet needed)
+// Read operations
 // ---------------------------------------------------------------------------
 
 export async function readBlobFromWalrus(blobId: string): Promise<Uint8Array> {
-  const cleanBlobId = blobId.slice(0, 43);
+  const cleanBlobId = blobId.trim().slice(0, 43);
   for (const agg of AGGREGATORS) {
     try {
       const res = await fetch(`${agg}/v1/blobs/${cleanBlobId}`, {
@@ -313,9 +206,9 @@ export async function readJsonFromWalrus<T>(blobId: string, retries = 3): Promis
 }
 
 export function getWalrusBlobUrl(blobId: string): string {
-  return `${AGGREGATOR}/v1/blobs/${blobId.slice(0, 43)}`;
+  return `${AGGREGATOR}/v1/blobs/${blobId.trim().slice(0, 43)}`;
 }
 
 export function getWalrusScanUrl(blobId: string): string {
-  return `https://walruscan.com/mainnet/blob/${blobId}`;
+  return `https://walruscan.com/mainnet/blob/${blobId.trim().slice(0, 43)}`;
 }
