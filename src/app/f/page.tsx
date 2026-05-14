@@ -119,23 +119,16 @@ function FieldInput({ field, value, onChange, onFile, uploading, allData, onData
           <button type="button" onClick={triggerInput} className="btn btn-secondary btn-sm" disabled={uploading} style={{ width: 'fit-content' }}>
             {uploading ? <><span className="spinner" />Uploading…</> : 'Choose File'}
           </button>
-          {(() => {
-            const blobs = Array.isArray(value) ? value : (value ? [value as string] : []);
-            return blobs.map((blobId, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
-                  <span>📎</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>blob-{blobId.slice(0, 24)}…</span>
-                </div>
-                <img 
-                  src={`https://aggregator.walrus-mainnet.walrus.space/v1/blobs/${blobId}`} 
-                  alt="" 
-                  style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }} 
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
-              </div>
-            ));
-          })()}
+          {Array.isArray(value) && (value as string[]).map((blobId, i) => (
+            <div key={i} style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              📎 blob-{blobId.slice(0, 20)}…
+            </div>
+          ))}
+          {value && typeof value === 'string' && (
+            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              📎 blob-{(value as string).slice(0, 20)}…
+            </div>
+          )}
         </div>
       );
     }
@@ -275,32 +268,48 @@ function FormPageContent() {
     })();
   }, [formObjectId]);
 
-  // ── File upload with compression ──
-  async function handleFile(fieldId: string, files: File | File[]) {
-    if (!account) { setErrors(e => ({ ...e, [fieldId]: 'Connect your wallet to upload files.' })); return; }
-    setFileUploading(u => ({ ...u, [fieldId]: true }));
+  // ── File upload ──
+  const handleFile = async (fieldId: string, files: File | File[]) => {
+    if (!account) { setErrMsg('Connect wallet to upload files'); return; }
+    
+    setFileUploading(prev => ({ ...prev, [fieldId]: true }));
+    setErrMsg('');
+
     try {
       const signer = { 
         address: account.address, 
-        signAndExecute: async (tx: unknown) => { 
-          const r = await dAppKit.signAndExecuteTransaction({ transaction: tx as any }); 
+        signAndExecute: async (tx: any) => { 
+          const r = await dAppKit.signAndExecuteTransaction({ transaction: tx }); 
           const digest = (r as any)?.Transaction?.digest ?? (r as any)?.digest; 
           if (!digest) throw new Error('Wallet signing failed'); 
           return { digest }; 
         } 
       };
-      
+
       const fileArray = Array.isArray(files) ? files : [files];
       const ids: string[] = [];
-      for (const f of fileArray) {
-        const res = await uploadBytesToWalrus(f, signer, 3);
-        ids.push(res.blobId);
+      for (const f of fileArray) { 
+        const res = await uploadBytesToWalrus(f, signer, 3); 
+        ids.push(res.blobId); 
       }
-      setData(d => { const ex = d[fieldId]; const arr = Array.isArray(ex) ? ex : (ex && typeof ex === 'string' ? [ex] : []); const combined = [...(arr as string[]), ...ids]; return { ...d, [fieldId]: combined.length === 1 ? combined[0] : combined }; });
+
+      setData(d => {
+        const ex = d[fieldId];
+        const arr = Array.isArray(ex) ? ex : (ex && typeof ex === 'string' ? [ex] : []);
+        const combined = [...(arr as string[]), ...ids];
+        return { 
+          ...d, 
+          [fieldId]: combined.length === 1 ? combined[0] : combined 
+        };
+      });
       setErrors(e => { const n = { ...e }; delete n[fieldId]; return n; });
-    } catch (err: any) { setErrors(e => ({ ...e, [fieldId]: err.message || 'File upload failed.' })); }
-    setFileUploading(u => ({ ...u, [fieldId]: false }));
-  }
+    } catch (err: any) {
+      console.error('[Upload] failed:', err);
+      setErrMsg(`Upload failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setFileUploading(prev => ({ ...prev, [fieldId]: false }));
+    }
+  };
 
   // ── Validate ──
   function validate(): boolean {
