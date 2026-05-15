@@ -368,3 +368,76 @@ export function getWalrusBlobUrl(blobId: string): string {
 export function getWalrusScanUrl(blobId: string): string {
   return `https://walruscan.com/mainnet/blob/${blobId}`;
 }
+
+// ---------------------------------------------------------------------------
+// Extend Walrus Blob Storage
+// ---------------------------------------------------------------------------
+
+/**
+ * Build and sign a Walrus extendBlob transaction via the user's wallet.
+ *
+ * @param blobObjectId - The Sui object ID of the Walrus Blob (starts with 0x…)
+ * @param epochs       - Additional epochs to extend by
+ * @returns txDigest from the executed transaction
+ */
+export async function extendWalrusBlob(
+  blobObjectId: string,
+  epochs: number,
+): Promise<{ txDigest: string }> {
+  const { dAppKit } = await import('@/app/dapp-kit');
+  const client = getWalrusClient();
+
+  // Build the extend transaction using the SDK
+  const tx = await client.extendBlobTransaction({ blobObjectId, epochs });
+
+  // Sign and execute via dAppKit (same pattern as FormBuilderTab)
+  const { getSuiClient } = await import('@/lib/walrus-onchain');
+  const suiClient = getSuiClient() as any;
+  const { bytes, signature } = await dAppKit.signTransaction({ transaction: tx as any } as any);
+  const execResult = await suiClient.executeTransactionBlock({
+    transactionBlock: bytes,
+    signature,
+    options: { showEffects: true },
+    requestType: 'WaitForLocalExecution',
+  });
+  return { txDigest: execResult.digest };
+}
+
+/**
+ * Try to auto-discover the Walrus Blob Sui object ID from a blob hash.
+ * Queries the owner's objects filtered by the Walrus Blob struct type.
+ *
+ * Returns null if the blob is not found in the wallet.
+ */
+export async function findWalrusBlobObjectId(
+  blobId: string,
+  ownerAddress: string,
+): Promise<string | null> {
+  try {
+    const client = getWalrusClient();
+    const blobType = await client.getBlobType();
+    const { getSuiClient } = await import('@/lib/walrus-onchain');
+    const suiClient = getSuiClient() as any;
+
+    let cursor: string | null = null;
+    do {
+      const resp: any = await suiClient.getOwnedObjects({
+        owner: ownerAddress,
+        filter: { StructType: blobType },
+        options: { showContent: true },
+        ...(cursor ? { cursor } : {}),
+        limit: 50,
+      });
+      for (const item of resp.data ?? []) {
+        if (item.data?.content?.dataType !== 'moveObject') continue;
+        const fields = (item.data.content as any).fields as Record<string, any>;
+        if (fields.blob_id === blobId) return item.data.objectId;
+      }
+      cursor = resp.nextCursor ?? null;
+    } while (cursor);
+  } catch (e) {
+    console.warn('[findWalrusBlobObjectId] query failed:', e);
+  }
+  return null;
+}
+

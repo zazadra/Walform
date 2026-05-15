@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
-import { readJsonFromWalrus } from '@/lib/walrus';
+import { readJsonFromWalrus, extendWalrusBlob, findWalrusBlobObjectId } from '@/lib/walrus';
 import { getOwnedForms, getOwnedSubmissions, getFormByObjectId } from '@/lib/walrus-onchain';
 import type { FormConfig, Submission } from '@/types/walform';
 import { loadAdminConfig, saveAdminConfig, DEFAULT_CONFIG } from '@/lib/fields';
@@ -251,6 +251,161 @@ function FormSidebar({ forms, selectedId, onSelect, loading }: {
   );
 }
 
+// ── Extend Storage Panel ─────────────────────────────────────────────
+function ExtendStoragePanel({ publishedBlobId, ownerAddress, onClose }: {
+  publishedBlobId?: string;
+  ownerAddress: string;
+  onClose: () => void;
+}) {
+  const [blobObjectId, setBlobObjectId] = useState('');
+  const [epochs, setEpochs] = useState(1);
+  const [status, setStatus] = useState<'idle' | 'searching' | 'busy' | 'done' | 'error'>('idle');
+  const [msg, setMsg] = useState('');
+  const [txDigest, setTxDigest] = useState('');
+  const [autoFound, setAutoFound] = useState(false);
+
+  // Auto-discover blob object ID from publishedBlobId if present
+  useEffect(() => {
+    if (!publishedBlobId || !ownerAddress) return;
+    setStatus('searching');
+    setMsg('Searching for blob in your wallet…');
+    findWalrusBlobObjectId(publishedBlobId, ownerAddress)
+      .then((found) => {
+        if (found) {
+          setBlobObjectId(found);
+          setAutoFound(true);
+          setMsg('');
+        } else {
+          setMsg('Blob not found in wallet — paste the Blob Object ID manually.');
+        }
+        setStatus('idle');
+      })
+      .catch(() => { setStatus('idle'); setMsg(''); });
+  }, [publishedBlobId, ownerAddress]);
+
+  async function handleExtend() {
+    const id = blobObjectId.trim();
+    if (!id.startsWith('0x') || id.length < 20) {
+      setMsg('Enter a valid Blob Object ID (0x…)');
+      return;
+    }
+    setStatus('busy');
+    setMsg('Waiting for wallet signature…');
+    try {
+      const { txDigest: digest } = await extendWalrusBlob(id, epochs);
+      setTxDigest(digest);
+      setStatus('done');
+      setMsg('Storage extended successfully! ✅');
+    } catch (e: any) {
+      const err = e?.message || String(e);
+      setStatus('error');
+      setMsg(err.length > 120 ? err.slice(0, 120) + '…' : err);
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+         onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="card" style={{ width: '100%', maxWidth: 480, padding: 28, display: 'flex', flexDirection: 'column', gap: 20, position: 'relative' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 4 }}>Walrus Storage</div>
+            <h2 style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>⏱ Extend Epoch Duration</h2>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 20, padding: 4 }}>✕</button>
+        </div>
+
+        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, margin: 0 }}>
+          Extending adds more epochs to a Walrus blob's storage period, preventing it from being garbage-collected.
+          You need the <strong style={{ color: 'var(--text-1)' }}>Blob Object ID</strong> — a Sui object ID (<code style={{ fontSize: 11, color: 'var(--accent-2)' }}>0x…</code>) that appears in the Walrus registration transaction.
+        </p>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
+
+        {/* Blob Object ID */}
+        <div>
+          <label className="input-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Blob Object ID (Sui object, not blob hash)
+            {autoFound && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(74,222,128,0.12)', color: '#4ade80', fontWeight: 700 }}>Auto-detected ✓</span>}
+          </label>
+          <input
+            id="extend-blob-object-id"
+            className="input mono"
+            placeholder="0x…"
+            value={blobObjectId}
+            onChange={e => { setBlobObjectId(e.target.value); setAutoFound(false); }}
+            style={{ fontFamily: 'var(--mono)', fontSize: 12 }}
+            disabled={status === 'busy' || status === 'done'}
+          />
+        </div>
+
+        {/* Epoch picker */}
+        <div>
+          <label className="input-label" style={{ marginBottom: 8 }}>Additional Epochs to Add</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[1, 2, 3, 5, 10, 26, 52].map(n => (
+              <button
+                key={n}
+                onClick={() => setEpochs(n)}
+                className={`btn btn-sm ${epochs === n ? 'btn-primary' : 'btn-secondary'}`}
+                disabled={status === 'busy' || status === 'done'}
+                style={{ fontWeight: 700 }}
+              >
+                {n === 52 ? '52 (~1yr)' : n === 26 ? '26 (~6mo)' : `+${n}`}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>1 Walrus epoch ≈ 1 week. WAL tokens will be charged for the extra epochs.</p>
+        </div>
+
+        {/* Status */}
+        {msg && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.5,
+            background: status === 'done' ? 'rgba(74,222,128,0.08)' : status === 'error' ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${status === 'done' ? 'rgba(74,222,128,0.2)' : status === 'error' ? 'rgba(248,113,113,0.2)' : 'var(--border)'}`,
+            color: status === 'done' ? '#4ade80' : status === 'error' ? '#f87171' : 'var(--text-2)',
+            display: 'flex', alignItems: 'flex-start', gap: 8,
+          }}>
+            {status === 'busy' && <span className="spinner" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }} />}
+            <span>{msg}</span>
+          </div>
+        )}
+
+        {/* Tx Digest */}
+        {txDigest && (
+          <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)', wordBreak: 'break-all', padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 8 }}>
+            Tx: {txDigest}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          {status !== 'done' ? (
+            <button
+              id="extend-blob-sign-btn"
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={handleExtend}
+              disabled={status === 'busy' || status === 'searching' || !blobObjectId.trim()}
+            >
+              {status === 'busy'
+                ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Extending…</>
+                : `✍️ Sign & Extend (+${epochs} epoch${epochs > 1 ? 's' : ''})`}
+            </button>
+          ) : (
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Close</button>
+          )}
+          {status !== 'done' && (
+            <button className="btn btn-ghost" onClick={onClose} disabled={status === 'busy'}>Cancel</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main AdminDashboard ────────────────────────────────────────────
 export function AdminDashboard() {
   const account = useCurrentAccount();
@@ -260,6 +415,7 @@ export function AdminDashboard() {
   const [formsLoading, setFormsLoading] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showExtendPanel, setShowExtendPanel] = useState(false);
 
   // Submissions
   const [subs, setSubs] = useState<Submission[]>([]);
@@ -456,7 +612,10 @@ export function AdminDashboard() {
                   <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em' }}>{selectedForm.title || 'Untitled Form'}</h1>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowExtendPanel(true)} title="Extend Walrus blob storage duration">
+                  ⏱ Extend Epoch
+                </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(subs)}>
                   ↓ CSV
                 </button>
@@ -556,6 +715,16 @@ export function AdminDashboard() {
           )}
         </div>
       </div>
+      {/* Extend Storage modal */}
+      {showExtendPanel && account && (
+        <ExtendStoragePanel
+          publishedBlobId={selectedForm ? (() => {
+            try { return (JSON.parse(selectedForm.configJson) as any)?.publishedBlobId; } catch { return undefined; }
+          })() : undefined}
+          ownerAddress={account.address}
+          onClose={() => setShowExtendPanel(false)}
+        />
+      )}
     </div>
   );
 }
