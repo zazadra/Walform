@@ -209,15 +209,19 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const res = await getOwnedSubmissions(owner, id);
-      setSubs(res.map(r => ({
-        id: r.suiObjectId,
-        formId: r.formId,
-        submitterAddress: r.submitter,
-        timestamp: r.timestamp,
-        data: JSON.parse(r.payloadJson).data,
-        status: r.status,
-        note: r.note || ''
-      })));
+      setSubs(res.map(r => {
+        const parsed = JSON.parse(r.payloadJson);
+        return {
+          id: r.suiObjectId,
+          formId: r.formId,
+          formBlobId: parsed.formBlobId || '',
+          submitterAddress: r.submitter,
+          timestamp: r.timestamp,
+          data: parsed.data,
+          status: r.status,
+          note: r.note || ''
+        };
+      }));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
