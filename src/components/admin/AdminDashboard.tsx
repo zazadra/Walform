@@ -436,6 +436,12 @@ export function AdminDashboard() {
     try {
       const obj = await getFormByObjectId(id);
       if (!obj) throw new Error('Form object not found.');
+      
+      // Ownership check: must be the owner to manage in dashboard
+      if (account && obj.owner && obj.owner !== account.address) {
+        throw new Error('You are not the owner of this form.');
+      }
+
       let form: FormConfig;
       try { form = JSON.parse(obj.configJson); } catch { throw new Error('Could not read form data.'); }
       setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ suiObjectId: id, configJson: obj.configJson, formId: obj.formId, createdAt: obj.createdAt, title: form.title }, ...prev]);

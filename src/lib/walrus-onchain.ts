@@ -119,6 +119,7 @@ export async function getFormByObjectId(objectId: string): Promise<{
   configJson: string;
   formId: string;
   createdAt: number;
+  owner?: string;
 } | null> {
   try {
     const client = getSuiClient();
@@ -128,10 +129,16 @@ export async function getFormByObjectId(objectId: string): Promise<{
     });
     if (obj.data?.content?.dataType !== 'moveObject') return null;
     const fields = (obj.data.content as any).fields as Record<string, string>;
+    const ownerInfo = obj.data.owner;
+    let ownerAddress = '';
+    if (ownerInfo && typeof ownerInfo === 'object') {
+      if ('AddressOwner' in ownerInfo) ownerAddress = ownerInfo.AddressOwner as string;
+    }
     return {
       configJson: fields.config_json,
       formId: fields.form_id,
       createdAt: Number(fields.created_at ?? 0),
+      owner: ownerAddress,
     };
   } catch (e) {
     console.error('[Sui] getFormByObjectId failed:', e);
@@ -154,41 +161,22 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
   try {
     const client = getSuiClient();
 
-    // Strategy: query all tx blocks that called our package's register_submission
-    // This finds ALL submissions across ALL wallets (not just admin's own)
-    const txResp = await (client as any).queryTransactionBlocks({
-      filter: { MoveFunction: { package: WALFORM_PACKAGE_ID, module: 'walform', function: 'register_submission' } },
-      options: { showObjectChanges: true, showEffects: true },
-      limit: 200,
-    });
-
-    const subObjectIds: string[] = [];
-    for (const tx of (txResp?.data ?? [])) {
-      for (const change of (tx.objectChanges ?? [])) {
-        if (
-          change.type === 'created' &&
-          typeof change.objectType === 'string' &&
-          change.objectType.includes('::walform::Submission')
-        ) {
-          subObjectIds.push(change.objectId);
-        }
-      }
-    }
-
-    if (subObjectIds.length === 0) return [];
-
-    // Batch fetch all submission objects
-    const multiResp = await client.multiGetObjects({
-      ids: subObjectIds,
+    // Strategy: Use getOwnedObjects for efficiency and security.
+    // This only returns submissions that were transferred to the admin's address.
+    const resp = await client.getOwnedObjects({
+      owner: ownerAddress,
+      filter: { StructType: `${WALFORM_PACKAGE_ID}::walform::Submission` },
       options: { showContent: true },
     });
 
     const results = [];
-    for (const item of multiResp) {
+    for (const item of resp.data) {
       if (item.data?.content?.dataType !== 'moveObject') continue;
       const fields = (item.data.content as any).fields as Record<string, string>;
+      
       // Filter by formObjectId if specified
       if (formObjectId && fields.form_id !== formObjectId) continue;
+      
       results.push({
         suiObjectId: item.data.objectId,
         payloadJson: fields.payload_json,
