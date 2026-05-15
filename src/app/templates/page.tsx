@@ -66,44 +66,32 @@ const TEMPLATES: Template[] = [
   {
     id: 'bug-report',
     category: 'Engineering',
-    categoryColor: '#22d3ee',
+    categoryColor: '#ef4444',
     time: '4 min',
+    featured: true,
     title: 'Bug Report',
-    description: 'Collect reproducible product defects with impact, environment details, and visual evidence.',
-    fields: [{ label: 'What happened?', type: 'rich text' }, { label: 'Steps to reproduce', type: 'rich text' }, { label: 'Severity', type: 'dropdown' }, { label: 'Screenshot proof', type: 'file' }, { label: 'Impact', type: 'rich text' }],
-    fieldCount: 5,
+    description: 'Perfect for dApps, protocols, and games to collect bug reports with screenshots and reproduction steps.',
+    fields: [
+      { label: 'Bug Title', type: 'text' },
+      { label: 'Severity', type: 'dropdown' },
+      { label: 'Screenshot', type: 'file' },
+      { label: 'Reproduction Steps', type: 'textarea' },
+      { label: 'Wallet/Browser/Device', type: 'text' },
+      { label: 'Expected vs Actual', type: 'textarea' }
+    ],
+    fieldCount: 6,
     policy: 'open',
     mode: 'wallet',
     preset: {
       title: 'Bug Report',
-      description: 'Collect reproducible product defects with impact, environment details, and visual evidence.',
+      description: 'Report an issue you encountered in our dApp, protocol, or game.',
       fields: [
-        { id: 'f1', type: 'textarea', label: 'What happened?', placeholder: 'Describe the bug clearly', required: true, enabled: true },
-        { id: 'f2', type: 'textarea', label: 'Steps to reproduce', placeholder: '1. Go to...\n2. Click...', required: true, enabled: true },
-        { id: 'f3', type: 'select', label: 'Severity', options: ['None', 'Low', 'Medium', 'High', 'Critical'], required: true, enabled: true },
-        { id: 'f4', type: 'file', label: 'Screenshot proof', required: false, enabled: true },
-        { id: 'f5', type: 'textarea', label: 'Impact', placeholder: 'What breaks because of this?', required: false, enabled: true },
-      ]
-    }
-  },
-  {
-    id: 'nps-survey',
-    category: 'Growth',
-    categoryColor: '#a78bfa',
-    time: '2 min',
-    title: 'NPS Survey',
-    description: 'Measure product sentiment and capture the reason behind each score.',
-    fields: [{ label: 'How likely are you to recommend Walform?', type: 'star rating' }, { label: 'What is the main reason for your score?', type: 'rich text' }, { label: 'Anything else to share?', type: 'rich text' }],
-    fieldCount: 3,
-    policy: 'open',
-    mode: 'signed anon',
-    preset: {
-      title: 'NPS Survey',
-      description: 'Measure product sentiment and capture the reason behind each score.',
-      fields: [
-        { id: 'f1', type: 'rating', label: 'How likely are you to recommend us? (1–5)', required: true, enabled: true },
-        { id: 'f2', type: 'textarea', label: 'What is the main reason for your score?', placeholder: 'Tell us more…', required: true, enabled: true },
-        { id: 'f3', type: 'textarea', label: 'Anything else to share?', placeholder: 'Optional feedback', required: false, enabled: true },
+        { id: 'bug_title', type: 'text', label: 'Bug Title*', placeholder: 'Short summary of the bug', required: true, enabled: true },
+        { id: 'severity', type: 'select', label: 'Severity*', options: ['Low', 'Medium', 'High', 'Critical'], required: true, enabled: true },
+        { id: 'screenshot', type: 'file', label: 'Screenshot', required: false, enabled: true, helpText: 'Upload visual evidence of the bug.' },
+        { id: 'repro_steps', type: 'textarea', label: 'Reproduction Steps*', placeholder: '1. Go to...\n2. Click on...\n3. See error...', required: true, enabled: true },
+        { id: 'env_info', type: 'text', label: 'Wallet / Browser / Device*', placeholder: 'e.g. Sui Wallet / Chrome / Windows 11', required: true, enabled: true },
+        { id: 'expected_actual', type: 'textarea', label: 'Expected vs Actual Behavior', placeholder: 'Expected: ...\nActual: ...', required: false, enabled: true },
       ]
     }
   },
@@ -111,70 +99,272 @@ const TEMPLATES: Template[] = [
     id: 'feature-request',
     category: 'Product',
     categoryColor: '#34d399',
-    time: '5 min',
+    time: '3 min',
     title: 'Feature Request',
-    description: 'Prioritize product ideas with user context, urgency, and expected outcomes.',
-    fields: [{ label: 'What should we build?', type: 'rich text' }, { label: 'What problem does this solve?', type: 'rich text' }, { label: 'Priority', type: 'dropdown' }, { label: 'User impact', type: 'rich text' }, { label: 'Links', type: 'url' }],
-    fieldCount: 5,
-    policy: 'open',
-    mode: 'wallet',
-    preset: {
-      title: 'Feature Request',
-      description: 'Prioritize product ideas with user context, urgency, and expected outcomes.',
-      fields: [
-        { id: 'f1', type: 'textarea', label: 'What should we build?', placeholder: 'Describe the feature', required: true, enabled: true },
-        { id: 'f2', type: 'textarea', label: 'What problem does this solve?', required: true, enabled: true },
-        { id: 'f3', type: 'select', label: 'Priority', options: ['Low', 'Medium', 'High', 'Critical'], required: true, enabled: true },
-        { id: 'f4', type: 'textarea', label: 'User impact', required: false, enabled: true },
-        { id: 'f5', type: 'url', label: 'Related links', placeholder: 'https://', required: false, enabled: true },
-      ]
-    }
-  },
-  {
-    id: 'hackathon',
-    category: 'Events',
-    categoryColor: '#fbbf24',
-    time: '7 min',
-    title: 'Hackathon Submission',
-    description: 'Review hackathon projects with demo links, team details, track selection, and attestation.',
-    fields: [{ label: 'Project summary', type: 'rich text' }, { label: 'Repository URL', type: 'url' }, { label: 'Demo link', type: 'url' }, { label: 'Team members', type: 'rich text' }, { label: 'Track', type: 'dropdown' }, { label: 'Attestation', type: 'checkbox' }],
+    description: 'Collect and prioritize product ideas, use cases, and mockups from your users.',
+    fields: [
+      { label: 'Feature Title', type: 'text' },
+      { label: 'Category', type: 'dropdown' },
+      { label: 'Description', type: 'textarea' },
+      { label: 'Use Case', type: 'textarea' },
+      { label: 'Priority Rating', type: 'rating' },
+      { label: 'Mockup', type: 'file' }
+    ],
     fieldCount: 6,
     policy: 'open',
     mode: 'wallet',
     preset: {
-      title: 'Hackathon Submission',
-      description: 'Review hackathon projects with demo links, team details, track selection, and attestation.',
+      title: 'Feature Request',
+      description: 'Tell us what we should build next to improve your experience.',
       fields: [
-        { id: 'f1', type: 'textarea', label: 'Project summary', required: true, enabled: true },
-        { id: 'f2', type: 'url', label: 'Repository URL', placeholder: 'https://github.com/...', required: true, enabled: true },
-        { id: 'f3', type: 'url', label: 'Demo link', placeholder: 'https://', required: false, enabled: true },
-        { id: 'f4', type: 'textarea', label: 'Team members', placeholder: 'Name 1, Name 2…', required: true, enabled: true },
-        { id: 'f5', type: 'select', label: 'Track', options: ['DeFi', 'NFTs', 'Gaming', 'Infrastructure', 'Social'], required: true, enabled: true },
-        { id: 'f6', type: 'checkbox', label: 'I confirm this is my original work', required: true, enabled: true },
+        { id: 'feature_title', type: 'text', label: 'Feature Title*', placeholder: 'Name of the feature', required: true, enabled: true },
+        { id: 'category', type: 'select', label: 'Category*', options: ['UI/UX', 'Core Functionality', 'Integration', 'Other'], required: true, enabled: true },
+        { id: 'description', type: 'textarea', label: 'Description*', placeholder: 'Describe how it should work...', required: true, enabled: true },
+        { id: 'use_case', type: 'textarea', label: 'Use Case', placeholder: 'In what situation would you use this?', required: false, enabled: true },
+        { id: 'priority', type: 'rating', label: 'Priority Rating*', required: true, enabled: true },
+        { id: 'mockup', type: 'file', label: 'Mockup Upload', required: false, enabled: true, helpText: 'Upload any sketches or mockups.' },
       ]
     }
   },
   {
-    id: 'dao-survey',
-    category: 'Governance',
-    categoryColor: '#f87171',
-    time: '5 min',
+    id: 'grant-application',
+    category: 'Funding',
+    categoryColor: '#3b82f6',
+    time: '10 min',
     featured: true,
-    title: 'DAO Survey',
-    description: 'Gather governance feedback from wallet-linked members before proposals move on-chain.',
-    fields: [{ label: 'Proposal stance', type: 'dropdown' }, { label: 'Rationale', type: 'rich text' }, { label: 'Which areas does this touch?', type: 'checkbox group' }, { label: 'Confidence in proposal', type: 'star rating' }],
-    fieldCount: 5,
-    policy: 'token gated',
+    title: 'Grant / Application Form',
+    description: 'Perfect for the Walrus & Sui ecosystem to intake project grant applications.',
+    fields: [
+      { label: 'Project Name', type: 'text' },
+      { label: 'Team Members', type: 'textarea' },
+      { label: 'GitHub', type: 'url' },
+      { label: 'Demo Link', type: 'url' },
+      { label: 'Pitch Deck', type: 'file' },
+      { label: 'Funding Ask', type: 'text' },
+      { label: 'Milestones', type: 'textarea' },
+      { label: 'Demo Video', type: 'url' }
+    ],
+    fieldCount: 8,
+    policy: 'open',
     mode: 'wallet',
     preset: {
-      title: 'DAO Survey',
-      description: 'Gather governance feedback from wallet-linked members before proposals move on-chain.',
+      title: 'Grant Application',
+      description: 'Apply for funding to build your project in our ecosystem.',
       fields: [
-        { id: 'f1', type: 'select', label: 'Proposal stance', options: ['Strongly For', 'For', 'Neutral', 'Against', 'Strongly Against'], required: true, enabled: true },
-        { id: 'f2', type: 'textarea', label: 'Rationale', placeholder: 'Explain your position…', required: true, enabled: true },
-        { id: 'f3', type: 'checkbox', label: 'Which areas does this touch?', options: ['Treasury', 'Protocol', 'Governance', 'Community', 'Technical'], required: false, enabled: true },
-        { id: 'f4', type: 'rating', label: 'Confidence in proposal', required: true, enabled: true },
-        { id: 'f5', type: 'checkbox', label: 'I confirm this is my wallet-linked vote', required: true, enabled: true },
+        { id: 'project_name', type: 'text', label: 'Project Name*', placeholder: 'Your project name', required: true, enabled: true },
+        { id: 'team_members', type: 'textarea', label: 'Team Members*', placeholder: 'Names and roles...', required: true, enabled: true },
+        { id: 'github_link', type: 'url', label: 'GitHub Link*', placeholder: 'https://github.com/...', required: true, enabled: true },
+        { id: 'demo_link', type: 'url', label: 'Demo Link', placeholder: 'https://...', required: false, enabled: true },
+        { id: 'pitch_deck', type: 'file', label: 'Pitch Deck*', required: true, enabled: true },
+        { id: 'funding_ask', type: 'text', label: 'Funding Ask (USD)*', placeholder: '$10,000', required: true, enabled: true },
+        { id: 'milestone_plan', type: 'textarea', label: 'Milestone Plan*', placeholder: 'Month 1: ...\nMonth 2: ...', required: true, enabled: true },
+        { id: 'demo_video', type: 'url', label: 'Demo Video', placeholder: 'https://youtube.com/...', required: false, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'hackathon-submission',
+    category: 'Events',
+    categoryColor: '#fbbf24',
+    time: '5 min',
+    featured: true,
+    title: 'Hackathon Submission',
+    description: 'A mandatory template for collecting hackathon projects, demos, and presentations.',
+    fields: [
+      { label: 'Project Name', type: 'text' },
+      { label: 'Wallet Address', type: 'text' },
+      { label: 'GitHub', type: 'url' },
+      { label: 'Demo', type: 'url' },
+      { label: 'Screenshots', type: 'file' },
+      { label: 'Presentation Video', type: 'url' },
+      { label: 'Feedback', type: 'textarea' }
+    ],
+    fieldCount: 7,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Hackathon Submission',
+      description: 'Submit your hackathon project for judging.',
+      fields: [
+        { id: 'project_name', type: 'text', label: 'Project Name*', placeholder: 'Your project name', required: true, enabled: true },
+        { id: 'wallet_address', type: 'text', label: 'Reward Wallet Address*', placeholder: '0x...', required: true, enabled: true },
+        { id: 'github_link', type: 'url', label: 'GitHub Repository*', placeholder: 'https://github.com/...', required: true, enabled: true },
+        { id: 'demo_link', type: 'url', label: 'Demo Link', placeholder: 'https://...', required: false, enabled: true },
+        { id: 'screenshots', type: 'file', label: 'Screenshots*', required: true, enabled: true },
+        { id: 'presentation_video', type: 'url', label: 'Presentation Video*', placeholder: 'https://youtube.com/...', required: true, enabled: true },
+        { id: 'feedback', type: 'textarea', label: 'Feedback for Organizers', placeholder: 'Optional...', required: false, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'community-feedback',
+    category: 'Community',
+    categoryColor: '#a78bfa',
+    time: '3 min',
+    title: 'Community Feedback',
+    description: 'Gather actionable feedback from your community on sessions and events.',
+    fields: [
+      { label: 'Session Rating', type: 'rating' },
+      { label: 'Speaker Feedback', type: 'textarea' },
+      { label: 'Suggestions', type: 'textarea' },
+      { label: 'Favorite Part', type: 'text' },
+      { label: 'Improvement Ideas', type: 'textarea' }
+    ],
+    fieldCount: 5,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Community Feedback',
+      description: 'Help us improve our future sessions by sharing your thoughts.',
+      fields: [
+        { id: 'session_rating', type: 'rating', label: 'Session Rating*', required: true, enabled: true },
+        { id: 'speaker_feedback', type: 'textarea', label: 'Speaker Feedback', placeholder: 'Any specific feedback for speakers?', required: false, enabled: true },
+        { id: 'suggestions', type: 'textarea', label: 'Suggestions for future topics', placeholder: 'What do you want to hear about next?', required: false, enabled: true },
+        { id: 'favorite_part', type: 'text', label: 'Favorite Part', placeholder: 'The best thing was...', required: false, enabled: true },
+        { id: 'improvement_ideas', type: 'textarea', label: 'Improvement Ideas', placeholder: 'How can we do better?', required: false, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'beta-tester',
+    category: 'Growth',
+    categoryColor: '#f472b6',
+    time: '2 min',
+    title: 'Beta Tester Signup',
+    description: 'Recruit beta testers, log their devices, and track their interest areas.',
+    fields: [
+      { label: 'Wallet', type: 'text' },
+      { label: 'Device', type: 'dropdown' },
+      { label: 'Experience Level', type: 'dropdown' },
+      { label: 'Telegram/Discord', type: 'text' },
+      { label: 'Interest Areas', type: 'checkbox' }
+    ],
+    fieldCount: 5,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Beta Tester Signup',
+      description: 'Sign up to be the first to test our new features.',
+      fields: [
+        { id: 'wallet_address', type: 'text', label: 'Wallet Address*', placeholder: '0x...', required: true, enabled: true },
+        { id: 'device', type: 'select', label: 'Primary Device*', options: ['Desktop/Laptop', 'iOS', 'Android', 'Other'], required: true, enabled: true },
+        { id: 'experience', type: 'select', label: 'Web3 Experience Level*', options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'], required: true, enabled: true },
+        { id: 'social_handle', type: 'text', label: 'Telegram / Discord Handle*', placeholder: '@username', required: true, enabled: true },
+        { id: 'interest_areas', type: 'checkbox', label: 'Interest Areas', options: ['DeFi', 'Gaming', 'NFTs', 'Infrastructure', 'Social'], required: false, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'job-application',
+    category: 'HR',
+    categoryColor: '#2dd4bf',
+    time: '6 min',
+    title: 'Job / Contributor Application',
+    description: 'Accept applications for roles and bounties directly into your decentralized inbox.',
+    fields: [
+      { label: 'Role', type: 'text' },
+      { label: 'Portfolio', type: 'url' },
+      { label: 'Resume', type: 'file' },
+      { label: 'Timezone', type: 'text' },
+      { label: 'Social Links', type: 'url' },
+      { label: 'Experience', type: 'textarea' }
+    ],
+    fieldCount: 6,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Job / Contributor Application',
+      description: 'Apply for a core team role or contributor bounty.',
+      fields: [
+        { id: 'role', type: 'text', label: 'Role / Bounty Name*', placeholder: 'Frontend Developer', required: true, enabled: true },
+        { id: 'portfolio', type: 'url', label: 'Portfolio / Website', placeholder: 'https://...', required: false, enabled: true },
+        { id: 'resume', type: 'file', label: 'Resume Upload*', required: true, enabled: true },
+        { id: 'timezone', type: 'text', label: 'Timezone*', placeholder: 'e.g. UTC+7', required: true, enabled: true },
+        { id: 'social_links', type: 'url', label: 'LinkedIn / X Profile', placeholder: 'https://...', required: false, enabled: true },
+        { id: 'experience', type: 'textarea', label: 'Relevant Experience*', placeholder: 'Tell us about your background...', required: true, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'dao-governance',
+    category: 'Governance',
+    categoryColor: '#818cf8',
+    time: '4 min',
+    title: 'DAO Governance Feedback',
+    description: 'Collect structured sentiment on DAO proposals before they go on-chain.',
+    fields: [
+      { label: 'Proposal Opinion', type: 'dropdown' },
+      { label: 'Vote Reasoning', type: 'textarea' },
+      { label: 'Attachments', type: 'file' },
+      { label: 'Sentiment Rating', type: 'rating' }
+    ],
+    fieldCount: 4,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'DAO Governance Feedback',
+      description: 'Share your thoughts on the active DAO proposal.',
+      fields: [
+        { id: 'proposal_opinion', type: 'select', label: 'Proposal Opinion*', options: ['Strongly Support', 'Support', 'Neutral', 'Oppose', 'Strongly Oppose'], required: true, enabled: true },
+        { id: 'vote_reasoning', type: 'textarea', label: 'Vote Reasoning*', placeholder: 'Why are you voting this way?', required: true, enabled: true },
+        { id: 'attachments', type: 'file', label: 'Supporting Documents', required: false, enabled: true },
+        { id: 'sentiment_rating', type: 'rating', label: 'Overall Sentiment on DAO Direction', required: false, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'creator-submission',
+    category: 'Creative',
+    categoryColor: '#fb923c',
+    time: '3 min',
+    title: 'Creator Submission',
+    description: 'Receive art, videos, and creative assets directly with licensing details.',
+    fields: [
+      { label: 'Artwork Upload', type: 'file' },
+      { label: 'Description', type: 'textarea' },
+      { label: 'Socials', type: 'url' },
+      { label: 'Licensing', type: 'checkbox' }
+    ],
+    fieldCount: 4,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Creator Submission',
+      description: 'Submit your creative work for our campaign.',
+      fields: [
+        { id: 'artwork_upload', type: 'file', label: 'Artwork Upload*', required: true, enabled: true },
+        { id: 'description', type: 'textarea', label: 'Artwork Description*', placeholder: 'Tell us about your piece...', required: true, enabled: true },
+        { id: 'socials', type: 'url', label: 'Your Social Profile', placeholder: 'https://...', required: false, enabled: true },
+        { id: 'licensing', type: 'checkbox', label: 'Licensing Terms*', options: ['I grant permission to use this artwork', 'Creative Commons (CC-BY)'], required: true, enabled: true },
+      ]
+    }
+  },
+  {
+    id: 'investor-intake',
+    category: 'Business',
+    categoryColor: '#94a3b8',
+    time: '5 min',
+    title: 'Investor / Partnership Intake',
+    description: 'Streamline incoming requests from potential partners and investors.',
+    fields: [
+      { label: 'Company/Project', type: 'text' },
+      { label: 'Contact', type: 'text' },
+      { label: 'Deck Upload', type: 'file' },
+      { label: 'Proposal', type: 'textarea' },
+      { label: 'Goals', type: 'textarea' }
+    ],
+    fieldCount: 5,
+    policy: 'open',
+    mode: 'wallet',
+    preset: {
+      title: 'Investor / Partnership Intake',
+      description: 'Fill out this form to explore partnership or investment opportunities.',
+      fields: [
+        { id: 'company_name', type: 'text', label: 'Company / Project Name*', placeholder: 'Your organization', required: true, enabled: true },
+        { id: 'contact_info', type: 'text', label: 'Contact Information*', placeholder: 'Email or Telegram', required: true, enabled: true },
+        { id: 'deck_upload', type: 'file', label: 'Pitch Deck Upload', required: false, enabled: true },
+        { id: 'proposal', type: 'textarea', label: 'Partnership Proposal*', placeholder: 'What are you proposing?', required: true, enabled: true },
+        { id: 'goals', type: 'textarea', label: 'Mutual Goals*', placeholder: 'What do you hope to achieve?', required: true, enabled: true },
       ]
     }
   },
@@ -239,14 +429,7 @@ export default function TemplatesPage() {
                   ))}
                 </div>
 
-                {/* Meta */}
-                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-3)' }}>
-                  <span>{tmpl.fieldCount} fields</span>
-                  <span>·</span>
-                  <span>Policy: {tmpl.policy}</span>
-                  <span>·</span>
-                  <span>Mode: {tmpl.mode}</span>
-                </div>
+                {/* Meta block removed */}
               </div>
 
               <button
