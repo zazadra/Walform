@@ -70,6 +70,7 @@ export const WALRUS_AGGREGATORS: string[] = [
   'https://walrus-aggregator.brightlystake.com',
   'https://mainnet-aggregator.walrus.graphyte.dev',
   'https://walrus.globalstake.io',
+  'https://blob.suilearn.io',
 ];
 
 export const PRIMARY_AGGREGATOR = WALRUS_AGGREGATORS[0];

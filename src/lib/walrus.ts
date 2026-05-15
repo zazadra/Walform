@@ -104,7 +104,7 @@ function getWalrusClient(): WalrusClient {
 export async function uploadBytesToWalrus(
   data: string | Uint8Array | File | Blob,
   signer: WalrusSigner,
-  epochs = 3,
+  epochs = 1,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<WalrusUploadResponse> {
   // Normalise to Uint8Array
@@ -198,8 +198,13 @@ export async function uploadBytesToWalrus(
       throw err;
     }
 
-    console.warn('[Walrus] Native SDK failed, falling back to API relay...', err);
-    onProgress?.({ status: 'uploading', message: 'Native upload failed, trying server relay...' });
+    console.warn('[Walrus] Native SDK failed. Error details:', {
+      message: msg,
+      stack: err.stack,
+      error: err
+    });
+
+    onProgress?.({ status: 'uploading', message: 'Native upload failed (see console), trying server relay...' });
     
     // Fallback to our robust server-side /api/walrus/upload
     const res = await fetch('/api/walrus/upload?epochs=' + epochs, {

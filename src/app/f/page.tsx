@@ -289,7 +289,7 @@ function FormPageContent() {
       const fileArray = Array.isArray(files) ? files : [files];
       const ids: string[] = [];
       for (const f of fileArray) { 
-        const res = await uploadBytesToWalrus(f, signer, 3); 
+        const res = await uploadBytesToWalrus(f, signer, 1); 
         ids.push(res.blobId); 
       }
 
