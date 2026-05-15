@@ -7,6 +7,7 @@
 import type { WalrusUploadResponse } from '@/types/walform';
 import type { WalrusSigner } from '@/lib/walrus';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 
 export const WALFORM_PACKAGE_ID: string =
   '0xebb99d93ce26307c536308339144b05c32c0ac20f04156b61b1805e713a11693';
@@ -197,13 +198,19 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
         // CRITICAL: Filter by formId to prevent cross-form discovery leaks
         if (formObjectId && fields.form_id !== formObjectId) continue;
         
+        const [localStatus, localNote] = await Promise.all([
+          idbGet(`walform_status_${item.data.objectId}`),
+          idbGet(`walform_note_${item.data.objectId}`)
+        ]);
+        
         results.push({
           suiObjectId: item.data.objectId,
           payloadJson: fields.payload_json,
           formId: fields.form_id,
           submitter: fields.submitter,
           timestamp: Number(fields.timestamp ?? 0),
-          status: fields.status ?? 'new',
+          status: (localStatus as string) ?? fields.status ?? 'new',
+          note: (localNote as string) ?? '',
         });
       }
       return results.sort((a, b) => b.timestamp - a.timestamp);
@@ -211,6 +218,20 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
     console.error('[Sui] getOwnedSubmissions failed:', e);
     return [];
   }
+}
+
+/**
+ * Persist submission status locally since the contract is read-only for these fields.
+ */
+export async function updateSubmissionStatus(objectId: string, status: string) {
+  await idbSet(`walform_status_${objectId}`, status);
+}
+
+/**
+ * Persist submission notes locally since the contract is read-only for these fields.
+ */
+export async function updateSubmissionNote(objectId: string, note: string) {
+  await idbSet(`walform_note_${objectId}`, note);
 }
 
 /**
