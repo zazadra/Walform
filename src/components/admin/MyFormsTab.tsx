@@ -202,131 +202,124 @@ export function MyFormsTab({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>My Forms</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-2)' }}>Forms you've published, stored by this browser.</p>
+          <h2 style={{ fontSize: '28px', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '4px', background: 'linear-gradient(to bottom right, #fff, var(--text-3))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>My Forms</h2>
+          <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>Manage your decentralized forms and collect responses.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
             className="btn btn-secondary btn-sm"
-            style={{ gap: '8px', display: 'flex', alignItems: 'center' }}
+            style={{ height: 36, gap: '8px', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}
             onClick={handleSync}
             disabled={isSyncing}
           >
             {isSyncing ? <span className="spinner" style={{ width: '12px', height: '12px' }} /> : '🔄'}
-            Sync from Chain
+            <span style={{ fontSize: 13, fontWeight: 700 }}>Sync Chain</span>
           </button>
           <BlobIdImporter onImport={handleImported} />
         </div>
       </div>
 
-      {/* Info banner */}
-      <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.15)', fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6 }}>
-        <strong style={{ color: '#fbbf24' }}>ℹ How this works:</strong> Forms you publish via Form Builder are automatically saved here. If you open Walform in a different browser or cleared localStorage, use <strong>Import Blob ID</strong> above to reload them.
-      </div>
+
 
       {isLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="card" style={{ padding: '20px', height: '140px', background: 'rgba(255,255,255,0.02)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card-premium skeleton" style={{ height: '180px' }} />
           ))}
         </div>
       ) : forms.length === 0 ? (
-        <div style={{ padding: '60px 20px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>📋</div>
-          <p style={{ color: 'var(--text-1)', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>No forms found</p>
-          <p style={{ color: 'var(--text-3)', fontSize: '14px', maxWidth: '360px', margin: '0 auto' }}>
-            Publish a form from the <strong>Form Builder</strong> tab, or use <strong>Import Blob ID</strong> above to load an existing form by its Blob ID.
+        <div style={{ padding: '80px 20px', textAlign: 'center', background: 'var(--surface-1)', borderRadius: '24px', border: '1px dashed var(--border)', boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>📋</div>
+          <p style={{ color: 'var(--text-1)', fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>No forms found</p>
+          <p style={{ color: 'var(--text-3)', fontSize: '14px', maxWidth: '380px', margin: '0 auto' }}>
+            Ready to build? Create your first form in the builder or import an existing one.
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
           {forms.map(f => (
             <div
               key={f.publishedBlobId ?? f.id}
-              className="card"
-              style={{ padding: '20px', transition: 'all 0.2s', border: '1px solid var(--border)', position: 'relative' }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.borderColor = 'var(--accent-2)';
-                e.currentTarget.style.boxShadow = '0 8px 24px -10px rgba(139,92,246,0.2)';
+              className="card-premium"
+              style={{ 
+                padding: '24px', 
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 200,
+                justifyContent: 'space-between'
               }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              onClick={() => onSelectForm(f)}
             >
-              {/* Archive button */}
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  if (confirm('Archive this form? It will no longer appear here, but is still on Walrus.')) {
-                    handleArchive(f);
-                  }
-                }}
-                title="Archive Form"
-                style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: '4px', opacity: 0.6, transition: 'opacity 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-              </button>
-
-              {/* Form icon */}
-              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '14px' }}>
-                📝
+              {/* Top Row: Icon & Actions */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ 
+                  width: '44px', 
+                  height: '44px', 
+                  borderRadius: '12px', 
+                  background: 'var(--surface-3)', 
+                  border: '1px solid var(--border-2)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  fontSize: '20px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                }}>
+                  {f.fields?.some(fi => fi.type === 'file') ? '📎' : '📄'}
+                </div>
+                
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (confirm('Archive this form?')) handleArchive(f);
+                  }}
+                  className="btn-icon"
+                  style={{ color: 'var(--text-3)', opacity: 0.5 }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
               </div>
 
-              <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px', color: 'var(--text-1)', paddingRight: '24px' }}>{f.title || 'Untitled Form'}</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-3)', marginBottom: '14px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5 }}>
-                {f.description || 'No description provided.'}
-              </p>
-
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', fontSize: '11px', fontWeight: 700 }}>
-                <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(139, 92, 246, 0.1)', color: 'var(--accent-2)' }}>
-                  {f.fields?.length || 0} Fields
-                </span>
-                {f.encryptionEnabled && (
-                  <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(74, 222, 128, 0.1)', color: 'var(--success)', border: '1px solid rgba(74, 222, 128, 0.2)' }}>
-                    🔒 Encrypted
-                  </span>
-                )}
-                {f.publishedBlobId && (
-                  <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '10px' }}>
-                    {f.publishedBlobId.slice(0, 10)}…
-                  </span>
-                )}
+              {/* Middle: Content */}
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '6px', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
+                  {f.title || 'Untitled Form'}
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '16px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5 }}>
+                  {f.description || 'No description provided.'}
+                </p>
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  style={{ flex: 1, fontSize: '11px', padding: '6px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onSelectSubmissions && f.publishedBlobId) {
-                      onSelectSubmissions(f.publishedBlobId);
-                    }
-                  }}
-                >
-                  View Submissions
-                </button>
-                <button
-                  className="btn btn-primary btn-sm"
-                  style={{ flex: 1, fontSize: '11px', padding: '6px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectForm(f);
-                  }}
-                >
-                  Edit Form
-                </button>
+              {/* Bottom: Meta Tags */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)', marginTop: 4 }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span className="badge-premium" style={{ background: 'rgba(139,92,246,0.1)', color: 'var(--accent-2)' }}>
+                    {f.fields?.length || 0} Fields
+                  </span>
+                  {f.encryptionEnabled && (
+                    <span className="badge-premium" style={{ background: 'rgba(74,222,128,0.05)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.1)' }}>
+                      🔒 Encrypted
+                    </span>
+                  )}
+                </div>
+                
+                {onSelectSubmissions && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSubmissions(f.publishedBlobId || f.id || '');
+                    }}
+                    className="btn btn-ghost btn-sm" 
+                    style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-2)', height: 28, padding: '0 8px' }}
+                  >
+                    Results →
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -201,10 +201,28 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
       {/* Internal Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-        <button className={`btn btn-sm ${internalTab === 'manager' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('manager')}>Manager</button>
-        <button className={`btn btn-sm ${internalTab === 'replies' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('replies')}>Replies</button>
-        <button className={`btn btn-sm ${internalTab === 'lookup' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setInternalTab('lookup')}>Lookup</button>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '8px' }}>
+        <button 
+          className={`btn btn-sm ${internalTab === 'manager' ? 'btn-primary' : 'btn-ghost'}`} 
+          onClick={() => setInternalTab('manager')}
+          style={{ borderRadius: '10px', height: '36px', padding: '0 16px' }}
+        >
+          Forms List
+        </button>
+        <button 
+          className={`btn btn-sm ${internalTab === 'replies' ? 'btn-primary' : 'btn-ghost'}`} 
+          onClick={() => setInternalTab('replies')}
+          style={{ borderRadius: '10px', height: '36px', padding: '0 16px' }}
+        >
+          Submission Replies
+        </button>
+        <button 
+          className={`btn btn-sm ${internalTab === 'lookup' ? 'btn-primary' : 'btn-ghost'}`} 
+          onClick={() => setInternalTab('lookup')}
+          style={{ borderRadius: '10px', height: '36px', padding: '0 16px' }}
+        >
+          Blob Explorer
+        </button>
       </div>
 
       {internalTab === 'manager' && (
@@ -222,13 +240,16 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
 
       {internalTab === 'lookup' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Lookup Blob</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>Paste any Walrus Blob ID to view its content. Supports Forms and Submissions.</p>
-            <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="card-premium" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '4px' }}>Blob Explorer</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>Paste any Walrus Blob ID to retrieve and inspect its on-chain data.</p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
               <input
                 className="input"
-                placeholder="e.g. xyz123..."
+                placeholder="Enter Walrus Blob ID (e.g. xyz123...)"
                 value={searchBlobId}
                 onChange={e => setSearchBlobId(e.target.value)}
                 onKeyDown={e => {
@@ -259,7 +280,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                       .finally(() => setSearchLoading(false));
                   }
                 }}
-                style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: '14px' }}
+                style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: '14px', height: '48px' }}
               />
               <button 
                 className="btn btn-primary" 
@@ -289,15 +310,16 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                     .finally(() => setSearchLoading(false));
                 }}
                 disabled={searchLoading || !searchBlobId.trim()}
+                style={{ height: '48px', padding: '0 24px' }}
               >
-                {searchLoading ? 'Loading...' : 'Search'}
+                {searchLoading ? 'Scanning...' : 'Fetch Data'}
               </button>
             </div>
             {searchError && <p style={{ color: 'var(--error)', fontSize: '13px' }}>⚠ {searchError}</p>}
           </div>
 
           {searchResult && (
-            <div className="card" style={{ padding: '20px', borderLeft: `4px solid ${searchResult?.fields ? 'var(--accent)' : STATUS_COLORS[((searchResult as any)?.status || 'pending') as SubmissionStatus]}` }}>
+            <div className="card-premium" style={{ padding: '24px', borderLeft: `4px solid ${searchResult?.fields ? 'var(--accent)' : STATUS_COLORS[((searchResult as any)?.status || 'pending') as SubmissionStatus]}` }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                  <div>
                    <p style={{ fontSize: '12px', color: 'var(--text-3)' }}>{searchResult?.fields ? 'Form Title' : 'Submission ID'}</p>
@@ -412,14 +434,15 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                     <motion.div 
                       layout
                       key={s.id} 
-                      className="card" 
+                      className="card-premium" 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       style={{ 
                         padding: 0, overflow: 'hidden', 
                         border: expanded === s.id ? '1px solid var(--accent-soft)' : '1px solid var(--border)',
-                        boxShadow: expanded === s.id ? '0 8px 30px -10px rgba(139, 92, 246, 0.15)' : 'none',
-                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                        boxShadow: expanded === s.id ? '0 12px 40px -10px rgba(139, 92, 246, 0.2)' : 'none',
+                        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                        marginBottom: '12px'
                       }}
               >
                 {/* Header */}

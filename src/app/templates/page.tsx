@@ -394,50 +394,90 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', backgroundColor: 'var(--bg)' }}>
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '48px 24px' }}>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 8 }}>Templates</h1>
-          <p style={{ fontSize: 15, color: 'var(--text-2)', marginBottom: 40 }}>Start with a proven template. Customize, publish, and share in minutes.</p>
+    <div className="surface-layer-1" style={{ minHeight: '100dvh' }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '64px 24px' }}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.6 }}
+          style={{ marginBottom: 48, textAlign: 'center' }}
+        >
+          <div style={{ 
+            display: 'inline-block', padding: '6px 12px', borderRadius: '12px', 
+            background: 'var(--accent-soft)', color: 'var(--accent-2)', 
+            fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', 
+            letterSpacing: '0.1em', marginBottom: 16 
+          }}>
+            Explore Blueprints
+          </div>
+          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 12, lineHeight: 1.1 }}>
+            Ready-to-use <span className="text-glow-purple">Templates</span>
+          </h1>
+          <p style={{ fontSize: 18, color: 'var(--text-2)', maxWidth: 600, margin: '0 auto' }}>
+            Launch professional on-chain forms in seconds with our curated library of Web3-optimized templates.
+          </p>
         </motion.div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
+          gap: 24 
+        }}>
           {TEMPLATES.map((tmpl, i) => (
             <motion.div
               key={tmpl.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07, duration: 0.4 }}
-              className="card card-hover"
-              style={{ padding: 28, borderRadius: 'var(--r-xl)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05, duration: 0.4 }}
+              className="card-premium card-hover"
+              style={{ 
+                padding: 32, 
+                display: 'flex', 
+                flexDirection: 'column',
+                height: '100%',
+                border: tmpl.featured ? '1px solid var(--accent-soft)' : '1px solid var(--border)'
+              }}
             >
-              <div>
-                {/* Tags row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  {categoryBadge(tmpl.category, tmpl.categoryColor)}
-                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{tmpl.time}</span>
-                  {tmpl.featured && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}>Featured</span>}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {categoryBadge(tmpl.category, tmpl.categoryColor)}
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', padding: '4px 0' }}>{tmpl.time}</span>
+                  </div>
+                  {tmpl.featured && (
+                    <div className="glow-sm" style={{ 
+                      fontSize: 10, fontWeight: 900, padding: '4px 10px', borderRadius: 8, 
+                      background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
+                      textTransform: 'uppercase'
+                    }}>
+                      Featured
+                    </div>
+                  )}
                 </div>
 
-                <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>{tmpl.title}</h2>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 16 }}>{tmpl.description}</p>
+                <h2 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 12, color: 'var(--text-1)' }}>{tmpl.title}</h2>
+                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 24 }}>{tmpl.description}</p>
 
-                {/* Field preview grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 32 }}>
                   {tmpl.fields.slice(0, 4).map((f, fi) => (
-                    <FieldPreview key={fi} label={f.label} type={f.type} />
+                    <div key={fi} style={{ 
+                      background: 'rgba(255,255,255,0.02)', 
+                      border: '1px solid rgba(255,255,255,0.05)', 
+                      borderRadius: 12, padding: '10px 12px' 
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{f.type}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.label}</div>
+                    </div>
                   ))}
                 </div>
-
-                {/* Meta block removed */}
               </div>
 
               <button
                 className="btn btn-primary"
                 onClick={() => useTemplate(tmpl)}
-                style={{ whiteSpace: 'nowrap', padding: '10px 20px' }}
+                style={{ width: '100%', justifyContent: 'center', height: 48, fontSize: 14, fontWeight: 700 }}
               >
-                Use template
+                Use this template
               </button>
             </motion.div>
           ))}

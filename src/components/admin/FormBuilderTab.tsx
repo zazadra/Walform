@@ -427,109 +427,100 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
   function copy() { navigator.clipboard.writeText(pubUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
 
   return (
-    <div className="mobile-grid-1" style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+    <div className="builder-split">
+      {/* LEFT SIDE: Fields Management */}
+      <div className="builder-left">
+        <div>
+          <h3 className="section-label" style={{ marginBottom: 12 }}>Form Fields</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: 20 }}>
+            Configure your form fields. Drag and drop is coming soon!
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {config.fields.map(f => (
+              <FieldEditor
+                key={f.id}
+                field={f}
+                onChange={patch => updateField(f.id, patch)}
+                onRemove={() => removeField(f.id)}
+                sessionCount={f.id === 'session_select' ? config.sessionCount : undefined}
+                onSessionCountChange={f.id === 'session_select' ? (n) => {
+                  onChange({ ...config, sessionCount: n });
+                } : undefined}
+              />
+            ))}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <CustomFieldCreator onAdd={addCustomField} />
+          </div>
+        </div>
+      </div>
 
-      {/* 1. Meta */}
-      <div className="card" style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'12px' }}>
-        <p style={{ fontSize:'11px', fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:'4px' }}>
-          1. Form Meta
-        </p>
-        <div>
-          <label className="input-label">Title</label>
-          <input className="input" value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
-        </div>
-        <div>
-          <label className="input-label">Description</label>
-          <textarea className="textarea" rows={2} value={config.description}
-            onChange={e => onChange({ ...config, description: e.target.value })}
-            style={{ minHeight:'unset', resize:'none' }} />
-        </div>
-        
-        {/* Seal Encryption Toggle */}
-        <div style={{ marginTop: '8px', padding: '16px', borderRadius: '12px', background: 'rgba(74, 222, 128, 0.05)', border: '1px solid rgba(74, 222, 128, 0.15)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* RIGHT SIDE: Settings, Preview & Publish */}
+      <div className="builder-right">
+        {/* Publish Panel (Sticky) */}
+        <div className="publish-panel">
+          <h3 className="section-label" style={{ color: 'var(--accent-2)', marginBottom: 12 }}>Finalize & Publish</h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--success)' }}>E2E Seal Encryption</p>
-              <p style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '4px' }}>Submissions are encrypted and only accessible by your wallet.</p>
+              <label className="input-label" style={{ fontSize: 11 }}>Form Title</label>
+              <input className="input" style={{ background: 'rgba(0,0,0,0.2)' }} value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(139,92,246,0.05)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.1)' }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-2)' }}>Seal Encryption</p>
+                <p style={{ fontSize: 10, color: 'var(--text-3)' }}>Only you can decrypt responses.</p>
+              </div>
               <input type="checkbox" className="toggle" checked={!!config.encryptionEnabled} 
                      onChange={e => onChange({ ...config, encryptionEnabled: e.target.checked })} />
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Fields */}
-      <div className="card" style={{ padding:'20px' }}>
-        <p style={{ fontSize:'11px', fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:'6px' }}>
-          2. Form Fields
-        </p>
-        <p style={{ fontSize:'12px', color:'var(--text-3)', marginBottom:'14px' }}>
-          Edit labels inline. Click <strong style={{color:'var(--text-2)'}}>▼</strong> to expand field options (type, placeholder, help text, link, session count).
-        </p>
-        <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
-          {config.fields.map(f => (
-            <FieldEditor
-              key={f.id}
-              field={f}
-              onChange={patch => updateField(f.id, patch)}
-              onRemove={() => removeField(f.id)}
-              sessionCount={f.id === 'session_select' ? config.sessionCount : undefined}
-              onSessionCountChange={f.id === 'session_select' ? (n) => {
-                onChange({ ...config, sessionCount: n });
-              } : undefined}
-            />
-          ))}
-        </div>
-        <CustomFieldCreator onAdd={addCustomField} />
-      </div>
-
-      {/* 3. Publish */}
-      <div className="card" style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'12px' }}>
-        <p style={{ fontSize:'11px', fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:'var(--text-3)' }}>
-          3. Publish Form
-        </p>
-
-
-        <p style={{ fontSize:'13px', color:'var(--text-2)' }}>
-          Uploads the form config to Walrus and generates a shareable link.
-          <strong style={{color:'var(--text-1)'}}> Your wallet will ask for approval first.</strong>
-        </p>
-        <button className="btn btn-primary btn-lg" onClick={publish} disabled={publishing}>
-          {publishing
-            ? <><span className="spinner" /> {pubMsg || 'Publishing to Walrus...'}</>
-            : '✍️ Sign & Publish Form'}
-        </button>
-
-        {pubUrl && (
-          <div style={{ marginTop:'12px', display:'flex', flexDirection:'column', gap:'12px' }}>
-            <div style={{ padding:'16px', borderRadius:'12px', background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.2)', display:'flex', alignItems:'center', gap:'12px' }}>
-              <span style={{ fontSize:'24px' }}>✅</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize:'14px', fontWeight:700, color:'#4ade80' }}>Published Successfully!</p>
-                {pubObjectId && <p className="mono" style={{ fontSize:'11px', color:'var(--text-3)', marginTop:4 }}>Object: {pubObjectId}</p>}
-                <p style={{ fontSize:'12px', color:'var(--text-3)', marginTop:2 }}>Share the link below to collect responses.</p>
-              </div>
             </div>
 
-            {/* Form URL */}
-            <div 
-              className="mobile-stack"
-              style={{ display:'flex', gap:'8px' }}
+            <button 
+              className="btn btn-primary btn-lg" 
+              style={{ width: '100%', height: 48, fontSize: 14, fontWeight: 800, boxShadow: 'var(--glow-md)' }} 
+              onClick={publish} 
+              disabled={publishing}
             >
-              <div style={{ flex:1, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 12px', fontSize:'12px', fontFamily:'var(--mono)', color:'var(--accent-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {pubUrl}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary mobile-w-full" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
-                <a href={pubUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ padding:'0 12px', display:'flex', alignItems:'center' }}>
-                  ↗ Open
-                </a>
-              </div>
+              {publishing ? <><span className="spinner" /> Publishing...</> : '🚀 Publish Form'}
+            </button>
+
+            {pubUrl && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: 12, background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 14 }}>✅</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80' }}>Live on Sui</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: 6, fontSize: 10, color: 'var(--accent-2)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pubUrl}</div>
+                  <button className="btn btn-secondary btn-sm" onClick={copy} style={{ height: 28, fontSize: 10 }}>{copied ? '✓' : 'Copy'}</button>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+
+        {/* Form Settings Card */}
+        <div className="card-premium" style={{ padding: 20 }}>
+          <h3 className="section-label" style={{ marginBottom: 12 }}>Settings</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label className="input-label" style={{ fontSize: 11 }}>Description</label>
+              <textarea className="textarea" rows={3} value={config.description}
+                onChange={e => onChange({ ...config, description: e.target.value })}
+                style={{ fontSize: 13 }} />
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Live Preview Placeholder */}
+        <div style={{ padding: 20, border: '1px dashed var(--border)', borderRadius: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>Preview</p>
+          <div style={{ marginTop: 12, opacity: 0.4 }}>
+            <div style={{ height: 10, background: 'var(--border-2)', width: '60%', borderRadius: 5, margin: '0 auto 8px' }} />
+            <div style={{ height: 32, background: 'var(--border-2)', width: '100%', borderRadius: 8 }} />
+          </div>
+        </div>
       </div>
     </div>
   );
