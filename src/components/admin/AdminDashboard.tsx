@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
 import { readJsonFromWalrus } from '@/lib/walrus';
@@ -50,44 +50,42 @@ function StatusBadge({ status, onClick }: { status: string; onClick?: () => void
 }
 
 // ── Submission detail panel ───────────────────────────────────────
-function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }: { 
+function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock, config }: { 
   sub: Submission; 
   idx: number; 
   onStatusChange: (id: string, status: string) => void;
   decryptionSig: string | null;
   onUnlock: () => void;
+  config: FormConfig | null;
 }) {
-  const [note, setNote] = useState(sub.adminNotes || '');
+  const [activeTab, setActiveTab] = useState<'content' | 'meta'>('content');
   const [decryptedData, setDecryptedData] = useState<Record<string, any> | null>(null);
   const [decryptErr, setDecryptErr] = useState(false);
 
   useEffect(() => {
     if (sub.data?.__encrypted && decryptionSig) {
-      const { decryptData } = require('@/lib/seal');
-      decryptData(sub.data.__encrypted, decryptionSig)
-        .then((dec: string) => {
-          setDecryptedData(JSON.parse(dec));
-          setDecryptErr(false);
-        })
-        .catch(() => setDecryptErr(true));
+      import('@/lib/seal').then(({ decryptData }) => {
+        decryptData(sub.data.__encrypted as string, decryptionSig)
+          .then((dec: string) => {
+            setDecryptedData(JSON.parse(dec));
+            setDecryptErr(false);
+          })
+          .catch(() => setDecryptErr(true));
+      });
     } else {
       setDecryptedData(null);
     }
   }, [sub.data, decryptionSig]);
 
   const displayData = sub.data?.__encrypted ? (decryptedData || {}) : sub.data;
-  const isEncrypted = !!sub.data?.__encrypted;
-  const STATUSES = ['new', 'reviewing', 'done', 'rejected'];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>Response #{idx + 1}</span>
-        <StatusBadge status={sub.status} />
-      </div>
+  
+  function onLookupWalrus(blobId: string) {
+    window.open(`https://walruscan.com/testnet/blob/${blobId}`, '_blank');
+  }
 
-      {/* Meta */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+  return (
+    <div className="card-premium" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
       <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
           <div>
@@ -95,7 +93,7 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
               Submission Details
             </h2>
             <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-              ID: {sub.id}
+              Response #{idx + 1} · {sub.id}
             </p>
           </div>
           <div className="tab-pill">
@@ -105,10 +103,10 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(['open', 'reviewing', 'done'] as const).map(s => (
+          {['new', 'reviewing', 'done', 'rejected'].map(s => (
             <button
               key={s}
-              onClick={() => onUpdateStatus(sub.id, s)}
+              onClick={() => onStatusChange(sub.id, s)}
               className={`btn btn-sm ${sub.status === s ? 'btn-primary' : 'btn-secondary'}`}
               style={{ 
                 fontSize: 11, fontWeight: 700, borderRadius: 8,
@@ -122,12 +120,22 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
         </div>
       </div>
 
-      {/* Content */}
+      {/* Body */}
       <div style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
         {activeTab === 'content' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {sub.data?.__encrypted && !decryptedData && (
+              <div className="card-premium" style={{ padding: 32, textAlign: 'center', border: '1px dashed var(--accent-1-alpha)' }}>
+                <div style={{ fontSize: 32, marginBottom: 16 }}>🔒</div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Encrypted Content</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>This submission is encrypted. You need to unlock it with your wallet.</p>
+                <button className="btn btn-primary" onClick={onUnlock}>Unlock Submission</button>
+                {decryptErr && <p style={{ color: 'var(--error)', fontSize: 12, marginTop: 12 }}>Failed to decrypt. Make sure you are the form owner.</p>}
+              </div>
+            )}
+            
             {config?.fields.filter(f => f.enabled).map(f => {
-              const val = sub.data[f.id];
+              const val = displayData[f.id];
               return (
                 <div key={f.id} className="card-elevated" style={{ padding: 20 }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
@@ -164,6 +172,8 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock }:
                  submittedAt: new Date(sub.timestamp).toLocaleString(),
                  status: sub.status,
                  wallet: sub.submitterAddress || 'Anonymous',
+                 blobId: sub.blobId,
+                 suiObjectId: sub.suiObjectId
                }, null, 2)}
              </pre>
           </div>
@@ -255,6 +265,7 @@ function SubmissionList({ subs, selectedId, onSelect }: {
 // ── Main AdminDashboard ────────────────────────────────────────────
 export function AdminDashboard() {
   const account = useCurrentAccount();
+  const wallet = useCurrentWallet();
 
   // Forms list
   const [forms, setForms] = useState<{ suiObjectId: string; configJson: string; formId: string; createdAt: number; title?: string }[]>([]);
@@ -274,6 +285,26 @@ export function AdminDashboard() {
   // E2E Encryption state
   const [decryptionSig, setDecryptionSig] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
+
+  async function handleUnlock() {
+    if (!account || !wallet) return;
+    setUnlocking(true);
+    try {
+      const message = new TextEncoder().encode('Unlock Walform Submissions');
+      const signFeature = (wallet as any)?.features?.['sui:signPersonalMessage'];
+      if (!signFeature) throw new Error("Wallet signing not supported by this wallet.");
+      const signResult = await signFeature.signPersonalMessage({ message });
+      const sig = typeof signResult === 'object' && signResult !== null
+        ? (signResult as any).signature ?? ''
+        : '';
+      
+      if (!sig) throw new Error('Failed to get signature');
+      setDecryptionSig(sig);
+    } catch (e) {
+      console.error('[Admin] Unlock error:', e);
+    }
+    setUnlocking(false);
+  }
 
   // Load owned forms from Sui
   useEffect(() => {
@@ -310,11 +341,11 @@ export function AdminDashboard() {
       setSubs(loaded);
     } catch (e) { console.error('[Admin] loadSubs error:', e); }
     setSubsLoading(false);
-  }, [forms]);
+  }, []); // forms is not used in loadSubs
 
   useEffect(() => {
     if (selectedFormId && account) loadSubs(selectedFormId, account.address);
-  }, [selectedFormId, account]);
+  }, [selectedFormId, account, loadSubs]);
 
   function handleStatusChange(subId: string, newStatus: string) {
     setSubs(prev => prev.map(s => s.id === subId ? { ...s, status: newStatus } : s));
@@ -339,6 +370,7 @@ export function AdminDashboard() {
 
   const selectedForm = forms.find(f => f.suiObjectId === selectedFormId);
   const selectedSub = subs.find(s => s.id === selectedSubId);
+  const selectedSubIdx = subs.findIndex(s => s.id === selectedSubId);
   const parsedFormConfig = selectedForm ? JSON.parse(selectedForm.configJson) : null;
 
   // ── Not connected ───────────────────────────────────────────────
@@ -414,9 +446,26 @@ export function AdminDashboard() {
           {selectedForm && (
             <div className="mobile-grid-1" style={{ flex: 1, display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', minHeight: 0 }}>
               <div style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>
-                      {fmtTime(sub.timestamp)} · {sub.blobId ? shortId(sub.blobId) : sub.id.slice(0, 8)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase' }}>RESPONSES ({subs.length})</div>
+                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: 10 }} onClick={() => exportCSV(subs)}>CSV</button>
+                </div>
+                
+                {subsLoading && <div className="skeleton-shimmer" style={{ height: 60, borderRadius: 12 }} />}
+                
+                {subs.map((sub, i) => (
+                  <button 
+                    key={sub.id} 
+                    onClick={() => setSelectedSubId(sub.id)}
+                    className={`sub-card-premium ${selectedSubId === sub.id ? 'selected' : ''}`}
+                    style={{ width: '100%', textAlign: 'left', padding: '14px 18px', borderLeft: `4px solid ${sub.status === 'done' ? '#4ade80' : sub.status === 'reviewing' ? '#fbbf24' : '#22d3ee'}` }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>{fmtTime(sub.timestamp)}</span>
+                      <div className="status-dot" style={{ background: sub.status === 'done' ? '#4ade80' : sub.status === 'reviewing' ? '#fbbf24' : '#22d3ee' }} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: selectedSubId === sub.id ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {Object.values(sub.data)[0] || 'Empty Response'}
                     </div>
                   </button>
                 ))}
@@ -431,6 +480,7 @@ export function AdminDashboard() {
                     onStatusChange={handleStatusChange} 
                     decryptionSig={decryptionSig}
                     onUnlock={handleUnlock}
+                    config={parsedFormConfig}
                   />
                 ) : (
                   <div className="empty-state">
