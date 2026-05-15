@@ -30,6 +30,14 @@ function exportCSV(subs: Submission[]) {
   a.click();
 }
 
+function exportJSON(subs: Submission[]) {
+  if (!subs.length) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(subs, null, 2)], { type: 'application/json' }));
+  a.download = `walform-${Date.now()}.json`;
+  a.click();
+}
+
 // ── Status badge ─────────────────────────────────────────────────
 function StatusBadge({ status, onClick }: { status: string; onClick?: () => void }) {
   const map: Record<string, { bg: string; color: string }> = {
@@ -50,7 +58,7 @@ function StatusBadge({ status, onClick }: { status: string; onClick?: () => void
 }
 
 // ── Submission detail panel ───────────────────────────────────────
-function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock, unlocking, config, formId }: { 
+function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock, unlocking, config, formId, onUpdateNote }: { 
   sub: Submission; 
   idx: number; 
   onStatusChange: (id: string, status: string) => void;
@@ -59,10 +67,16 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock, u
   unlocking: boolean;
   config: FormConfig | null;
   formId: string;
+  onUpdateNote: (id: string, note: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<'content' | 'meta'>('content');
   const [decryptedData, setDecryptedData] = useState<Record<string, any> | null>(null);
   const [decryptErr, setDecryptErr] = useState(false);
+  const [note, setNote] = useState(sub.adminNotes || '');
+
+  useEffect(() => {
+    setNote(sub.adminNotes || '');
+  }, [sub.id]);
 
   useEffect(() => {
     if (sub.data?.__encrypted && decryptionSig && config) {
@@ -148,36 +162,62 @@ function SubmissionDetail({ sub, idx, onStatusChange, decryptionSig, onUnlock, u
                 {decryptErr && <p style={{ color: 'var(--error)', fontSize: 12, marginTop: 12 }}>Failed to decrypt. Make sure you are the form owner.</p>}
               </div>
             )}
-            
-            {config?.fields.filter(f => f.enabled).map(f => {
-              const val = displayData[f.id];
-              return (
-                <div key={f.id} className="card-elevated" style={{ padding: 20 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-                    {f.label}
-                  </label>
-                  <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text-1)', wordBreak: 'break-word' }}>
-                    {!val && <span style={{ color: 'var(--text-4)', fontStyle: 'italic' }}>No answer</span>}
-                    {f.type === 'file' && val ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div className="mono" style={{ fontSize: 12, background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                          {val}
+
+            {/* Answer Display */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                <label className="input-label" style={{ fontSize: 10, color: 'var(--text-3)' }}>SUBMITTER ADDRESS</label>
+                <p className="mono" style={{ fontSize: 13, color: 'var(--accent-2)', wordBreak: 'break-all' }}>{sub.submitterAddress || 'Anonymous'}</p>
+              </div>
+
+              {config?.fields.filter(f => f.enabled).map(f => {
+                const val = displayData[f.id];
+                return (
+                  <div key={f.id}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                      {f.label}
+                    </label>
+                    <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-1)', wordBreak: 'break-word', background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      {!val && <span style={{ color: 'var(--text-4)', fontStyle: 'italic' }}>No answer</span>}
+                      {f.type === 'file' && val ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {/* Media Preview */}
+                          {(typeof val === 'string' && (val.match(/\.(jpg|jpeg|png|gif|webp)$/i) || val.startsWith('blob:'))) ? (
+                            <img src={`https://publisher.walrus-testnet.walrus.site/v1/blobs/${val}`} alt="Preview" style={{ maxWidth: '100%', borderRadius: 10, border: '1px solid var(--border)' }} onError={(e) => {
+                              // If loading fails, fallback to simple ID
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}/>
+                          ) : null}
+                          <div className="mono" style={{ fontSize: 11, background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                            {val}
+                          </div>
+                          <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => onLookupWalrus(val)}>
+                            🔍 Lookup on Walrus
+                          </button>
                         </div>
-                        <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => onLookupWalrus(val)}>
-                          🔍 Lookup on Walrus
-                        </button>
-                      </div>
-                    ) : Array.isArray(val) ? (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {val.map((v: any) => <span key={v} className="badge-premium">{v}</span>)}
-                      </div>
-                    ) : (
-                      val
-                    )}
+                      ) : Array.isArray(val) ? (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {val.map((v: any) => <span key={v} className="badge-premium" style={{ fontSize: 11 }}>{v}</span>)}
+                        </div>
+                      ) : (
+                        val
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+
+              <div style={{ marginTop: 20 }}>
+                <label className="input-label" style={{ fontSize: 10, color: 'var(--text-3)' }}>INTERNAL NOTE</label>
+                <textarea 
+                  className="textarea" 
+                  placeholder="Private note..." 
+                  value={note}
+                  onChange={e => { setNote(e.target.value); onUpdateNote(sub.id, e.target.value); }}
+                  style={{ fontSize: 13, background: 'rgba(0,0,0,0.2)', minHeight: 100 }}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="card-premium" style={{ padding: 24 }}>
@@ -327,7 +367,23 @@ export function AdminDashboard() {
     setUnlocking(false);
   }
 
-  // Load owned forms from Sui
+  function handleUpdateNote(subId: string, note: string) {
+    setSubs(prev => prev.map(s => s.id === subId ? { ...s, adminNotes: note } : s));
+  }
+
+  const [idCopied, setIdCopied] = useState(false);
+  function copyId() {
+    if (!selectedFormId) return;
+    navigator.clipboard.writeText(selectedFormId);
+    setIdCopied(true);
+    setTimeout(() => setIdCopied(false), 2000);
+  }
+
+  const stats = {
+    new: subs.filter(s => s.status === 'new' || s.status === 'open' || !s.status).length,
+    reviewing: subs.filter(s => s.status === 'reviewing' || s.status === 'pending').length,
+    done: subs.filter(s => s.status === 'done' || s.status === 'approved').length,
+  };
   useEffect(() => {
     if (!account) return;
     setFormsLoading(true);
@@ -445,16 +501,56 @@ export function AdminDashboard() {
           {selectedForm ? (
             <div 
               className="mobile-p-4 mobile-stack mobile-gap-4"
-              style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}
+              style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 24 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <motion.img 
-                  src="/walform-mascot.png" 
-                  alt="Walform" 
-                  style={{ height: '48px', width: 'auto', filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.3))' }}
-                />
-                <div>
-                  <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em' }}>{selectedForm.title || 'Untitled Form'}</h1>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <motion.img 
+                    src="/walform-mascot.png" 
+                    alt="Walform" 
+                    style={{ height: '48px', width: 'auto', filter: 'drop-shadow(0 0 12px rgba(139,92,246,0.3))' }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Forms /</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>
+                        <span className="mono" style={{ fontSize: 10, color: 'var(--accent-2)' }}>{selectedForm.suiObjectId}</span>
+                        <button onClick={copyId} style={{ border: 'none', background: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 0 }}>
+                          {idCopied ? '✅' : '📋'}
+                        </button>
+                      </div>
+                    </div>
+                    <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em' }}>{selectedForm.title || 'Untitled Form'}</h1>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                   <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => exportCSV(subs)}>⬇️ CSV</button>
+                   <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => exportJSON(subs)}>⬇️ JSON</button>
+                   <a 
+                     href={`/f/?formId=${selectedForm.suiObjectId}`} 
+                     target="_blank" 
+                     className="btn btn-primary btn-sm" 
+                     style={{ gap: 6, textDecoration: 'none' }}
+                   >
+                     ↗️ Open Form
+                   </a>
+                </div>
+              </div>
+
+              {/* Stats Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+                <div className="card-premium" style={{ padding: '20px', textAlign: 'center', background: 'rgba(34,211,238,0.03)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>OPEN</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: '#22d3ee' }}>{stats.new}</p>
+                </div>
+                <div className="card-premium" style={{ padding: '20px', textAlign: 'center', background: 'rgba(251,191,36,0.03)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>REVIEWING</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: '#fbbf24' }}>{stats.reviewing}</p>
+                </div>
+                <div className="card-premium" style={{ padding: '20px', textAlign: 'center', background: 'rgba(74,222,128,0.03)' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>DONE</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: '#4ade80' }}>{stats.done}</p>
                 </div>
               </div>
             </div>
@@ -469,7 +565,6 @@ export function AdminDashboard() {
               <div style={{ borderRight: '1px solid var(--border)', overflow: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase' }}>RESPONSES ({subs.length})</div>
-                  <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: 10 }} onClick={() => exportCSV(subs)}>CSV</button>
                 </div>
                 
                 {subsLoading && <div className="skeleton-shimmer" style={{ height: 60, borderRadius: 12 }} />}
@@ -504,6 +599,7 @@ export function AdminDashboard() {
                     unlocking={unlocking}
                     config={parsedFormConfig}
                     formId={selectedFormId}
+                    onUpdateNote={handleUpdateNote}
                   />
                 ) : (
                   <div className="empty-state">
