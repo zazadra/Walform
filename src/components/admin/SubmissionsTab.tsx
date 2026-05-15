@@ -526,7 +526,7 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                                   if (typeof item === 'string' && /^[A-Za-z0-9_-]{43,44}$/.test(item)) {
                                     return (
                                       <div key={i} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '200px', background: 'rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', minHeight: '120px' }}>
-                                        <a href={getWalrusBlobUrl(item)} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
+                                        <a href={getWalrusBlobUrl(item)} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%', position: 'relative', zIndex: 10 }} onClick={e => e.stopPropagation()}>
                                           <img 
                                             src={getWalrusBlobUrl(item)} 
                                             style={{ width: '100%', display: 'block', maxHeight: '180px', objectFit: 'cover' }} 
@@ -551,12 +551,12 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                                 })}
                               </div>
                             ) : v.toString().startsWith('http') ? (
-                              <a href={v.toString()} target="_blank" rel="noopener noreferrer" className="link-premium">
+                              <a href={v.toString()} target="_blank" rel="noopener noreferrer" className="link-premium" style={{ position: 'relative', zIndex: 10 }} onClick={e => e.stopPropagation()}>
                                 {v.toString()} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 4 }}><path d="M7 17L17 7M7 7h10v10"/></svg>
                               </a>
                             ) : (typeof v === 'string' && /^[A-Za-z0-9_-]{43,44}$/.test(v)) ? (
                               <div style={{ marginTop: '4px' }}>
-                                <a href={getWalrusBlobUrl(v)} target="_blank" rel="noopener noreferrer" className="link-premium" style={{ marginBottom: '12px', display: 'inline-flex' }}>
+                                <a href={getWalrusBlobUrl(v)} target="_blank" rel="noopener noreferrer" className="link-premium" style={{ marginBottom: '12px', display: 'inline-flex', position: 'relative', zIndex: 10 }} onClick={e => e.stopPropagation()}>
                                   View Asset <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 4 }}><path d="M7 17L17 7M7 7h10v10"/></svg>
                                 </a>
                                 <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '300px' }}>

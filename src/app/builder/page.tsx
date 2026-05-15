@@ -53,7 +53,7 @@ function BuilderContent() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 24px' }}>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 6 }}>Form Builder</h1>
         <p style={{ fontSize: 14, color: 'var(--text-2)' }}>

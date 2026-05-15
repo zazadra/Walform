@@ -1,12 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import type { FormConfig, SessionField, SessionFieldType } from '@/types/walform';
-import { uploadJsonOnChain } from '@/lib/walrus-onchain';
 import { saveAdminConfig } from '@/lib/fields';
-import { motion } from 'framer-motion';
-import { cacheFormId } from '@/lib/form-registry';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
-// Note: Wallet signing is handled internally via CurrentAccountSigner in walrus.ts
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -15,272 +12,74 @@ const FIELD_TYPE_COLORS: Record<string, string> = {
   checkbox:'#fbbf24', select:'#a78bfa', file:'#f97316',
 };
 
-const FIELD_TYPES: { value: SessionFieldType; label: string }[] = [
-  { value:'text',     label:'Short Text' },
-  { value:'textarea', label:'Long Text'  },
-  { value:'email',    label:'Email'      },
-  { value:'url',      label:'URL / Link' },
-  { value:'select',   label:'Dropdown'   },
-  { value:'checkbox', label:'Checkbox'   },
-  { value:'file',     label:'File Upload'},
+const FIELD_TYPES: { value: SessionFieldType; label: string; icon: string }[] = [
+  { value:'text',     label:'Short Text',  icon: 'T' },
+  { value:'textarea', label:'Long Text',   icon: '☰' },
+  { value:'email',    label:'Email',       icon: '@' },
+  { value:'url',      label:'URL / Link',  icon: '🔗' },
+  { value:'select',   label:'Dropdown',    icon: '▼' },
+  { value:'checkbox', label:'Checkbox',    icon: '☑' },
+  { value:'file',     label:'File Upload', icon: '📎'},
 ];
 
-// -- Inline field editor ----------------------------------------------
-function FieldEditor({ field, onChange, onRemove, sessionCount, onSessionCountChange }: {
-  field: SessionField;
-  onChange: (patch: Partial<SessionField>) => void;
-  onRemove?: () => void;
-  sessionCount?: number;
-  onSessionCountChange?: (n: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
+// -- Sub-components -----------------------------------------------------
+
+function FieldSettingsEditor({ field, updateField }: { field: SessionField, updateField: (id: string, patch: Partial<SessionField>) => void }) {
   const [optionsText, setOptionsText] = useState(field.options?.join(', ') ?? '');
 
-  // Keep local text in sync with external options changes ONLY when meaningfully different
   useEffect(() => {
-    const extOptions = field.options?.join(', ') ?? '';
-    const localOptions = optionsText.split(',').map(o => o.trim()).filter(Boolean).join(', ');
-    const extNormalized = field.options?.join(', ') ?? '';
-    
-    if (field.options && localOptions !== extNormalized) {
-      setOptionsText(extOptions);
-    }
+    const ext = field.options?.join(', ') ?? '';
+    const loc = optionsText.split(',').map(s => s.trim()).filter(Boolean).join(', ');
+    if (ext !== loc) setOptionsText(ext);
   }, [field.options]);
 
   return (
-    <div style={{
-      borderRadius:'16px',
-      background: field.enabled ? 'rgba(139, 92, 246, 0.03)' : 'rgba(255,255,255,0.01)',
-      border:`1px solid ${field.enabled ? 'var(--accent-soft)' : 'var(--border)'}`,
-      transition:'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-      overflow:'hidden',
-      boxShadow: field.enabled ? '0 4px 20px -10px rgba(139, 92, 246, 0.1)' : 'none',
-      marginBottom: '12px'
-    }}>
-      {/* Row header */}
-      <div 
-        className="mobile-stack-sm"
-        style={{ display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', position: 'relative' }}
-      >
-        <div style={{ 
-          width: 32, height: 32, borderRadius: 8, 
-          background: `${FIELD_TYPE_COLORS[field.type]}15`, 
-          display: 'flex', alignItems: 'center', justifyContent: 'center', 
-          border: `1px solid ${FIELD_TYPE_COLORS[field.type]}30`,
-          flexShrink: 0 
-        }}>
-          <span style={{ fontSize:'10px', fontWeight:800, color:FIELD_TYPE_COLORS[field.type], textTransform: 'uppercase' }}>{field.type[0]}</span>
-        </div>
-
-        {/* Editable label */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <input
-            className="input-minimal"
-            value={field.label}
-            placeholder="Field Label"
-            onChange={e => onChange({ label: e.target.value })}
-            style={{ 
-              fontSize:'15px', fontWeight: 600, color: field.enabled ? 'var(--text-1)' : 'var(--text-3)',
-              background: 'transparent', border: 'none', padding: 0, height: 'auto', outline: 'none'
-            }}
-          />
-          <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500, textTransform: 'capitalize' }}>{field.type} Field</span>
-        </div>
-
-        {/* Action Group */}
-        <div className="mobile-w-full" style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap: 'wrap' }}>
-          {/* Required toggle */}
-          {field.enabled && (
-            <button 
-              onClick={() => onChange({ required: !field.required })}
-              style={{ 
-                fontSize:'11px', fontWeight:700, padding:'4px 10px', borderRadius:'6px', border:'1px solid var(--border)', cursor:'pointer',
-                background: field.required ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.03)',
-                color: field.required ? '#f87171' : 'var(--text-3)',
-                transition: 'all 0.2s'
-              }}
-            >
-              {field.required ? 'REQUIRED' : 'OPTIONAL'}
-            </button>
-          )}
-
-          {/* Expand for more options */}
-          <button
-            onClick={() => setOpen(o => !o)}
-            style={{ 
-              width: 30, height: 30, borderRadius: '8px', border: '1px solid var(--border)', 
-              background: open ? 'rgba(255,255,255,0.08)' : 'transparent', color: 'var(--text-2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}>
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
-          </button>
-
-          <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
-
-          {/* Enabled toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', scale: '0.9' }}>
-            <input type="checkbox" className="toggle" checked={field.enabled} onChange={() => onChange({ enabled: !field.enabled })} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {onRemove && (
-              <button 
-                onClick={onRemove} 
-                style={{ 
-                  width: 30, height: 30, borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent',
-                  color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                  cursor: 'pointer', transition: 'all 0.2s' 
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              </button>
-            )}
-          </div>
-        </div>
+    <motion.div
+      key={field.id}
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+    >
+      <div>
+        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: '6px' }}>Field Label</label>
+        <input className="input" value={field.label} onChange={e => updateField(field.id, { label: e.target.value })} style={{ fontSize: '13px' }} />
+      </div>
+      
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-1)' }}>Required Field</label>
+        <input type="checkbox" className="toggle" checked={field.required} onChange={e => updateField(field.id, { required: e.target.checked })} />
       </div>
 
-      {/* Expanded options */}
-      {open && field.enabled && (
-        <motion.div 
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          style={{ padding:'0 20px 20px', borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:'16px', paddingTop: '20px' }}
-        >
+      <div>
+        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: '6px' }}>Placeholder Text</label>
+        <input className="input" placeholder="e.g. Enter value..." value={field.placeholder || ''} onChange={e => updateField(field.id, { placeholder: e.target.value })} style={{ fontSize: '13px' }} />
+      </div>
 
-          <div 
-            className="mobile-grid-stack"
-            style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}
-          >
-            <div>
-              <label className="input-label">Field Type</label>
-              <select className="select" value={field.type}
-                onChange={e => onChange({ 
-                  type: e.target.value as SessionFieldType, 
-                  options: (e.target.value === 'select' || e.target.value === 'checkbox') ? (field.options ?? ['Option 1']) : undefined 
-                })}>
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="input-label">Placeholder</label>
-              <input className="input" value={field.placeholder ?? ''} placeholder="e.g. Enter your name"
-                onChange={e => onChange({ placeholder: e.target.value })} />
-            </div>
-          </div>
+      <div>
+        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: '6px' }}>Help Text</label>
+        <input className="input" placeholder="Optional instructions..." value={field.helpText || ''} onChange={e => updateField(field.id, { helpText: e.target.value })} style={{ fontSize: '13px' }} />
+      </div>
 
-          <div>
-            <label className="input-label">Help Text</label>
-            <input className="input" value={field.helpText ?? ''} placeholder="Helper instructions for the user"
-              onChange={e => onChange({ helpText: e.target.value })} />
-          </div>
-
-          {/* Select / Checkbox options */}
-          {(field.type === 'select' || field.type === 'checkbox') && (
-            <div>
-              <label className="input-label">Options (comma-separated)</label>
-              <textarea
-                style={{ width:'100%', padding:'8px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'4px', color:'#fff', minHeight:'60px', fontSize:'13px', outline:'none' }}
-                value={optionsText}
-                placeholder="Option 1, Option 2, Option 3..."
-                onChange={e => {
-                  const val = e.target.value;
-                  setOptionsText(val);
-                  const parsed = val.split(',').map(o => o.trim()).filter(Boolean);
-                  // Only notify parent if the actual list of options changed
-                  if (JSON.stringify(parsed) !== JSON.stringify(field.options || [])) {
-                    onChange({ options: parsed });
-                  }
-                }}
-              />
-              <p style={{ fontSize:'11px', color:'var(--text-3)', marginTop:'4px' }}>
-                Use commas to separate choices. Spaces between choices are fine!
-              </p>
-            </div>
-          )}
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-
-// -- Custom field creator ---------------------------------------------
-interface NewFieldDraft {
-  label: string; type: SessionFieldType; required: boolean; helpText: string; placeholder: string; options: string;
-}
-const EMPTY_DRAFT: NewFieldDraft = { label:'', type:'text', required:false, helpText:'', placeholder:'', options:'' };
-
-function CustomFieldCreator({ onAdd }: { onAdd: (f: SessionField) => void }) {
-  const [open, setOpen]   = useState(false);
-  const [draft, setDraft] = useState<NewFieldDraft>(EMPTY_DRAFT);
-  const [err, setErr]     = useState('');
-
-  function handleAdd() {
-    if (!draft.label.trim()) { setErr('Label is required.'); return; }
-    const field: SessionField = {
-      id: 'custom_' + uid(),
-      label: draft.label.trim(), type: draft.type, required: draft.required, enabled: true,
-      helpText: draft.helpText.trim() || undefined,
-      placeholder: draft.placeholder.trim() || undefined,
-      options: (draft.type === 'select' || draft.type === 'checkbox') ? draft.options.split(',').map(o => o.trim()).filter(Boolean) : undefined,
-    };
-    onAdd(field);
-    setDraft(EMPTY_DRAFT); setErr(''); setOpen(false);
-  }
-
-  return (
-    <div style={{ marginTop:'10px' }}>
-      {!open ? (
-        <button className="btn btn-secondary btn-sm" style={{ width:'100%' }} onClick={() => setOpen(true)}>
-          + Add Custom Field
-        </button>
-      ) : (
-        <div style={{ padding:'14px', borderRadius:'10px', border:'1px solid rgba(124,58,237,0.35)', background:'rgba(124,58,237,0.06)', display:'flex', flexDirection:'column', gap:'8px' }}>
-          <p style={{ fontSize:'12px', fontWeight:600, color:'var(--accent-2)' }}>New Custom Field</p>
-          <div>
-            <label className="input-label" style={{fontSize:'11px'}}>Label <span style={{color:'#f87171'}}>*</span></label>
-            <input className="input" placeholder="e.g. LinkedIn Profile" value={draft.label}
-              onChange={e => { setDraft(d=>({...d,label:e.target.value})); setErr(''); }} />
-            {err && <p style={{ fontSize:'11px', color:'#f87171', marginTop:'3px' }}>{err}</p>}
-          </div>
-          <div 
-            className="mobile-grid-stack"
-            style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}
-          >
-            <div>
-              <label className="input-label" style={{fontSize:'11px'}}>Type</label>
-              <select className="select" value={draft.type} onChange={e => setDraft(d=>({...d,type:e.target.value as SessionFieldType}))}
-                style={{ background:'var(--card)', color:'var(--text-1)' }}>
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'flex-end', paddingBottom:'2px' }}>
-              <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontSize:'13px', color:'var(--text-2)' }}>
-                <input type="checkbox" className="toggle" checked={draft.required} onChange={e => setDraft(d=>({...d,required:e.target.checked}))} />
-                Required
-              </label>
-            </div>
-          </div>
-          <input className="input" placeholder="Placeholder text (optional)" value={draft.placeholder}
-            onChange={e => setDraft(d=>({...d,placeholder:e.target.value}))} />
-          <input className="input" placeholder="Help text (optional)" value={draft.helpText}
-            onChange={e => setDraft(d=>({...d,helpText:e.target.value}))} />
-          {(draft.type === 'select' || draft.type === 'checkbox') && (
-            <input className="input" placeholder="Options: A, B, C (comma-separated)" value={draft.options}
-              onChange={e => setDraft(d=>({...d,options:e.target.value}))} />
-          )}
-          <div style={{ display:'flex', gap:'8px' }}>
-            <button className="btn btn-primary btn-sm" style={{ flex:1 }} onClick={handleAdd}>Add Field</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setOpen(false); setDraft(EMPTY_DRAFT); setErr(''); }}>Cancel</button>
-          </div>
+      {(field.type === 'select' || field.type === 'checkbox') && (
+        <div>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: '6px' }}>Options (comma separated)</label>
+          <textarea 
+            className="textarea" 
+            style={{ fontSize: '13px', minHeight: '80px' }}
+            value={optionsText} 
+            onChange={e => {
+              const val = e.target.value;
+              setOptionsText(val);
+              const parsed = val.split(',').map(s => s.trim()).filter(Boolean);
+              if (JSON.stringify(parsed) !== JSON.stringify(field.options || [])) {
+                updateField(field.id, { options: parsed });
+              }
+            }} 
+          />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -293,18 +92,28 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
   const [publishing, setPublishing] = useState(false);
   const [pubMsg, setPubMsg]         = useState('');
   const [pubUrl, setPubUrl]         = useState(config.publishedSuiObjectId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/f/?formId=${config.publishedSuiObjectId}` : config.publishedBlobId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/f/?formId=${config.publishedBlobId}` : '');
-  const [pubBlobId, setPubBlobId]   = useState(config.publishedBlobId ?? '');
-  const [pubObjectId, setPubObjectId] = useState(config.publishedSuiObjectId ?? '');
   const [copied, setCopied]         = useState(false);
+
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 
   function updateField(id: string, patch: Partial<SessionField>) {
     onChange({ ...config, fields: config.fields.map(f => f.id === id ? { ...f, ...patch } : f) });
   }
   function removeField(id: string) {
     onChange({ ...config, fields: config.fields.filter(f => f.id !== id) });
+    if (activeFieldId === id) setActiveFieldId(null);
   }
-  function addCustomField(f: SessionField) {
+  function addField(type: SessionFieldType) {
+    const f: SessionField = {
+      id: 'field_' + uid(),
+      label: `New ${FIELD_TYPES.find(t => t.value === type)?.label}`,
+      type,
+      required: false,
+      enabled: true,
+      options: (type === 'select' || type === 'checkbox') ? ['Option 1'] : undefined
+    };
     onChange({ ...config, fields: [...config.fields, f] });
+    setActiveFieldId(f.id);
   }
 
   const connection = useWalletConnection();
@@ -314,12 +123,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
       alert('Sui Wallet not found or disconnected. Please connect your wallet first.');
       return;
     }
-
     setPublishing(true);
     setPubMsg('Preparing form configuration…');
     try {
-      console.log("-- PUBLISHING FORM...");
-      
       const clonedFields = config.fields.map(f => ({
         ...f,
         options: f.options ? [...f.options] : undefined
@@ -335,209 +141,275 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         publishedBlobId: undefined 
       };
 
-      // ── Sui Native Indexing: create Form object with JSON payload ──
       let suiObjectId = '';
-      try {
-        const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
-        if (WALFORM_PACKAGE_ID && WALFORM_PACKAGE_ID.startsWith('0x')) {
-          let configToPublish = { ...cfg };
-          
-          if (cfg.encryptionEnabled) {
-            setPubMsg('Step 1/3: Generating Security Seal...');
-            const { dAppKit } = await import('@/app/dapp-kit');
-            
-            // Need a signature to derive the master key for the seal
-            const sealMsg = `Walform Security Seal\nForm ID: ${cfg.id}\n\nSign this message to authorize encryption/decryption.`;
-            const { signature } = await dAppKit.signPersonalMessage({
-              message: new TextEncoder().encode(sealMsg),
-            });
-            
-            const { generateSeal } = await import('@/lib/seal');
-            const { publicKeyJwk, sealedPrivateKey } = await generateSeal(signature);
-            
-            configToPublish.sealPublicKeyJwk = publicKeyJwk;
-            configToPublish.sealedPrivateKey = sealedPrivateKey;
-            console.log('[Seal] Security Seal generated and attached.');
-          }
-
-          setPubMsg('Step 2/3: Creating Sui Form object…');
-          const configJson = JSON.stringify(configToPublish);
-          const txb = await createFormObject(cfg.id, configJson, ownerAddress);
-          
-          setPubMsg('Step 3/3: Awaiting wallet signature...');
+      const { WALFORM_PACKAGE_ID, createFormObject } = await import('@/lib/walrus-onchain');
+      if (WALFORM_PACKAGE_ID && WALFORM_PACKAGE_ID.startsWith('0x')) {
+        let configToPublish = { ...cfg };
+        
+        if (cfg.encryptionEnabled) {
+          setPubMsg('Step 1/3: Generating Security Seal...');
           const { dAppKit } = await import('@/app/dapp-kit');
-          const { getSuiClient } = await import('@/lib/walrus-onchain');
-
-          // Use signTransaction + manual HTTP execute to avoid WebSocket timeout on Tatum RPC
-          const { bytes, signature } = await dAppKit.signTransaction({ transaction: txb as any } as any);
-          const client = getSuiClient() as any;
-
-          // Execute via pure HTTP - no WebSocket subscription
-          const execResult = await client.executeTransactionBlock({
-            transactionBlock: bytes,
-            signature,
-            options: { showObjectChanges: true, showEffects: true },
-            requestType: 'WaitForLocalExecution',
-          });
-          console.log('[Sui] Form object created:', execResult);
-
-          // Extract objectChanges - may be directly in result or need polling
-          let objectChanges = execResult?.objectChanges;
-
-          if (!objectChanges && execResult?.digest) {
-            const digest = execResult.digest;
-            let txBlock = null;
-            for (let i = 0; i < 15; i++) {
-              try {
-                txBlock = await client.getTransactionBlock({
-                  digest,
-                  options: { showObjectChanges: true },
-                });
-                if (txBlock?.objectChanges) break;
-              } catch (e) { /* not yet finalized, retry */ }
-              await new Promise(r => setTimeout(r, 2000));
-            }
-            objectChanges = txBlock?.objectChanges ?? [];
-          }
-
-          objectChanges = objectChanges ?? [];
-          const created = objectChanges.find((c: any) => c.type === 'created' && c.objectType?.includes('::walform::Form'));
-          if (created?.objectId) {
-            suiObjectId = created.objectId;
-            cfg.publishedSuiObjectId = suiObjectId;
-            console.log('[Sui] Form object ID captured:', suiObjectId);
-          } else {
-            console.error('[Sui] execResult:', execResult, 'objectChanges:', objectChanges);
-            throw new Error('Failed to capture Sui Form object ID from transaction result.');
-          }
-        } else {
-          throw new Error('WALFORM_PACKAGE_ID is not configured.');
+          const sealMsg = `Walform Security Seal\nForm ID: ${cfg.id}\n\nSign this message to authorize encryption/decryption.`;
+          const { signature } = await dAppKit.signPersonalMessage({ message: new TextEncoder().encode(sealMsg) });
+          const { generateSeal } = await import('@/lib/seal');
+          const { publicKeyJwk, sealedPrivateKey } = await generateSeal(signature);
+          configToPublish.sealPublicKeyJwk = publicKeyJwk;
+          configToPublish.sealedPrivateKey = sealedPrivateKey;
         }
-      } catch (err: any) {
-        console.error('[Sui] Form indexing failed:', err);
-        throw new Error(`Sui transaction failed: ${err.message}`);
+
+        setPubMsg('Step 2/3: Creating Sui Form object…');
+        const configJson = JSON.stringify(configToPublish);
+        const txb = await createFormObject(cfg.id, configJson, ownerAddress);
+        
+        setPubMsg('Step 3/3: Awaiting wallet signature...');
+        const { dAppKit } = await import('@/app/dapp-kit');
+        const { getSuiClient } = await import('@/lib/walrus-onchain');
+
+        const { bytes, signature } = await dAppKit.signTransaction({ transaction: txb as any } as any);
+        const client = getSuiClient() as any;
+
+        const execResult = await client.executeTransactionBlock({
+          transactionBlock: bytes,
+          signature,
+          options: { showObjectChanges: true, showEffects: true },
+          requestType: 'WaitForLocalExecution',
+        });
+
+        let objectChanges = execResult?.objectChanges;
+        if (!objectChanges && execResult?.digest) {
+          const digest = execResult.digest;
+          let txBlock = null;
+          for (let i = 0; i < 15; i++) {
+            try {
+              txBlock = await client.getTransactionBlock({ digest, options: { showObjectChanges: true } });
+              if (txBlock?.objectChanges) break;
+            } catch (e) { /* retry */ }
+            await new Promise(r => setTimeout(r, 2000));
+          }
+          objectChanges = txBlock?.objectChanges ?? [];
+        }
+
+        objectChanges = objectChanges ?? [];
+        const created = objectChanges.find((c: any) => c.type === 'created' && c.objectType?.includes('::walform::Form'));
+        if (created?.objectId) {
+          suiObjectId = created.objectId;
+          cfg.publishedSuiObjectId = suiObjectId;
+        } else {
+          throw new Error('Failed to capture Sui Form object ID from transaction result.');
+        }
+      } else {
+        throw new Error('WALFORM_PACKAGE_ID is not configured.');
       }
 
       onChange(cfg);
       saveAdminConfig(cfg);
-      // Removed Walrus cacheFormId since we don't have a blobId anymore
-      // We will just register the form object ID in the registry
       try {
         await fetch('/api/registry/forms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ownerAddress, formObjectId: suiObjectId }),
         });
-      } catch (regErr) {
-        console.warn('[Registry] Forms registration failed (non-critical):', regErr);
-      }
+      } catch (regErr) {}
 
       setPubUrl(`${window.location.origin}/f/?formId=${suiObjectId}`);
-      setPubObjectId(suiObjectId);
     } catch (e) { 
-      console.error("Publish Error:", e);
       alert('Publish failed: ' + (e as Error).message); 
     }
     setPublishing(false);
   }
 
-
   function copy() { navigator.clipboard.writeText(pubUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
 
+  const activeField = config.fields.find(f => f.id === activeFieldId);
+
   return (
-    <div className="builder-split">
-      {/* LEFT SIDE: Fields Management */}
-      <div className="builder-left">
-        <div>
-          <h3 className="section-label" style={{ marginBottom: 12 }}>Form Fields</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: 20 }}>
-            Configure your form fields. Drag and drop is coming soon!
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {config.fields.map(f => (
-              <FieldEditor
-                key={f.id}
-                field={f}
-                onChange={patch => updateField(f.id, patch)}
-                onRemove={() => removeField(f.id)}
-                sessionCount={f.id === 'session_select' ? config.sessionCount : undefined}
-                onSessionCountChange={f.id === 'session_select' ? (n) => {
-                  onChange({ ...config, sessionCount: n });
-                } : undefined}
-              />
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(12, 1fr)',
+      gap: '24px',
+      alignItems: 'start',
+      minHeight: '600px'
+    }}>
+      {/* LEFT COLUMN: Elements (approx 20%) */}
+      <div style={{ gridColumn: 'span 3', position: 'sticky', top: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
+          <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+            Form Elements
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+            {FIELD_TYPES.map(type => (
+              <motion.button
+                key={type.value}
+                whileHover={{ scale: 1.02, backgroundColor: 'rgba(13, 148, 136, 0.08)', borderColor: 'rgba(13, 148, 136, 0.3)' }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => addField(type.value)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px',
+                  background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)', borderRadius: '10px',
+                  color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                }}
+              >
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${FIELD_TYPE_COLORS[type.value]}20`, color: FIELD_TYPE_COLORS[type.value], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
+                  {type.icon}
+                </div>
+                {type.label}
+              </motion.button>
             ))}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <CustomFieldCreator onAdd={addCustomField} />
           </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE: Settings, Preview & Publish */}
-      <div className="builder-right">
-        {/* Publish Panel (Sticky) */}
-        <div className="publish-panel">
-          <h3 className="section-label" style={{ color: 'var(--accent-2)', marginBottom: 12 }}>Finalize & Publish</h3>
+      {/* CENTER COLUMN: Main Builder Area (approx 55%) */}
+      <div style={{ gridColumn: 'span 6', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ marginBottom: '12px' }}>
+          <input 
+            className="input-minimal"
+            value={config.title}
+            onChange={e => onChange({ ...config, title: e.target.value })}
+            placeholder="Form Title"
+            style={{ fontSize: '28px', fontWeight: 900, color: 'var(--text-1)', padding: 0, height: 'auto', background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
+          />
+          <input 
+            className="input-minimal"
+            value={config.description}
+            onChange={e => onChange({ ...config, description: e.target.value })}
+            placeholder="Form description..."
+            style={{ fontSize: '14px', color: 'var(--text-3)', padding: 0, height: 'auto', background: 'transparent', border: 'none', outline: 'none', width: '100%', marginTop: '8px' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <AnimatePresence>
+            {config.fields.map(f => {
+              const isActive = activeFieldId === f.id;
+              return (
+                <motion.div
+                  key={f.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  onClick={() => setActiveFieldId(f.id)}
+                  whileHover={{ borderColor: isActive ? 'var(--accent-soft)' : 'rgba(255,255,255,0.15)' }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '16px',
+                    background: isActive ? 'rgba(13, 148, 136, 0.04)' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${isActive ? 'var(--accent-soft)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    boxShadow: isActive ? '0 8px 30px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.05)' : 'none',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${FIELD_TYPE_COLORS[f.type]}15`, border: `1px solid ${FIELD_TYPE_COLORS[f.type]}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: FIELD_TYPE_COLORS[f.type], fontWeight: 800, fontSize: '12px' }}>
+                        {FIELD_TYPES.find(t => t.value === f.type)?.icon}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-1)' }}>{f.label || 'Untitled Field'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-3)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{f.type}</span>
+                          {f.required && <span style={{ color: '#f87171', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 700 }}>REQUIRED</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ opacity: isActive ? 1 : 0.4, transition: 'opacity 0.2s', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeField(f.id); }}
+                        style={{
+                          width: '30px', height: '30px', borderRadius: '8px', background: 'transparent', border: 'none',
+                          color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  {/* Glassmorphism ambient glow if active */}
+                  {isActive && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60%', height: '100%', background: 'radial-gradient(ellipse at top, rgba(13, 148, 136, 0.15), transparent 70%)', pointerEvents: 'none' }} />}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          {config.fields.length === 0 && (
+            <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '16px', color: 'var(--text-3)' }}>
+              <div style={{ fontSize: '24px', marginBottom: '8px' }}>✨</div>
+              <p style={{ fontSize: '13px' }}>Click an element on the left to add it to your form.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: Settings & Publish (approx 25%) */}
+      <div style={{ gridColumn: 'span 3', position: 'sticky', top: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* Publish Action Card */}
+        <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+          <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-2)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+            Finalize & Publish
+          </h3>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(13,148,136,0.05)', borderRadius: '10px', border: '1px solid rgba(13,148,136,0.1)', marginBottom: '16px' }}>
             <div>
-              <label className="input-label" style={{ fontSize: 11 }}>Form Title</label>
-              <input className="input" style={{ background: 'rgba(0,0,0,0.2)' }} value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-1)' }}>Seal Encryption</p>
+              <p style={{ fontSize: '10px', color: 'var(--text-3)' }}>E2E security for responses.</p>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(139,92,246,0.05)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.1)' }}>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-2)' }}>Seal Encryption</p>
-                <p style={{ fontSize: 10, color: 'var(--text-3)' }}>Only you can decrypt responses.</p>
+            <input type="checkbox" className="toggle" checked={!!config.encryptionEnabled} onChange={e => onChange({ ...config, encryptionEnabled: e.target.checked })} />
+          </div>
+
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="btn btn-primary" 
+            style={{ width: '100%', height: '44px', fontSize: '13px', fontWeight: 800, boxShadow: '0 4px 15px rgba(13, 148, 136, 0.4)' }} 
+            onClick={publish} 
+            disabled={publishing}
+          >
+            {publishing ? <><span className="spinner" style={{width:16,height:16}} /> Publishing...</> : '🚀 Publish Form'}
+          </motion.button>
+
+          {pubUrl && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: '16px', padding: '12px', background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px' }}>✅</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#4ade80' }}>Live on Sui</span>
               </div>
-              <input type="checkbox" className="toggle" checked={!!config.encryptionEnabled} 
-                     onChange={e => onChange({ ...config, encryptionEnabled: e.target.checked })} />
-            </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: '6px', fontSize: '10px', color: 'var(--accent-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pubUrl}</div>
+                <button className="btn btn-secondary btn-sm" onClick={copy} style={{ height: '24px', fontSize: '9px', padding: '0 8px' }}>{copied ? '✓' : 'Copy'}</button>
+              </div>
+            </motion.div>
+          )}
+        </div>
 
-            <button 
-              className="btn btn-primary btn-lg" 
-              style={{ width: '100%', height: 48, fontSize: 14, fontWeight: 800, boxShadow: 'var(--glow-md)' }} 
-              onClick={publish} 
-              disabled={publishing}
-            >
-              {publishing ? <><span className="spinner" /> Publishing...</> : '🚀 Publish Form'}
-            </button>
-
-            {pubUrl && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: 12, background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 14 }}>✅</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80' }}>Live on Sui</span>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: 6, fontSize: 10, color: 'var(--accent-2)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pubUrl}</div>
-                  <button className="btn btn-secondary btn-sm" onClick={copy} style={{ height: 28, fontSize: 10 }}>{copied ? '✓' : 'Copy'}</button>
-                </div>
+        {/* Field Settings Card */}
+        <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px', backdropFilter: 'blur(10px)', minHeight: '300px' }}>
+          <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+            Field Settings
+          </h3>
+          
+          <AnimatePresence mode="wait">
+            {activeField ? (
+              <FieldSettingsEditor field={activeField} updateField={updateField} />
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                style={{ textAlign: 'center', color: 'var(--text-3)', padding: '20px 0' }}
+              >
+                <div style={{ fontSize: '20px', marginBottom: '8px' }}>⚙️</div>
+                <p style={{ fontSize: '12px' }}>Select a field from the canvas to edit its properties.</p>
               </motion.div>
             )}
-          </div>
-        </div>
-
-        {/* Form Settings Card */}
-        <div className="card-premium" style={{ padding: 20 }}>
-          <h3 className="section-label" style={{ marginBottom: 12 }}>Settings</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label className="input-label" style={{ fontSize: 11 }}>Description</label>
-              <textarea className="textarea" rows={3} value={config.description}
-                onChange={e => onChange({ ...config, description: e.target.value })}
-                style={{ fontSize: 13 }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Live Preview Placeholder */}
-        <div style={{ padding: 20, border: '1px dashed var(--border)', borderRadius: 16, textAlign: 'center' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>Preview</p>
-          <div style={{ marginTop: 12, opacity: 0.4 }}>
-            <div style={{ height: 10, background: 'var(--border-2)', width: '60%', borderRadius: 5, margin: '0 auto 8px' }} />
-            <div style={{ height: 32, background: 'var(--border-2)', width: '100%', borderRadius: 8 }} />
-          </div>
+          </AnimatePresence>
         </div>
       </div>
     </div>

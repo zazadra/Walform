@@ -411,7 +411,7 @@ export default function TemplatesPage() {
             Explore Blueprints
           </div>
           <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 12, lineHeight: 1.1 }}>
-            Ready-to-use <span className="text-glow-purple">Templates</span>
+            Ready-to-use <span className="text-glow-teal">Templates</span>
           </h1>
           <p style={{ fontSize: 18, color: 'var(--text-2)', maxWidth: 600, margin: '0 auto' }}>
             Launch professional on-chain forms in seconds with our curated library of Web3-optimized templates.
@@ -429,16 +429,21 @@ export default function TemplatesPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05, duration: 0.4 }}
-              className="card-premium card-hover"
+              whileHover={{ y: -5, boxShadow: '0 20px 40px rgba(0,0,0,0.4)' }}
+              className="card-premium"
               style={{ 
                 padding: 32, 
                 display: 'flex', 
                 flexDirection: 'column',
                 height: '100%',
-                border: tmpl.featured ? '1px solid var(--accent-soft)' : '1px solid var(--border)'
+                border: tmpl.featured ? '1px solid var(--accent-soft)' : '1px solid var(--border)',
+                background: tmpl.featured ? 'linear-gradient(180deg, rgba(13, 148, 136, 0.05) 0%, rgba(255,255,255,0.02) 100%)' : 'linear-gradient(180deg, rgba(13, 148, 136, 0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                position: 'relative',
+                overflow: 'hidden'
               }}
             >
-              <div style={{ flex: 1 }}>
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '80%', height: '100%', background: tmpl.featured ? 'radial-gradient(ellipse at top, rgba(13, 148, 136, 0.2), transparent 60%)' : 'radial-gradient(ellipse at top, rgba(13, 148, 136, 0.1), transparent 60%)', pointerEvents: 'none' }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {categoryBadge(tmpl.category, tmpl.categoryColor)}
@@ -456,7 +461,7 @@ export default function TemplatesPage() {
                 </div>
 
                 <h2 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 12, color: 'var(--text-1)' }}>{tmpl.title}</h2>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 24 }}>{tmpl.description}</p>
+                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 24, flex: 1 }}>{tmpl.description}</p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 32 }}>
                   {tmpl.fields.slice(0, 4).map((f, fi) => (
@@ -469,16 +474,31 @@ export default function TemplatesPage() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.label}</div>
                     </div>
                   ))}
+                  {tmpl.fields.length > 4 && (
+                    <div style={{ 
+                      gridColumn: 'span 2', textAlign: 'center', fontSize: 11, fontWeight: 700, 
+                      color: 'var(--text-3)', padding: '6px', background: 'rgba(255,255,255,0.01)', borderRadius: 8 
+                    }}>
+                      + {tmpl.fields.length - 4} more fields
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className="btn btn-primary"
                 onClick={() => useTemplate(tmpl)}
-                style={{ width: '100%', justifyContent: 'center', height: 48, fontSize: 14, fontWeight: 700 }}
+                style={{ 
+                  width: '100%', justifyContent: 'center', height: 48, fontSize: 14, fontWeight: 800,
+                  boxShadow: tmpl.featured ? '0 4px 20px rgba(139, 92, 246, 0.4)' : 'none',
+                  background: tmpl.featured ? 'linear-gradient(135deg, #8b5cf6, #d946ef)' : undefined,
+                  border: tmpl.featured ? 'none' : undefined,
+                }}
               >
-                Use this template
-              </button>
+                Use this Blueprint
+              </motion.button>
             </motion.div>
           ))}
         </div>
