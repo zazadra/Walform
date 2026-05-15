@@ -158,6 +158,7 @@ export async function getOwnedSubmissions(ownerAddress: string, formObjectId?: s
   submitter: string;
   timestamp: number;
   status: string;
+  note: string;
 }>> {
   try {
     const client = getSuiClient();
