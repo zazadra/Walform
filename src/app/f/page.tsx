@@ -121,13 +121,13 @@ function FieldInput({ field, value, onChange, onFile, uploading, uploadStep, wal
 
       // Step label shown during upload
       const stepLabel: Record<string, string> = {
-        encoding:    'Preparing file…',
-        checking:    'Checking Walrus…',
-        registering: 'Approve in wallet — registering…',
-        uploading:   'Uploading to Walrus network…',
-        certifying:  'Approve in wallet — certifying…',
+        encoding:    'Preparing…',
+        checking:    'Checking…',
+        registering: 'Waiting for wallet…',
+        uploading:   'Uploading…',
+        certifying:  'Waiting for wallet…',
         success:     'Stored ✓',
-        failed:      'Upload failed',
+        failed:      'Failed',
       };
 
       return (

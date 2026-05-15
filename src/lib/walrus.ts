@@ -217,30 +217,35 @@ export async function uploadBytesToWalrus(
   const encoded = await flow.encode();
   const blobId = encoded.blobId;
 
-  // Step 2: Pre-check — if blob is already certified, skip both wallet popups
-  onProgress?.({ status: 'checking', message: 'Checking if already stored…' });
+  // Step 2: Quick pre-check (3s timeout, primary aggregator only)
+  // If the blob is already certified we can skip both wallet popups.
   try {
-    const existing = await readBlobFromWalrus(blobId);
-    if (existing) {
+    const check = await fetch(`${AGGREGATOR}/v1/blobs/${blobId.slice(0, 43)}`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (check.ok) {
       onProgress?.({ status: 'success', message: 'Already stored on Walrus ✓' });
       return { blobId, objectId: '', endEpoch: 0 };
     }
   } catch {
-    // Not found — continue with upload
+    // Not found or timed out — continue
   }
 
   // Step 3: Register tx (wallet popup #1)
-  onProgress?.({ status: 'registering', message: 'Approve in wallet — registering storage…' });
+  onProgress?.({ status: 'registering', message: 'Approve in wallet…' });
   const registerTx = flow.register({ owner: signer.address, deletable: false, epochs });
 
+  let registerDigest: string | undefined;
   if (registerTx && registerTx.getData().commands.length > 0) {
     try {
-      await signer.signAndExecute(registerTx);
+      const result = await signer.signAndExecute(registerTx);
+      // Capture the digest so the relay can locate the blob object
+      registerDigest = result.digest;
     } catch (err: any) {
       const classified = classifyWalrusError(err);
       onProgress?.({ status: 'failed', message: classified.userMessage });
       console.error('[Walrus] Register tx failed:', classified.detail);
-      // Create a typed error so the UI can differentiate
       const typedErr = new Error(classified.userMessage);
       (typedErr as any).walrusKind = classified.kind;
       throw typedErr;
@@ -248,10 +253,13 @@ export async function uploadBytesToWalrus(
   }
 
   // Step 4: Upload blob shards via relay (no wallet needed)
-  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus network…' });
+  // CRITICAL: pass the register tx digest so the relay can find the blob Sui object.
+  onProgress?.({ status: 'uploading', message: 'Uploading to Walrus…' });
   let uploaded: Awaited<ReturnType<typeof flow.upload>>;
   try {
-    uploaded = await flow.upload();
+    // The relay requires either blobObjectId OR the register tx digest to associate
+    // the upload with the correct Sui blob object.
+    uploaded = await flow.upload(registerDigest ? { digest: registerDigest } : undefined);
   } catch (err: any) {
     const classified = classifyWalrusError(err);
     onProgress?.({ status: 'failed', message: classified.userMessage });
