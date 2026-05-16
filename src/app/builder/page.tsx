@@ -54,7 +54,7 @@ function BuilderContent() {
 
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto', padding: '40px 24px' }}>
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 28, textAlign: 'center' }}>
         <div style={{ 
           display: 'inline-block', padding: '5px 12px', borderRadius: '10px',
           background: 'var(--accent-soft)', color: 'var(--accent-2)',
@@ -64,7 +64,7 @@ function BuilderContent() {
         <h1 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 6, lineHeight: 1.15 }}>
           Build Your <span className="text-glow-teal">Form</span>
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-2)' }}>
+        <p style={{ fontSize: 14, color: 'var(--text-2)', maxWidth: 600, margin: '0 auto' }}>
           Design, configure, and publish your form to Walrus. Get a shareable link via your Sui object ID.
         </p>
       </div>

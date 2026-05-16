@@ -846,7 +846,7 @@ export default function Home() {
                 initial={{ opacity: 0, x: -40 }} 
                 animate={{ opacity: 1, x: 0 }} 
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{ flex: '1 1 600px', textAlign: isMobile ? 'center' : 'left' }}
+                style={{ flex: '1 1 600px', textAlign: isMobile ? 'center' : 'left', paddingLeft: isMobile ? 0 : '6%' }}
               >
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
