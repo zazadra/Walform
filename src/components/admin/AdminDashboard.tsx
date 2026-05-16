@@ -546,7 +546,11 @@ export default function AdminDashboard() {
             )}
           </div>
           <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-            {loading ? <div className="spinner" /> : subs.map((s, i) => (
+            {!isAdmin ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-4)' }}>Access Denied. You do not have permission to view responses for this form.</div>
+            ) : loading ? <div className="spinner" /> : subs.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-4)' }}>No responses yet.</div>
+            ) : subs.map((s, i) => (
               <button key={s.id} onClick={() => setSelectedSubId(s.id)} className={`sub-card-premium ${selectedSubId === s.id ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', marginBottom: 8, padding: 16, borderRadius: 12, border: '1px solid var(--border)', background: selectedSubId === s.id ? 'rgba(13,148,136,0.08)' : 'rgba(255,255,255,0.02)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-3)' }}>#{subs.length - i}</span>
