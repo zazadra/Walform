@@ -329,15 +329,29 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
             value={config.title}
             onChange={e => onChange({ ...config, title: e.target.value })}
             placeholder="Untitled Form"
-            style={{ fontSize: '28px', fontWeight: 900, color: 'var(--text-1)', padding: 0, height: 'auto', background: 'transparent', border: 'none', outline: 'none', width: '100%', letterSpacing: '-0.02em' }}
+            style={{ 
+              fontSize: '28px', fontWeight: 900, color: 'var(--text-1)', padding: '8px 12px', height: 'auto', 
+              background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)', borderRadius: '12px', outline: 'none', 
+              width: '100%', letterSpacing: '-0.02em', transition: 'all 0.2s' 
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'rgba(13,148,136,0.05)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+            title="Edit Form Title"
           />
           <textarea 
             className="input-minimal"
             value={config.description}
             onChange={e => onChange({ ...config, description: e.target.value })}
             placeholder="Add a description for your form..."
-            rows={1}
-            style={{ fontSize: '15px', color: 'var(--text-3)', padding: 0, height: 'auto', background: 'transparent', border: 'none', outline: 'none', width: '100%', marginTop: '12px', resize: 'none', lineHeight: 1.5 }}
+            rows={2}
+            style={{ 
+              fontSize: '15px', color: 'var(--text-2)', padding: '10px 12px', height: 'auto', 
+              background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)', borderRadius: '12px', outline: 'none', 
+              width: '100%', marginTop: '12px', resize: 'vertical', lineHeight: 1.5, transition: 'all 0.2s' 
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'rgba(13,148,136,0.05)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+            title="Edit Form Description"
           />
         </div>
 
@@ -452,7 +466,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         gridColumn: 'span 3', 
         position: 'sticky', 
         top: '24px', 
-        height: 'calc(100vh - 160px)',
+        height: 'calc(100vh - 240px)',
         display: 'flex', 
         flexDirection: 'column', 
         gap: '0',
