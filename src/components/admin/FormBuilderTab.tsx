@@ -557,5 +557,6 @@ export function FormBuilderTab({ config, onChange, ownerAddress }: {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
