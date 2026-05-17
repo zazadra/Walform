@@ -365,12 +365,12 @@ export default function AdminDashboard() {
       if (!obj) throw new Error('Form not found');
       const cfg = JSON.parse(obj.configJson);
       const acc = account?.address.toLowerCase() ?? '';
-      // Case-insensitive: admins[] stored lowercase at publish, wallet address may differ in casing
+      // Always enforce access control regardless of encryption setting.
+      // Encryption ON/OFF only affects whether co-admins can READ (decrypt) the content,
+      // not whether they can access the admin panel at all.
       const chainAdmins = (cfg.admins || []).map((a: string) => a.toLowerCase());
       const isOwner = account && ((obj.owner ?? '').toLowerCase() === acc || chainAdmins.includes(acc));
-      // Encryption OFF → form is public, any wallet can open it
-      // Encryption ON → only wallets in cfg.admins[] (saved on-chain at publish) can open it
-      if (cfg.encryptionEnabled !== false && !isOwner) throw new Error('Not authorized');
+      if (!isOwner) throw new Error('Not authorized. You must be the form owner or a co-admin.');
       setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ ...obj, suiObjectId: id, title: cfg.title }, ...prev]);
       setSelectedFormId(id);
     } catch (e: any) { setOpenByIdError(e.message); }
@@ -467,9 +467,8 @@ export default function AdminDashboard() {
 
   const isAdmin = useMemo(() => {
     if (!selectedForm || !account || !parsedFormConfig) return false;
-    // Encryption OFF → form data is plaintext, any connected wallet can view responses
-    if (parsedFormConfig.encryptionEnabled === false) return true;
-    // Encryption ON → only the Sui object owner or wallets in cfg.admins[] (on-chain)
+    // Access to the admin panel is always restricted to owner + co-admins.
+    // Encryption ON/OFF only determines whether co-admins can decrypt submission content.
     const acc = account.address.toLowerCase();
     const chainAdmins = (parsedFormConfig.admins || []).map((a: string) => a.toLowerCase());
     const owner1 = ((selectedForm as any).owner || '').toLowerCase();

@@ -675,7 +675,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
               <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-1)', letterSpacing: '-0.02em', margin: 0 }}>
                 Seal Encryption
               </h3>
-              <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>Apa yang dilakukan toggle ini?</p>
+              <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>What does this toggle do?</p>
             </div>
             <button
               onClick={() => setShowEncryptInfo(false)}
@@ -688,13 +688,13 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
             <div style={{ padding: '12px 14px', background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.25)', borderRadius: 14 }}>
               <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-2)', marginBottom: 8, letterSpacing: '0.05em' }}>🔒 ON</p>
               <p style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-                Data submission di-<strong>enkripsi</strong> sebelum disimpan ke Walrus. Hanya wallet pembuat form yang bisa mendekripsi & membaca isinya.
+                Submissions are <strong>encrypted</strong> before being stored on Walrus. Only the form creator's wallet can decrypt and read them. Co-admins can open the panel but <strong>cannot read</strong> the content.
               </p>
             </div>
             <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 14 }}>
               <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', marginBottom: 8, letterSpacing: '0.05em' }}>🔓 OFF</p>
               <p style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-                Data tersimpan sebagai <strong>plaintext</strong>. Co-admin dan siapa saja yang punya Sui Object ID dapat membaca semua response.
+                Submissions stored as <strong>plaintext</strong>. The admin panel is still private (owner &amp; co-admins only) — but co-admins <strong>can read</strong> all responses.
               </p>
             </div>
           </div>
@@ -708,12 +708,12 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
             marginBottom: 20,
           }}>
             <p style={{ fontSize: 12, fontWeight: 800, color: '#fb923c', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              ⚠️ Penting untuk Co-Admin
+              ⚠️ Important for Co-Admins
             </p>
             <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, margin: 0 }}>
-              Jika enkripsi <strong style={{ color: '#fb923c' }}>ON</strong>, co-admin yang Anda tambahkan <strong>tidak bisa mendekripsi</strong> isi response — mereka hanya bisa membuka panel admin tapi data tetap terkunci.
+              If encryption is <strong style={{ color: '#fb923c' }}>ON</strong>, co-admins can open the admin panel but <strong>cannot decrypt</strong> submission content — the data remains locked to your wallet only.
               <br /><br />
-              <strong style={{ color: '#4ade80' }}>Solusi:</strong> Matikan enkripsi (<strong>OFF</strong>) jika Anda ingin co-admin bisa membaca isi response.
+              <strong style={{ color: '#4ade80' }}>Use Encryption OFF</strong> if you want co-admins to be able to read responses. The admin panel remains restricted to owner &amp; co-admins either way — strangers with the Object ID still cannot access it.
             </p>
           </div>
 
@@ -724,7 +724,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
               style={{ flex: 1, height: 40, fontSize: 13 }}
               onClick={() => setShowEncryptInfo(false)}
             >
-              Mengerti
+              Got it
             </button>
             <button
               className="btn btn-primary"
@@ -734,7 +734,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
                 setShowEncryptInfo(false);
               }}
             >
-              {config.encryptionEnabled ? '🔓 Matikan Enkripsi' : '🔒 Nyalakan Enkripsi'}
+              {config.encryptionEnabled ? '🔓 Turn Off Encryption' : '🔒 Turn On Encryption'}
             </button>
           </div>
         </motion.div>
