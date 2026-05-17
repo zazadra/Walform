@@ -359,17 +359,24 @@ export default function AdminDashboard() {
     const id = openByIdInput.trim();
     if (!id.startsWith('0x')) return setOpenByIdError('Invalid Sui ID');
     setOpenByIdLoading(true);
+    setOpenByIdError('');
     try {
       const obj = await getFormByObjectId(id);
       if (!obj) throw new Error('Form not found');
       const cfg = JSON.parse(obj.configJson);
-      const isOwner = account && (obj.owner === account.address || (cfg.admins || []).includes(account.address));
-      if (!isOwner) throw new Error('Not authorized');
-      setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ ...obj, title: cfg.title }, ...prev]);
+      const acc = account?.address.toLowerCase() ?? '';
+      // Case-insensitive: admins[] stored lowercase at publish, wallet address may differ in casing
+      const chainAdmins = (cfg.admins || []).map((a: string) => a.toLowerCase());
+      const isOwner = account && (obj.owner.toLowerCase() === acc || chainAdmins.includes(acc));
+      // Encryption OFF → form is public, any wallet can open it
+      // Encryption ON → only wallets in cfg.admins[] (saved on-chain at publish) can open it
+      if (cfg.encryptionEnabled !== false && !isOwner) throw new Error('Not authorized');
+      setForms(prev => prev.some(f => f.suiObjectId === id) ? prev : [{ ...obj, suiObjectId: id, title: cfg.title }, ...prev]);
       setSelectedFormId(id);
     } catch (e: any) { setOpenByIdError(e.message); }
     finally { setOpenByIdLoading(false); }
   }
+
 
   function handleStatusChange(id: string, s: string) {
     setSubs(prev => prev.map(x => x.id === id ? { ...x, status: s } : x));
@@ -460,11 +467,14 @@ export default function AdminDashboard() {
 
   const isAdmin = useMemo(() => {
     if (!selectedForm || !account || !parsedFormConfig) return false;
+    // Encryption OFF → form data is plaintext, any connected wallet can view responses
+    if (parsedFormConfig.encryptionEnabled === false) return true;
+    // Encryption ON → only the Sui object owner or wallets in cfg.admins[] (on-chain)
     const acc = account.address.toLowerCase();
-    const admins = (parsedFormConfig.admins || []).map(a => a.toLowerCase());
+    const chainAdmins = (parsedFormConfig.admins || []).map((a: string) => a.toLowerCase());
     const owner1 = ((selectedForm as any).owner || '').toLowerCase();
     const owner2 = (parsedFormConfig.publishedBy || '').toLowerCase();
-    return admins.includes(acc) || owner1 === acc || owner2 === acc;
+    return chainAdmins.includes(acc) || owner1 === acc || owner2 === acc;
   }, [selectedForm, account, parsedFormConfig]);
 
   const stats = {
@@ -536,6 +546,7 @@ export default function AdminDashboard() {
           <button className="btn btn-secondary btn-sm" onClick={handleOpenById} style={{ width: '100%' }}>{openByIdLoading ? 'Loading...' : 'Open Form'}</button>
           {openByIdError && <p style={{ color: 'var(--error)', fontSize: 10, marginTop: 4 }}>{openByIdError}</p>}
         </div>
+
         <div style={{ flex: 1, overflow: 'auto' }}>
           <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-3)', marginBottom: 12, display: 'block' }}>MY FORMS</label>
           {formsLoading ? <div className="spinner" /> : (
@@ -629,7 +640,13 @@ export default function AdminDashboard() {
           </div>
           <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
             {!isAdmin ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-4)' }}>Access Denied. You do not have permission to view responses for this form.</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-4)' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--error)', marginBottom: 6 }}>Access Denied</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 280, margin: '0 auto', lineHeight: 1.5 }}>
+                  This form has Seal Encryption enabled. Only the form's admin wallet can view responses.
+                </div>
+              </div>
             ) : loading ? <div className="spinner" /> : filteredSubs.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-4)' }}>No responses found.</div>
             ) : filteredSubs.map((s) => (

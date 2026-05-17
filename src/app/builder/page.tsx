@@ -29,7 +29,12 @@ function BuilderContent() {
       } catch { /* use default */ }
     }
     const saved = loadAdminConfig();
-    if (saved) setConfig(saved);
+    if (saved) {
+      // Strip any stale platform-wide admins from a previous session.
+      // Each publish will rebuild admins[] fresh from the co-admin input + publisher wallet.
+      setConfig({ ...saved, admins: [] });
+    }
+
   }, []);
 
   function handleChange(c: FormConfig) {

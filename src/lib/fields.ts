@@ -1,18 +1,15 @@
 import type { SessionField, FormConfig } from '@/types/walform';
 
 // ── Admin addresses ────────────────────────────────────────────────
-export const INITIAL_ADMINS = [
-  '0xc4d6ee019649edba41d5a5ed1081fe3c86afc41fea413195dd6ecdd0f6090e54',
-  '0x8eea07f7d8d895385e7cc83fb45c5aa1489371606983f415b347ca188c8ce4b3',
-  '0xfb75ea6b2aef1aaff6c344b7e5fd90eba1be3099a9c8f04a2aef030d8087a823',
-];
+// No hardcoded platform admins. Each form's creator is the sole admin
+// of their own form. Co-admins can be added per-form in the Form Builder.
+export const INITIAL_ADMINS: string[] = [];
 
 export function getAdmins(): string[] {
-  if (typeof window === 'undefined') return [...INITIAL_ADMINS];
+  if (typeof window === 'undefined') return [];
   try {
-    const stored = JSON.parse(localStorage.getItem('walform:admins') ?? '[]') as string[];
-    return [...new Set([...INITIAL_ADMINS, ...stored])];
-  } catch { return [...INITIAL_ADMINS]; }
+    return JSON.parse(localStorage.getItem('walform:admins') ?? '[]') as string[];
+  } catch { return []; }
 }
 
 export function isAdmin(address?: string): boolean {
@@ -23,17 +20,15 @@ export function isAdmin(address?: string): boolean {
 export function addAdmin(address: string) {
   if (typeof window === 'undefined') return;
   const current = getAdmins();
-  if (!isAdmin(address)) {
-    const extra = current.filter(a => !INITIAL_ADMINS.includes(a));
-    localStorage.setItem('walform:admins', JSON.stringify([...extra, address]));
+  if (!current.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
+    localStorage.setItem('walform:admins', JSON.stringify([...current, address]));
   }
 }
 
 export function removeAdmin(address: string) {
   if (typeof window === 'undefined') return;
-  if (INITIAL_ADMINS.includes(address)) return;
-  const extra = getAdmins().filter(a => !INITIAL_ADMINS.includes(a) && a !== address);
-  localStorage.setItem('walform:admins', JSON.stringify(extra));
+  const current = getAdmins().filter(a => a.toLowerCase() !== address.toLowerCase());
+  localStorage.setItem('walform:admins', JSON.stringify(current));
 }
 
 // ── Submission index ──────────────────────────────────────────────
@@ -49,7 +44,6 @@ export function addSubId(formId: string, blobId: string) {
   if (!ids.includes(blobId)) {
     const next = [...ids, blobId];
     localStorage.setItem(`walform:subs:${formId}`, JSON.stringify(next));
-    // Also merge into the shared "all submissions" bucket so cross-form admin views work
     const all = getAllSubIds();
     if (!all.includes(blobId)) {
       localStorage.setItem('walform:subs:ALL', JSON.stringify([...all, blobId]));
@@ -63,7 +57,7 @@ export function getAllSubIds(): string[] {
   catch { return []; }
 }
 
-// ── Merge external sub IDs (imported via QR / manual paste) ──────
+// ── Merge external sub IDs ────────────────────────────────────────
 export function mergeSubIds(formId: string, incoming: string[]) {
   if (typeof window === 'undefined') return [];
   const existing = new Set(getSubIds(formId));
@@ -114,7 +108,6 @@ export const DEFAULT_CONFIG: FormConfig = {
   description: 'Submit your project for review by the Walrus Sessions team.',
   fields: DEFAULT_FIELDS,
   sessionCount: 1,
-  admins: [...INITIAL_ADMINS],
-  publishedBy: INITIAL_ADMINS[1], // Master admin
+  admins: [], // No hardcoded admins — publisher wallet is set at publish time
   createdAt: 0,
 };

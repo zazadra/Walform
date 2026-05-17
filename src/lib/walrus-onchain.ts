@@ -117,6 +117,7 @@ export async function createSubmissionObject(
  * This is the key bridge: URL uses objectId, configuration lives directly in Sui.
  */
 export async function getFormByObjectId(objectId: string): Promise<{
+  suiObjectId: string;
   configJson: string;
   formId: string;
   createdAt: number;
@@ -136,6 +137,7 @@ export async function getFormByObjectId(objectId: string): Promise<{
       if ('AddressOwner' in ownerInfo) ownerAddress = ownerInfo.AddressOwner as string;
     }
     return {
+      suiObjectId: objectId, // ← critical: allows forms.find(f => f.suiObjectId) to work
       configJson: fields.config_json,
       formId: fields.form_id,
       createdAt: Number(fields.created_at ?? 0),
@@ -233,6 +235,22 @@ export async function updateSubmissionStatus(objectId: string, status: string) {
  */
 export async function updateSubmissionNote(objectId: string, note: string) {
   await idbSet(`walform_note_${objectId}`, note);
+}
+
+/**
+ * Get the list of co-admin wallet addresses for a specific form (stored locally).
+ * Co-admins can view submissions without being the Sui object owner.
+ */
+export async function getFormCoAdmins(formObjectId: string): Promise<string[]> {
+  const raw = await idbGet(`walform_coadmins_${formObjectId}`);
+  return Array.isArray(raw) ? raw : [];
+}
+
+/**
+ * Save the list of co-admin wallet addresses for a specific form.
+ */
+export async function setFormCoAdmins(formObjectId: string, admins: string[]): Promise<void> {
+  await idbSet(`walform_coadmins_${formObjectId}`, admins);
 }
 
 /**

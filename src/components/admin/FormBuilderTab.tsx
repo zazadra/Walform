@@ -133,6 +133,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const isMobile = useIsMobile();
   const [mobileMode, setMobileMode] = useState<'elements' | 'builder' | 'settings'>('builder');
+  const [coAdminInput, setCoAdminInput] = useState('');
+  const [coAdminErr, setCoAdminErr] = useState('');
+  const [showEncryptInfo, setShowEncryptInfo] = useState(false);
 
   useEffect(() => {
     if (activeFieldId && isMobile) setMobileMode('settings');
@@ -196,7 +199,9 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
         id: uid(), 
         type: 'form',
         createdAt: Date.now(), 
-        publishedBy: ownerAddress, 
+        publishedBy: ownerAddress,
+        // Always include the publisher + any co-admins. Deduplicate and lowercase.
+        admins: [...new Set([ownerAddress, ...(config.admins || [])].map(a => a.toLowerCase()))],
         fields: clonedFields,
         publishedBlobId: undefined 
       };
@@ -215,6 +220,14 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
           const { publicKeyJwk, sealedPrivateKey } = await generateSeal(signature);
           configToPublish.sealPublicKeyJwk = publicKeyJwk;
           configToPublish.sealedPrivateKey = sealedPrivateKey;
+        } else {
+          // BUG FIX: Explicitly strip any stale Seal keys when encryption is OFF.
+          // Without this, a form re-published with encryption toggled off could
+          // still carry the RSA public key from a previous publish session,
+          // causing the submission page to encrypt data even though the admin
+          // intended an open (unencrypted) form.
+          delete configToPublish.sealPublicKeyJwk;
+          delete configToPublish.sealedPrivateKey;
         }
 
         setPubMsg('Step 2/3: Creating Sui Form object…');
@@ -532,10 +545,71 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
 
         {/* Publish Action — fixed at bottom, always visible */}
         <div style={{ flexShrink: 0, padding: '12px 16px', background: 'rgba(5,10,18,0.85)', borderTop: '1px solid var(--border)' }}>
+          {/* Co-Admins section */}
+          <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: '12px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>👥 Co-Admins</p>
+            <p style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '8px', lineHeight: 1.5 }}>Add wallets that can view this form's responses. Saved on-chain at publish time.</p>
+            {(config.admins || []).filter(a => a.toLowerCase() !== ownerAddress.toLowerCase()).map(addr => (
+              <div key={addr} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, marginBottom: 4 }}>
+                <span style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{addr.slice(0,8)}…{addr.slice(-6)}</span>
+                <button
+                  onClick={() => onChange({ ...config, admins: (config.admins || []).filter(a => a !== addr) })}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', fontSize: 13, padding: 0 }}
+                  title="Remove co-admin"
+                >✕</button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <input
+                className="input"
+                placeholder="0x..."
+                value={coAdminInput}
+                onChange={e => { setCoAdminInput(e.target.value); setCoAdminErr(''); }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const addr = coAdminInput.trim().toLowerCase();
+                    if (!addr.startsWith('0x') || addr.length < 10) { setCoAdminErr('Invalid address'); return; }
+                    if ((config.admins || []).map(a => a.toLowerCase()).includes(addr)) { setCoAdminErr('Already added'); return; }
+                    onChange({ ...config, admins: [...(config.admins || []), addr] });
+                    setCoAdminInput('');
+                  }
+                }}
+                style={{ fontSize: 11, flex: 1, height: 32, padding: '0 10px' }}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ flexShrink: 0, padding: '0 12px', height: 32, fontSize: 16, lineHeight: 1 }}
+                onClick={() => {
+                  const addr = coAdminInput.trim().toLowerCase();
+                  if (!addr.startsWith('0x') || addr.length < 10) { setCoAdminErr('Invalid address'); return; }
+                  if ((config.admins || []).map(a => a.toLowerCase()).includes(addr)) { setCoAdminErr('Already added'); return; }
+                  onChange({ ...config, admins: [...(config.admins || []), addr] });
+                  setCoAdminInput('');
+                }}
+              >+</button>
+            </div>
+            {coAdminErr && <p style={{ fontSize: 10, color: 'var(--error)', marginTop: 4 }}>{coAdminErr}</p>}
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-2)', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>🚀 Finalize &amp; Publish</span>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', cursor: 'help' }} title="Enable End-to-End Encryption for all responses">🔒 Encrypt (Seal)</label>
-            <input type="checkbox" className="toggle" checked={!!config.encryptionEnabled} onChange={e => onChange({ ...config, encryptionEnabled: e.target.checked })} title="Enable End-to-End Encryption" />
+            <label
+              style={{ fontSize: '11px', fontWeight: 600, color: config.encryptionEnabled ? 'var(--accent-2)' : 'var(--text-3)', transition: 'color 0.2s', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              {config.encryptionEnabled ? '🔒' : '🔓'} Encrypt
+              <button
+                onClick={() => setShowEncryptInfo(true)}
+                style={{
+                  width: 16, height: 16, borderRadius: '50%', border: '1px solid currentColor',
+                  background: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 900,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: config.encryptionEnabled ? 'var(--accent-2)' : 'var(--text-3)',
+                  lineHeight: 1, padding: 0, flexShrink: 0
+                }}
+                title="Learn about encryption"
+              >?</button>
+            </label>
+            <input type="checkbox" className="toggle" checked={!!config.encryptionEnabled} onChange={e => onChange({ ...config, encryptionEnabled: e.target.checked })} title={config.encryptionEnabled ? 'Click to disable encryption' : 'Click to enable encryption'} />
           </div>
 
           <motion.button 
@@ -561,5 +635,110 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
       </div>
     </div>
   </div>
+
+  {/* Encryption Info Modal */}
+  <AnimatePresence>
+    {showEncryptInfo && (
+      <motion.div
+        key="encrypt-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setShowEncryptInfo(false)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}
+      >
+        <motion.div
+          key="encrypt-modal"
+          initial={{ opacity: 0, scale: 0.92, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 16 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+          onClick={e => e.stopPropagation()}
+          style={{
+            maxWidth: 420, width: '100%',
+            background: 'rgba(10,14,24,0.96)',
+            border: '1px solid rgba(139,92,246,0.35)',
+            borderRadius: 24,
+            padding: 28,
+            boxShadow: '0 0 60px rgba(139,92,246,0.25), 0 24px 60px rgba(0,0,0,0.6)',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🔐</div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-1)', letterSpacing: '-0.02em', margin: 0 }}>
+                Seal Encryption
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>Apa yang dilakukan toggle ini?</p>
+            </div>
+            <button
+              onClick={() => setShowEncryptInfo(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, padding: 0, lineHeight: 1, marginLeft: 12 }}
+            >✕</button>
+          </div>
+
+          {/* ON vs OFF comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+            <div style={{ padding: '12px 14px', background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.25)', borderRadius: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-2)', marginBottom: 8, letterSpacing: '0.05em' }}>🔒 ON</p>
+              <p style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
+                Data submission di-<strong>enkripsi</strong> sebelum disimpan ke Walrus. Hanya wallet pembuat form yang bisa mendekripsi & membaca isinya.
+              </p>
+            </div>
+            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-3)', marginBottom: 8, letterSpacing: '0.05em' }}>🔓 OFF</p>
+              <p style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
+                Data tersimpan sebagai <strong>plaintext</strong>. Co-admin dan siapa saja yang punya Sui Object ID dapat membaca semua response.
+              </p>
+            </div>
+          </div>
+
+          {/* Warning box */}
+          <div style={{
+            padding: '14px 16px',
+            background: 'rgba(251,146,60,0.08)',
+            border: '1px solid rgba(251,146,60,0.35)',
+            borderRadius: 14,
+            marginBottom: 20,
+          }}>
+            <p style={{ fontSize: 12, fontWeight: 800, color: '#fb923c', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              ⚠️ Penting untuk Co-Admin
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, margin: 0 }}>
+              Jika enkripsi <strong style={{ color: '#fb923c' }}>ON</strong>, co-admin yang Anda tambahkan <strong>tidak bisa mendekripsi</strong> isi response — mereka hanya bisa membuka panel admin tapi data tetap terkunci.
+              <br /><br />
+              <strong style={{ color: '#4ade80' }}>Solusi:</strong> Matikan enkripsi (<strong>OFF</strong>) jika Anda ingin co-admin bisa membaca isi response.
+            </p>
+          </div>
+
+          {/* Quick action */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="btn btn-secondary"
+              style={{ flex: 1, height: 40, fontSize: 13 }}
+              onClick={() => setShowEncryptInfo(false)}
+            >
+              Mengerti
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1, height: 40, fontSize: 13 }}
+              onClick={() => {
+                onChange({ ...config, encryptionEnabled: !config.encryptionEnabled });
+                setShowEncryptInfo(false);
+              }}
+            >
+              {config.encryptionEnabled ? '🔓 Matikan Enkripsi' : '🔒 Nyalakan Enkripsi'}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
 );
 }
