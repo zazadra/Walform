@@ -367,7 +367,7 @@ export default function AdminDashboard() {
       const acc = account?.address.toLowerCase() ?? '';
       // Case-insensitive: admins[] stored lowercase at publish, wallet address may differ in casing
       const chainAdmins = (cfg.admins || []).map((a: string) => a.toLowerCase());
-      const isOwner = account && (obj.owner.toLowerCase() === acc || chainAdmins.includes(acc));
+      const isOwner = account && ((obj.owner ?? '').toLowerCase() === acc || chainAdmins.includes(acc));
       // Encryption OFF → form is public, any wallet can open it
       // Encryption ON → only wallets in cfg.admins[] (saved on-chain at publish) can open it
       if (cfg.encryptionEnabled !== false && !isOwner) throw new Error('Not authorized');
