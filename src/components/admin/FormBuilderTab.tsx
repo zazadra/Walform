@@ -297,6 +297,7 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
   const activeField = config.fields.find(f => f.id === activeFieldId);
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1280px', margin: '0 auto' }}>
       {isMobile && (
         <div className="tab-pill" style={{ marginBottom: '10px', padding: 6 }}>
@@ -740,5 +741,6 @@ export function FormBuilderTab({ config, onChange, ownerAddress, onShowToast }: 
       </motion.div>
     )}
   </AnimatePresence>
+  </>
 );
 }
