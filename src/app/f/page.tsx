@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit-react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { dAppKit } from '@/app/dapp-kit';
@@ -9,6 +10,8 @@ import type { FormConfig, Submission, SessionField } from '@/types/walform';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+
+const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), { ssr: false });
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function shorten(a: string) { return `${a.slice(0, 6)}…${a.slice(-4)}`; }
@@ -76,7 +79,11 @@ function FieldInput({ field, value, onChange, onFile, uploading, uploadStep, wal
     case 'textarea':
       return (
         <div>
-          <textarea className="textarea" placeholder={field.placeholder} rows={4} value={base || ''} onChange={e => onChange(e.target.value)} />
+          <RichTextEditor
+            value={base || ''}
+            onChange={onChange}
+            placeholder={field.placeholder || 'Write your answer…'}
+          />
           {renderAttached()}
         </div>
       );

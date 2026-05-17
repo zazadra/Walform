@@ -631,7 +631,30 @@ export function SubmissionsTab({ ownerAddress, formBlobId: initialFormBlobId, on
                                 </a>
                               </div>
                             ) : (
-                               <span style={{ fontWeight: 500 }}>{v.toString() || <em style={{ color: 'var(--text-3)', fontWeight: 400 }}>Empty</em>}</span>
+                               v.toString() ? (() => {
+                                 const text = v.toString();
+                                 const isHtml = /^<[a-z][sS]*>/i.test(text.trim());
+                                 if (isHtml) {
+                                   return (
+                                     <div
+                                       className="rich-response-output"
+                                       dangerouslySetInnerHTML={{ __html: text }}
+                                     />
+                                   );
+                                 }
+                                 const paras = text.split(/\n\n+/);
+                                 return (
+                                   <span style={{ fontWeight: 500, display: 'block' }}>
+                                     {paras.map((para, pi) => (
+                                       <span key={pi} style={{ display: 'block', lineHeight: 1.75, marginBottom: pi < paras.length - 1 ? '12px' : 0 }}>
+                                         {para.split('\n').map((line, li, arr) => (
+                                           <span key={li}>{line}{li < arr.length - 1 && <br />}</span>
+                                         ))}
+                                       </span>
+                                     ))}
+                                   </span>
+                                 );
+                               })() : <em style={{ color: 'var(--text-3)', fontWeight: 400 }}>Empty</em>
                             )}
                           </div>
                         </div>

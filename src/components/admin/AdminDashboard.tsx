@@ -240,9 +240,31 @@ function SubmissionDetail({ sub, idx, config, onUpdateNote, onStatusChange, form
                         ) : (
                           <div style={{ color: 'var(--text-1)', fontSize: '15px', fontWeight: 500, lineHeight: 1.5, wordBreak: 'break-word' }}>{val}</div>
                         )
-                      ) : (
-                        <span>{val}</span>
-                      )}
+                      ) : (() => {
+                        const text = String(val);
+                        const isHtml = /^<[a-z][\s\S]*>/i.test(text.trim());
+                        if (isHtml) {
+                          return (
+                            <div
+                              className="rich-response-output"
+                              dangerouslySetInnerHTML={{ __html: text }}
+                            />
+                          );
+                        }
+                        // Plain text — preserve paragraph and line breaks
+                        const paras = text.split(/\n\n+/);
+                        return (
+                          <span style={{ fontWeight: 500, display: 'block' }}>
+                            {paras.map((para, pi) => (
+                              <span key={pi} style={{ display: 'block', lineHeight: 1.75, marginBottom: pi < paras.length - 1 ? '10px' : 0 }}>
+                                {para.split('\n').map((line, li, arr) => (
+                                  <span key={li}>{line}{li < arr.length - 1 && <br />}</span>
+                                ))}
+                              </span>
+                            ))}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
