@@ -11,10 +11,11 @@ type Message = {
   content: string;
 };
 
-type Provider = 'gemini' | 'openrouter-default' | 'openrouter-custom';
+type Provider = 'gemini' | 'groq' | 'openrouter-default' | 'openrouter-custom';
 
 const PROVIDER_LABELS: Record<Provider, string> = {
   'gemini': '✨ Gemini (Free)',
+  'groq': '🚀 Groq (Fast)',
   'openrouter-default': '⚡ Ling 3.0 Flash VL',
   'openrouter-custom': '🔑 OpenRouter (My Key)',
 };
@@ -128,7 +129,7 @@ export function ChatWidget() {
     setIsLoading(true);
 
     try {
-      const backendProvider = provider === 'gemini' ? 'gemini' : 'openrouter';
+      const backendProvider = provider === 'gemini' ? 'gemini' : provider === 'groq' ? 'groq' : 'openrouter';
       const userKey = provider === 'openrouter-custom' ? savedApiKey : undefined;
       const userModel = provider === 'openrouter-custom' ? savedModel : undefined;
 
@@ -353,6 +354,7 @@ export function ChatWidget() {
                     }}
                   >
                     <option value="gemini">{PROVIDER_LABELS['gemini']}</option>
+                    <option value="groq">{PROVIDER_LABELS['groq']}</option>
                     <option value="openrouter-default">{PROVIDER_LABELS['openrouter-default']}</option>
                     <option value="openrouter-custom">
                       {savedApiKey ? PROVIDER_LABELS['openrouter-custom'] : '🔑 Add My Key...'}

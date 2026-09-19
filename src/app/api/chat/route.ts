@@ -116,6 +116,40 @@ Contoh penggunaan:
       }
       const data = await geminiRes.json();
       rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else if (provider === 'groq') {
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) throw new Error("GROQ_API_KEY is missing in backend.");
+
+      const groqMessages = normalizedRawMessages.map((m) => ({
+        role: m.role === 'model' ? 'assistant' : m.role,
+        content: m.content,
+      }));
+
+      const payload = {
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: systemInstruction },
+          ...groqMessages
+        ]
+      };
+
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!groqRes.ok) {
+        const errText = await groqRes.text();
+        console.error('[Groq Error]', groqRes.status, errText);
+        if (groqRes.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+        throw new Error(`GROQ_ERROR:${groqRes.status}:${errText}`);
+      }
+      const data = await groqRes.json();
+      rawReply = data.choices?.[0]?.message?.content || '';
     } else {
       // ── OpenRouter ──────────────────────
       const openRouterMessages = normalizedRawMessages.map((m) => ({
