@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ClientProviders } from '@/components/providers/ClientProviders';
 import { NavbarWrapper } from '@/components/NavbarWrapper';
+import { ChatWidget } from '@/components/ChatWidget';
 
 export const metadata: Metadata = {
   title: 'Walform — Decentralized Feedback Platform',
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ClientProviders>
           <NavbarWrapper />
           {children}
+          <ChatWidget />
         </ClientProviders>
       </body>
     </html>
