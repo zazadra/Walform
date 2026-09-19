@@ -20,6 +20,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 };
 
 const LS_KEY = 'walbot_openrouter_api_key';
+const LS_MODEL_KEY = 'walbot_openrouter_model';
 
 export function ChatWidget() {
   const account = useCurrentAccount();
@@ -28,6 +29,8 @@ export function ChatWidget() {
   const [provider, setProvider] = useState<Provider>('gemini');
   const [customApiKey, setCustomApiKey] = useState('');
   const [savedApiKey, setSavedApiKey] = useState('');
+  const [customModel, setCustomModel] = useState('inclusionai/ling-3.0-flash-vl:free');
+  const [savedModel, setSavedModel] = useState('inclusionai/ling-3.0-flash-vl:free');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', content: "Hey! 👋 I'm Walbot, your Walform AI assistant. Ask me anything about Walform, Walrus Protocol, or the Sui ecosystem!" }
   ]);
@@ -36,12 +39,17 @@ export function ChatWidget() {
   const [greeted, setGreeted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load saved API key from localStorage on mount
+  // Load saved API key & model from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(LS_KEY);
-    if (stored) {
-      setSavedApiKey(stored);
-      setCustomApiKey(stored);
+    const storedKey = localStorage.getItem(LS_KEY);
+    if (storedKey) {
+      setSavedApiKey(storedKey);
+      setCustomApiKey(storedKey);
+    }
+    const storedModel = localStorage.getItem(LS_MODEL_KEY);
+    if (storedModel) {
+      setSavedModel(storedModel);
+      setCustomModel(storedModel);
     }
   }, []);
 
@@ -77,13 +85,18 @@ export function ChatWidget() {
   if (!account) return null;
 
   const handleSaveKey = () => {
-    const trimmed = customApiKey.trim();
-    if (trimmed) {
-      localStorage.setItem(LS_KEY, trimmed);
-      setSavedApiKey(trimmed);
+    const trimmedKey = customApiKey.trim();
+    const trimmedModel = customModel.trim() || 'inclusionai/ling-3.0-flash-vl:free';
+
+    if (trimmedKey) {
+      localStorage.setItem(LS_KEY, trimmedKey);
+      localStorage.setItem(LS_MODEL_KEY, trimmedModel);
+      setSavedApiKey(trimmedKey);
+      setSavedModel(trimmedModel);
       setProvider('openrouter-custom');
     } else {
       localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_MODEL_KEY);
       setSavedApiKey('');
       if (provider === 'openrouter-custom') setProvider('gemini');
     }
@@ -117,6 +130,7 @@ export function ChatWidget() {
     try {
       const backendProvider = provider === 'gemini' ? 'gemini' : 'openrouter';
       const userKey = provider === 'openrouter-custom' ? savedApiKey : undefined;
+      const userModel = provider === 'openrouter-custom' ? savedModel : undefined;
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -126,6 +140,7 @@ export function ChatWidget() {
           messages: newMessages,
           provider: backendProvider,
           userOpenRouterKey: userKey,
+          userOpenRouterModel: userModel,
         }),
       });
 
@@ -186,37 +201,50 @@ export function ChatWidget() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Key size={18} color="#7c3aed" />
-                <span style={{ fontWeight: 700, color: '#fff', fontSize: '16px' }}>OpenRouter API Key</span>
+                <span style={{ fontWeight: 700, color: '#fff', fontSize: '16px' }}>OpenRouter Settings</span>
               </div>
 
               <p style={{ color: '#9ca3af', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
-                Add your personal OpenRouter API key to use your own quota and unlock all OpenRouter models.
-                Your key is <strong style={{ color: '#fff' }}>saved locally in your browser only</strong> — we never store it on our servers.
+                Add your personal OpenRouter API key to use your own quota and choose your preferred AI model.
+                Your key is <strong style={{ color: '#fff' }}>saved locally in your browser only</strong>.
               </p>
 
-              <a
-                href="https://openrouter.ai/workspaces/default/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#7c3aed', fontSize: '13px', textDecoration: 'underline' }}
-              >
-                → Get your free OpenRouter API key here
-              </a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 600 }}>API Key</label>
+                <input
+                  type="password"
+                  value={customApiKey}
+                  onChange={(e) => setCustomApiKey(e.target.value)}
+                  placeholder="sk-or-v1-..."
+                  style={{
+                    padding: '10px 14px', borderRadius: '8px',
+                    border: '1px solid var(--border, #374151)',
+                    backgroundColor: 'var(--bg-2, #111827)', color: '#fff',
+                    outline: 'none', fontSize: '13px', fontFamily: 'monospace'
+                  }}
+                />
+              </div>
 
-              <input
-                type="password"
-                value={customApiKey}
-                onChange={(e) => setCustomApiKey(e.target.value)}
-                placeholder="sk-or-v1-..."
-                style={{
-                  padding: '10px 14px', borderRadius: '8px',
-                  border: '1px solid var(--border, #374151)',
-                  backgroundColor: 'var(--bg-2, #111827)', color: '#fff',
-                  outline: 'none', fontSize: '13px', fontFamily: 'monospace'
-                }}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 600 }}>Model ID (Optional)</label>
+                <input
+                  type="text"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  placeholder="e.g. anthropic/claude-3.5-sonnet"
+                  style={{
+                    padding: '10px 14px', borderRadius: '8px',
+                    border: '1px solid var(--border, #374151)',
+                    backgroundColor: 'var(--bg-2, #111827)', color: '#fff',
+                    outline: 'none', fontSize: '13px', fontFamily: 'monospace'
+                  }}
+                />
+                <span style={{ color: '#6b7280', fontSize: '11px' }}>
+                  Default: inclusionai/ling-3.0-flash-vl:free
+                </span>
+              </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                 <button
                   onClick={() => setShowSettings(false)}
                   style={{
@@ -243,12 +271,15 @@ export function ChatWidget() {
                 <button
                   onClick={() => {
                     setCustomApiKey('');
+                    setCustomModel('inclusionai/ling-3.0-flash-vl:free');
                     localStorage.removeItem(LS_KEY);
+                    localStorage.removeItem(LS_MODEL_KEY);
                     setSavedApiKey('');
+                    setSavedModel('');
                     if (provider === 'openrouter-custom') setProvider('gemini');
                     setShowSettings(false);
                   }}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}
+                  style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', textAlign: 'left', marginTop: '4px' }}
                 >
                   🗑 Remove saved key
                 </button>

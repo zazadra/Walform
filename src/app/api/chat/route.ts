@@ -11,8 +11,8 @@ interface ChatMessage {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as { userId?: string; messages?: ChatMessage[]; provider?: string; userOpenRouterKey?: string };
-    const { userId = 'anonymous', messages = [], userOpenRouterKey } = body;
+    const body = await req.json() as { userId?: string; messages?: ChatMessage[]; provider?: string; userOpenRouterKey?: string; userOpenRouterModel?: string };
+    const { userId = 'anonymous', messages = [], userOpenRouterKey, userOpenRouterModel } = body;
 
     if (messages.length === 0) {
       return NextResponse.json({ error: 'Pesan kosong' }, { status: 400 });
@@ -124,7 +124,7 @@ Contoh penggunaan:
       }));
 
       const payload = {
-        model: 'inclusionai/ling-3.0-flash-vl:free',
+        model: userOpenRouterModel || 'inclusionai/ling-3.0-flash-vl:free',
         messages: [
           { role: 'system', content: systemInstruction },
           ...openRouterMessages
