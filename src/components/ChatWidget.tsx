@@ -163,9 +163,11 @@ export function ChatWidget() {
       if (errMsg.includes('RATE_LIMIT_EXCEEDED') || errMsg.includes('429')) {
         friendlyError = "I'm receiving a very high volume of questions right now and need a short break! 🛌\n\nTip: You can add your own OpenRouter API key via the ⚙️ Settings button to bypass this limit.";
       } else if (errMsg.includes('GEMINI_ERROR')) {
-        // Show partial error detail during debugging
         const detail = errMsg.replace('GEMINI_ERROR:', '');
         friendlyError = `⚠️ Gemini API error: ${detail.substring(0, 200)}`;
+      } else if (errMsg.includes('GROQ_ERROR')) {
+        const detail = errMsg.replace('GROQ_ERROR:', '');
+        friendlyError = `⚠️ Groq API error: ${detail.substring(0, 200)}`;
       }
       setMessages((prev) => [...prev, { role: 'model', content: friendlyError }]);
     } finally {
