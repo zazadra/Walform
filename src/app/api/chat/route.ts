@@ -108,8 +108,11 @@ Contoh penggunaan:
     const result = await response.json();
     const rawReply = result.choices?.[0]?.message?.content || '';
 
-    // ── 5. Extract MemWal Tags ─────────────────────────────────────
-    const { clean: reply, facts } = extractMemoryTags(rawReply);
+    // ── 5. Extract MemWal Tags & Cleanup Markdown ──────────────────
+    let { clean: reply, facts } = extractMemoryTags(rawReply);
+
+    // Paksa hapus markdown bold/italic karena LLM terkadang membandel
+    reply = reply.replace(/\*\*/g, '').replace(/__/g, '');
 
     // ── 6. Save new facts to MemWal ────────────────────────────────
     for (const fact of facts) {
