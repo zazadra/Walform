@@ -11,8 +11,8 @@ interface ChatMessage {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as { userId?: string; messages?: ChatMessage[] };
-    const { userId = 'anonymous', messages = [] } = body;
+    const body = await req.json() as { userId?: string; messages?: ChatMessage[]; provider?: string; userOpenRouterKey?: string };
+    const { userId = 'anonymous', messages = [], userOpenRouterKey } = body;
 
     if (messages.length === 0) {
       return NextResponse.json({ error: 'Pesan kosong' }, { status: 400 });
@@ -129,10 +129,9 @@ Contoh penggunaan:
         ]
       };
 
-      // ── 4. Call OpenRouter API ───────────────────────────────────────
-      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+      const openRouterApiKey = userOpenRouterKey || process.env.OPENROUTER_API_KEY;
       if (!openRouterApiKey) {
-        throw new Error('OPENROUTER_API_KEY tidak dikonfigurasi di server.');
+        throw new Error('No OpenRouter API key available.');
       }
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
