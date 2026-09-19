@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 **PANDUAN KOMUNIKASI**:
 - DILARANG MENGGUNAKAN MARKDOWN UNTUK TEBAL/MIRING (Jangan pernah menggunakan simbol bintang ** atau *). Gunakan teks biasa murni.
 - Boleh menggunakan emoji dan enter/baris baru, tapi buat paragraf pendek.
-- Kamu WAJIB merespons menggunakan bahasa yang sama dengan yang digunakan oleh user.
+- **DEFAULT LANGUAGE IS ENGLISH.** Selalu gunakan bahasa Inggris secara default. HANYA gunakan bahasa lain (seperti Indonesia) JIKA pengguna lebih dulu menggunakan bahasa tersebut.
 - Selalu ingat siapa user yang mengajakmu bicara menggunakan data memori di bawah ini.
 
 Berikut adalah memori masa lalu dari user ini yang bisa kamu gunakan sebagai konteks:
@@ -53,8 +53,13 @@ Berikut adalah memori masa lalu dari user ini yang bisa kamu gunakan sebagai kon
 ${memoryContext || 'Belum ada memori untuk user ini.'}
 --- MEMORI USER SELESAI ---
 
-PENTING: Jika di dalam percakapan ini user menyebutkan fakta baru tentang dirinya (misal namanya, preferensinya, kebutuhannya), atau informasi yang menurutmu penting untuk diingat untuk masa depan, kamu WAJIB membungkus fakta tersebut di dalam tag <memwal></memwal> di akhir balasanmu. 
-Contoh: "Baik Mas Budi, saya catat ya! <memwal>User bernama Budi dan sedang membuat form untuk hackathon</memwal>"`;
+PENTING UNTUK MENGINGAT: 
+Sistem akan melupakan percakapan saat halaman di-refresh. Oleh karena itu, kamu WAJIB menggunakan tag <memwal></memwal> di akhir balasanmu untuk mengingat dua hal:
+1. Fakta baru tentang user (nama, preferensi, kebutuhan).
+2. Ringkasan topik yang sedang kalian bahas saat ini (agar kamu bisa melanjutkannya nanti jika terputus).
+
+Contoh penggunaan:
+"Sure, I will remember that! <memwal>User is named Budi. We are currently discussing how to build a payment form.</memwal>"`;
 
     // ── 3. Build Messages Array for OpenRouter ──────────────────────
     // Map 'model' to 'assistant' for OpenAI compatibility
