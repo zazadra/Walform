@@ -60,6 +60,30 @@ Sistem akan melupakan percakapan saat halaman di-refresh. Oleh karena itu, kamu 
 Contoh penggunaan:
 "Sure, I will remember that! <memwal>User is named Budi. We are currently discussing how to build a payment form.</memwal>"`;
 
+    // ── 3. Normalize Messages (Strict Alternating Pattern) ─────────
+    const normalizedRawMessages: any[] = [];
+    // We ignore the very last message in the loop because we process it specially with memory context below
+    const historyMessages = messages.slice(0, -1);
+    
+    for (let i = 0; i < historyMessages.length; i++) {
+      const msg = historyMessages[i];
+      if (normalizedRawMessages.length === 0) {
+        if (msg.role !== 'user') continue; // First history message must be from user
+        normalizedRawMessages.push(msg);
+      } else {
+        const lastRole = normalizedRawMessages[normalizedRawMessages.length - 1].role;
+        if (msg.role !== lastRole) {
+          normalizedRawMessages.push(msg);
+        } else {
+          normalizedRawMessages[normalizedRawMessages.length - 1].content += '\n\n' + msg.content;
+        }
+      }
+    }
+
+    const promptWithMemories = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${latestMessage}`;
+    normalizedRawMessages.push({ role: 'user', content: promptWithMemories });
+
+    // ── 4. Call Selected AI Provider ───────────────────────────────
     let rawReply = '';
     const provider = body.provider || 'openrouter';
 
@@ -67,17 +91,10 @@ Contoh penggunaan:
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("GEMINI_API_KEY is missing in backend.");
 
-      const geminiMessages = messages.map((m, idx) => {
-        let textContent = m.content;
-        // Inject memory into the final user message
-        if (idx === messages.length - 1 && m.role === 'user') {
-          textContent = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${textContent}`;
-        }
-        return {
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: textContent }]
-        };
-      });
+      const geminiMessages = normalizedRawMessages.map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
 
       // Gemini REST API URL
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -91,24 +108,18 @@ Contoh penggunaan:
       });
 
       if (!response.ok) {
+        const errText = await response.text();
         if (response.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
-        throw new Error(`Gemini API Error: ${response.status}`);
+        throw new Error(`Gemini API Error: ${response.status} - ${errText}`);
       }
       const data = await response.json();
       rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } else {
-      // ── 3. Build Messages Array for OpenRouter ──────────────────────
-      const openRouterMessages = messages.slice(0, -1).map((m) => ({
+      // ── OpenRouter ──────────────────────
+      const openRouterMessages = normalizedRawMessages.map((m) => ({
         role: m.role === 'model' ? 'assistant' : m.role,
         content: m.content,
       }));
-
-      const promptWithMemories = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${latestMessage}`;
-
-      openRouterMessages.push({
-        role: 'user',
-        content: promptWithMemories,
-      });
 
       const payload = {
         model: 'inclusionai/ling-3.0-flash-vl:free',
