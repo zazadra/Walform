@@ -54,10 +54,20 @@ export async function POST(req: NextRequest) {
     });
 
     // Build history (all messages except the latest)
-    const history = messages.slice(0, -1).map((m) => ({
+    let rawHistory = messages.slice(0, -1).map((m) => ({
       role: m.role,
       parts: [{ text: m.content }],
     }));
+
+    // Gemini API strict rule: history must start with 'user' and strictly alternate
+    const history = [];
+    let expectedRole = 'user';
+    for (let i = 0; i < rawHistory.length; i++) {
+      if (rawHistory[i].role === expectedRole) {
+        history.push(rawHistory[i]);
+        expectedRole = expectedRole === 'user' ? 'model' : 'user';
+      }
+    }
 
     // ── 4. Send to Gemini ──────────────────────────────────────────
     const chat = model.startChat({ history });
