@@ -126,7 +126,7 @@ Contoh penggunaan:
       }));
 
       const payload = {
-        model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+        model: process.env.GROQ_MODEL || 'groq/compound',
         messages: [
           { role: 'system', content: systemInstruction },
           ...groqMessages
