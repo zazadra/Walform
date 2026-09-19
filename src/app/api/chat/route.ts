@@ -96,8 +96,8 @@ Contoh penggunaan:
         parts: [{ text: m.content }]
       }));
 
-      // Gemini REST API — try gemini-2.0-flash (latest free tier model)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      // Gemini REST API — use the requested gemini-3.6-flash model
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
       const geminiRes = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
