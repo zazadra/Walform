@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     // ── 3. Initialize Gemini model ─────────────────────────────────
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-pro',   // Use latest available model; swap to gemini-3.1-pro when GA
+      model: 'gemini-1.5-pro',   // Using standard 1.5-pro model for compatibility
       systemInstruction,
       generationConfig: {
         temperature: 0.7,
