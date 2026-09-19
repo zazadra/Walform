@@ -96,9 +96,9 @@ Contoh penggunaan:
         parts: [{ text: m.content }]
       }));
 
-      // Gemini REST API URL
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
+      // Gemini REST API — try gemini-2.0-flash (latest free tier model)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      const geminiRes = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,12 +107,14 @@ Contoh penggunaan:
         })
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        if (response.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
-        throw new Error(`Gemini API Error: ${response.status} - ${errText}`);
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        console.error('[Gemini Error]', geminiRes.status, errText);
+        if (geminiRes.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+        // Surface the real error message for debugging
+        throw new Error(`GEMINI_ERROR:${geminiRes.status}:${errText}`);
       }
-      const data = await response.json();
+      const data = await geminiRes.json();
       rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } else {
       // ── OpenRouter ──────────────────────
