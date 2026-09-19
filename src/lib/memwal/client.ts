@@ -9,8 +9,9 @@
  * with a real hosted MemWal API endpoint + API key.
  */
 
-const MEMWAL_API_URL = process.env.MEMWAL_API_URL ?? 'http://localhost:3100';
-const MEMWAL_API_KEY = process.env.MEMWAL_API_KEY ?? '';
+const MEMWAL_SERVER_URL = process.env.MEMWAL_SERVER_URL ?? 'https://relayer.memory.walrus.xyz';
+const MEMWAL_ACCOUNT_ID = process.env.MEMWAL_ACCOUNT_ID ?? '';
+const MEMWAL_PRIVATE_KEY = process.env.MEMWAL_PRIVATE_KEY ?? '';
 
 interface MemwalRecallResult {
   id: string;
@@ -27,11 +28,12 @@ export async function memwalRecall(
   limit = 10,
 ): Promise<string> {
   try {
-    const res = await fetch(`${MEMWAL_API_URL}/recall`, {
+    const res = await fetch(`${MEMWAL_SERVER_URL}/v1/recall`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(MEMWAL_API_KEY ? { Authorization: `Bearer ${MEMWAL_API_KEY}` } : {}),
+        'Authorization': `Bearer ${MEMWAL_PRIVATE_KEY}`,
+        'x-account-id': MEMWAL_ACCOUNT_ID,
       },
       body: JSON.stringify({ query, namespace: userId, limit }),
       signal: AbortSignal.timeout(8_000),
@@ -60,11 +62,12 @@ export async function memwalRecall(
 /** Save a new fact for a given Sui address (fire-and-forget) */
 export async function memwalRemember(userId: string, text: string): Promise<void> {
   try {
-    const res = await fetch(`${MEMWAL_API_URL}/remember`, {
+    const res = await fetch(`${MEMWAL_SERVER_URL}/v1/remember`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(MEMWAL_API_KEY ? { Authorization: `Bearer ${MEMWAL_API_KEY}` } : {}),
+        'Authorization': `Bearer ${MEMWAL_PRIVATE_KEY}`,
+        'x-account-id': MEMWAL_ACCOUNT_ID,
       },
       body: JSON.stringify({ text, namespace: userId }),
       signal: AbortSignal.timeout(10_000),
