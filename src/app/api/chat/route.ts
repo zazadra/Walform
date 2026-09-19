@@ -126,7 +126,7 @@ Contoh penggunaan:
       }));
 
       const payload = {
-        model: 'llama-3.3-70b-versatile',
+        model: process.env.GROQ_MODEL || 'gemma2-9b-it',
         messages: [
           { role: 'system', content: systemInstruction },
           ...groqMessages
