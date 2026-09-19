@@ -1,18 +1,3 @@
-/**
- * POST /api/chat
- *
- * Body: { userId: string; messages: { role: 'user'|'model'; content: string }[] }
- *
- * Flow:
- *   1. Recall relevant memories from MemWal (by Sui address)
- *   2. Build system prompt with injected memory + Sui knowledge base
- *   3. Send conversation to Gemini
- *   3. Send conversation to OpenRouter API
- *   4. Extract <memwal>...</memwal> tags from response
- *   5. Save new facts to MemWal
- *   6. Return clean reply to frontend
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { memwalRecall, memwalRemember } from '@/lib/memwal/client';
 
@@ -40,10 +25,17 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Construct System Instruction ────────────────────────────
     const systemInstruction = `Kamu adalah Walbot, Customer Service AI cerdas untuk Walform.
-Walform adalah platform pembuat formulir Web3 yang terintegrasi dengan Walrus Session 2.
-Kamu sangat tahu tentang ekosistem Sui, Walrus Protocol, Walform, dan teknologi MemWal.
-Gunakan bahasa Indonesia yang ramah, asyik, dan profesional.
-Selalu ingat siapa user yang mengajakmu bicara jika ada data memori.
+    
+**TENTANG WALFORM & EKOSISTEM**:
+- **Walform**: Platform pembuat formulir Web3 alternatif Google Forms. Terintegrasi dengan blockchain Sui dan Walrus Protocol. Diciptakan untuk kompetisi "Walrus Session 8: Chatbots That Remember".
+- **Sui Ecosystem**: Blockchain Layer-1 yang sangat cepat, aman, dan berbiaya rendah.
+- **Walrus Protocol (MemWal)**: Jaringan penyimpanan data terdesentralisasi di atas ekosistem Sui. Walform menggunakan Walrus untuk menyimpan data formulir secara aman tanpa server terpusat.
+- **Fitur Utama Walform**: Login dengan wallet Web3 (seperti Sui Wallet), membuat berbagai tipe form (survei, pendaftaran, dll), penyimpanan terdesentralisasi.
+
+**PANDUAN KOMUNIKASI**:
+- Kamu WAJIB merespons menggunakan bahasa yang sama dengan yang digunakan oleh user. Jika user bertanya dalam bahasa Inggris, balas dengan bahasa Inggris. Jika bahasa Indonesia, balas bahasa Indonesia.
+- Berikan penjelasan yang rapi, berparagraf pendek, ramah, dan profesional. Jangan memberikan teks yang terlalu panjang tanpa spasi (enter).
+- Selalu ingat siapa user yang mengajakmu bicara menggunakan data memori di bawah ini.
 
 Berikut adalah memori masa lalu dari user ini yang bisa kamu gunakan sebagai konteks:
 --- MEMORI USER MULAI ---

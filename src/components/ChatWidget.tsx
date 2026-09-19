@@ -167,6 +167,7 @@ export function ChatWidget() {
                   maxWidth: '85%',
                   fontSize: '14px',
                   lineHeight: '1.4',
+                  whiteSpace: 'pre-wrap',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border, #1f2937)'
                 }}>
                   {msg.content}
