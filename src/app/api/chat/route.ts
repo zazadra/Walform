@@ -101,7 +101,10 @@ Contoh penggunaan:
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`OpenRouter Error: ${response.status} - ${errText}`);
+      if (response.status === 429) {
+        throw new Error('RATE_LIMIT_EXCEEDED');
+      }
+      throw new Error(`API Error: ${response.status}`);
     }
 
     const result = await response.json();

@@ -90,9 +90,17 @@ export function ChatWidget() {
       setMessages((prev) => [...prev, { role: 'model', content: data.reply }]);
     } catch (error: any) {
       console.error(error);
+      
+      let friendlyError = "I'm having a little trouble connecting to my brain right now. Please try again later. 🤖";
+      
+      const errMsg = error.message || '';
+      if (errMsg.includes('RATE_LIMIT_EXCEEDED') || errMsg.includes('429')) {
+        friendlyError = "I'm receiving a very high volume of questions right now and need a short break! 🛌 Please check back a bit later.";
+      }
+      
       setMessages((prev) => [
         ...prev, 
-        { role: 'model', content: `Maaf, sistem mengalami kendala: ${error.message || 'Gagal menghubungi server.'}` }
+        { role: 'model', content: friendlyError }
       ]);
     } finally {
       setIsLoading(false);
