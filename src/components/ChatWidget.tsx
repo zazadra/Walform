@@ -14,7 +14,7 @@ export function ChatWidget() {
   const account = useCurrentAccount();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', content: 'Halo! Saya Walbot. Ada yang bisa saya bantu terkait Walform atau ekosistem Sui hari ini?' }
+    { role: 'model', content: 'Hey! 👋 I\'m Walbot, your Walform AI assistant. Ask me anything about Walform, Walrus Protocol, or the Sui ecosystem!' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

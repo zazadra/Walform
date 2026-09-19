@@ -1,57 +1,44 @@
 /**
- * MemWal Client — server-side only (Next.js API Routes)
+ * MemWal client — uses the official @mysten-incubation/memwal SDK
+ * https://docs.memory.walrus.xyz
  *
- * MemWal stores memories keyed by a "namespace". We use the user's Sui wallet
- * address as the namespace so every user gets their own isolated memory bucket.
- *
- * The MCP server exposes tools via HTTP at MEMWAL_API_URL (defaults to
- * http://localhost:3100 when running locally). On Vercel you would replace this
- * with a real hosted MemWal API endpoint + API key.
+ * Env vars (set in Vercel + .env.local):
+ *   MEMWAL_PRIVATE_KEY  — delegate private key from memory.walrus.xyz dashboard
+ *   MEMWAL_ACCOUNT_ID   — your account ID (0x...)
+ *   MEMWAL_SERVER_URL   — https://relayer.memory.walrus.xyz
  */
 
-const MEMWAL_SERVER_URL = process.env.MEMWAL_SERVER_URL ?? 'https://relayer.memory.walrus.xyz';
-const MEMWAL_ACCOUNT_ID = process.env.MEMWAL_ACCOUNT_ID ?? '';
-const MEMWAL_PRIVATE_KEY = process.env.MEMWAL_PRIVATE_KEY ?? '';
+import { MemWal } from '@mysten-incubation/memwal';
 
-interface MemwalRecallResult {
-  id: string;
-  text: string;
-  score: number;
-  written: string;
-  namespace: string;
+function getClient() {
+  const key = process.env.MEMWAL_PRIVATE_KEY ?? '';
+  const accountId = process.env.MEMWAL_ACCOUNT_ID ?? '';
+  const serverUrl = process.env.MEMWAL_SERVER_URL ?? 'https://relayer.memory.walrus.xyz';
+
+  if (!key || !accountId) {
+    throw new Error('MemWal: MEMWAL_PRIVATE_KEY and MEMWAL_ACCOUNT_ID must be set.');
+  }
+
+  return MemWal.create({ key, accountId, serverUrl });
 }
 
-/** Pull relevant memories for a given Sui address */
+/**
+ * Recall relevant memories for a user namespace (Sui address).
+ * Returns a plain text block, or empty string on failure.
+ */
 export async function memwalRecall(
   userId: string,
   query: string,
-  limit = 10,
+  limit = 5,
 ): Promise<string> {
   try {
-    const res = await fetch(`${MEMWAL_SERVER_URL}/v1/recall`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MEMWAL_PRIVATE_KEY}`,
-        'x-account-id': MEMWAL_ACCOUNT_ID,
-      },
-      body: JSON.stringify({ query, namespace: userId, limit }),
-      signal: AbortSignal.timeout(8_000),
-    });
+    const memwal = getClient();
+    const result = await memwal.recall({ query, namespace: userId, limit });
 
-    if (!res.ok) {
-      console.warn(`[MemWal] recall failed: HTTP ${res.status}`);
-      return '';
-    }
+    if (!result?.results?.length) return '';
 
-    const json: { results?: MemwalRecallResult[] } = await res.json();
-    const results = json.results ?? [];
-
-    if (results.length === 0) return '';
-
-    // Format as readable context for the system prompt
-    return results
-      .map((r) => `• [${r.written}] ${r.text}`)
+    return result.results
+      .map((r: { text: string; score?: number }) => r.text)
       .join('\n');
   } catch (err) {
     console.error('[MemWal] recall error:', err);
@@ -59,24 +46,16 @@ export async function memwalRecall(
   }
 }
 
-/** Save a new fact for a given Sui address (fire-and-forget) */
+/**
+ * Save a new memory fact for a user namespace (fire-and-forget friendly).
+ */
 export async function memwalRemember(userId: string, text: string): Promise<void> {
   try {
-    const res = await fetch(`${MEMWAL_SERVER_URL}/v1/remember`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MEMWAL_PRIVATE_KEY}`,
-        'x-account-id': MEMWAL_ACCOUNT_ID,
-      },
-      body: JSON.stringify({ text, namespace: userId }),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!res.ok) {
-      console.warn(`[MemWal] remember failed: HTTP ${res.status}`);
-    } else {
-      console.log(`[MemWal] ✓ saved memory for ${userId.slice(0, 8)}…`);
+    const memwal = getClient();
+    const job = await memwal.remember(text, { namespace: userId });
+    // wait for confirmation (non-blocking from caller's perspective via await)
+    if (job?.job_id) {
+      await memwal.waitForRememberJob(job.job_id);
     }
   } catch (err) {
     console.error('[MemWal] remember error:', err);
