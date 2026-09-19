@@ -168,6 +168,8 @@ export function ChatWidget() {
                   fontSize: '14px',
                   lineHeight: '1.4',
                   whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border, #1f2937)'
                 }}>
                   {msg.content}
@@ -192,7 +194,7 @@ export function ChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Tanya Walbot..."
+                placeholder="Ask Walbot..."
                 style={{
                   flex: 1,
                   padding: '10px 14px',

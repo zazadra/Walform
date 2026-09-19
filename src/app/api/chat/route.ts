@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
     const latestMessage = messages[messages.length - 1].content;
 
     // ── 1. Recall from MemWal ──────────────────────────────────────
-    const memoryContext = await memwalRecall(userId, latestMessage, 5);
+    // Gunakan query yang lebih luas agar informasi profil (nama, dsb) selalu ikut terpanggil
+    // meskipun user hanya mengetik "halo"
+    const memoryQuery = `Profil user, nama, identitas, preferensi. Obrolan saat ini: ${latestMessage}`;
+    const memoryContext = await memwalRecall(userId, memoryQuery, 5);
 
     // ── 2. Construct System Instruction ────────────────────────────
     const systemInstruction = `Kamu adalah Walbot, Customer Service AI cerdas untuk Walform.
@@ -30,16 +33,20 @@ export async function POST(req: NextRequest) {
 - **Walform**: Platform pembuat formulir Web3 alternatif Google Forms. Diciptakan pertama kali pada kompetisi "Walrus Session 2".
 - **Walbot**: Kamu adalah Walbot. Kamu ditambahkan ke dalam Walform khusus untuk kompetisi "Walrus Session 8: Chatbots That Remember".
 - **Sui Ecosystem**: Blockchain Layer-1 yang sangat cepat, aman, dan berbiaya rendah.
-- **Login**: Pengguna login murni menggunakan wallet Web3 bernama **Slush** (alamat wallet pengguna menjadi identitas unik mereka).
+- **Login**: Pengguna login murni menggunakan wallet Web3 bernama **Slush**.
 - **Penyimpanan**: 
   - Data formulir disimpan secara terdesentralisasi menggunakan **Walrus Protocol**.
   - **MemWal** HANYA digunakan olehmu (Walbot) untuk mengingat profil, preferensi, dan riwayat obrolan pengguna agar obrolan terasa personal. Jangan tertukar antara Walrus (untuk form) dan MemWal (untuk memori AI).
+
+**INFORMASI PENGGUNA SAAT INI**:
+- **Alamat Wallet (ID) Pengguna yang sedang berbicara denganmu:** ${userId}
+- Kamu tidak perlu menanyakan alamat wallet mereka karena sistem sudah mendeteksinya secara otomatis.
 
 **PANDUAN KOMUNIKASI**:
 - DILARANG MENGGUNAKAN MARKDOWN UNTUK TEBAL/MIRING (Jangan pernah menggunakan simbol bintang ** atau *). Gunakan teks biasa murni.
 - Boleh menggunakan emoji dan enter/baris baru, tapi buat paragraf pendek.
 - Kamu WAJIB merespons menggunakan bahasa yang sama dengan yang digunakan oleh user.
-- Selalu ingat siapa user yang mengajakmu bicara menggunakan data memori di bawah ini. Akun user dikenali dari alamat wallet Slush mereka.
+- Selalu ingat siapa user yang mengajakmu bicara menggunakan data memori di bawah ini.
 
 Berikut adalah memori masa lalu dari user ini yang bisa kamu gunakan sebagai konteks:
 --- MEMORI USER MULAI ---
