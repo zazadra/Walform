@@ -14,10 +14,11 @@ export function ChatWidget() {
   const account = useCurrentAccount();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', content: 'Hey! 👋 I\'m Walbot, your Walform AI assistant. Ask me anything about Walform, Walrus Protocol, or the Sui ecosystem!' }
+    { role: 'model', content: "Hey! 👋 I'm Walbot, your Walform AI assistant. Ask me anything about Walform, Walrus Protocol, or the Sui ecosystem!" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [greeted, setGreeted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,6 +28,21 @@ export function ChatWidget() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen]);
+
+  // Fetch personalized greeting when chat is opened for the first time
+  useEffect(() => {
+    if (isOpen && !greeted && account?.address) {
+      setGreeted(true);
+      fetch(`/api/chat/greet?userId=${account.address}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.hasMemory && data.greeting) {
+            setMessages([{ role: 'model', content: data.greeting }]);
+          }
+        })
+        .catch(() => {}); // silently fail — default greeting stays
+    }
+  }, [isOpen, greeted, account?.address]);
 
   // Hides widget if no wallet connected
   if (!account) return null;
