@@ -50,14 +50,24 @@ export function ChatWidget() {
         }),
       });
 
-      if (!response.ok) throw new Error('Network error');
+      if (!response.ok) {
+        let errDetail = 'Network error';
+        try {
+          const errData = await response.json();
+          if (errData.detail) errDetail = errData.detail;
+        } catch (e) {}
+        throw new Error(errDetail);
+      }
       
       const data = await response.json();
       
       setMessages((prev) => [...prev, { role: 'model', content: data.reply }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages((prev) => [...prev, { role: 'model', content: 'Maaf, terjadi kesalahan saat menghubungi server.' }]);
+      setMessages((prev) => [
+        ...prev, 
+        { role: 'model', content: `Maaf, sistem mengalami kendala: ${error.message || 'Gagal menghubungi server.'}` }
+      ]);
     } finally {
       setIsLoading(false);
     }
