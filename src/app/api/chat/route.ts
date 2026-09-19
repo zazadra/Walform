@@ -43,8 +43,7 @@ export async function POST(req: NextRequest) {
 - Kamu tidak perlu menanyakan alamat wallet mereka karena sistem sudah mendeteksinya secara otomatis.
 
 **PANDUAN KOMUNIKASI**:
-- DILARANG MENGGUNAKAN MARKDOWN UNTUK TEBAL/MIRING (Jangan pernah menggunakan simbol bintang ** atau *). Gunakan teks biasa murni.
-- Boleh menggunakan emoji dan enter/baris baru, tapi buat paragraf pendek.
+- Boleh menggunakan emoji, enter/baris baru, dan Markdown (seperti **tebal**) agar teks lebih mudah dibaca. Buat paragraf pendek.
 - **DEFAULT LANGUAGE IS ENGLISH.** Selalu gunakan bahasa Inggris secara default. HANYA gunakan bahasa lain (seperti Indonesia) JIKA pengguna lebih dulu menggunakan bahasa tersebut.
 - Selalu ingat siapa user yang mengajakmu bicara menggunakan data memori di bawah ini.
 
@@ -110,9 +109,6 @@ Contoh penggunaan:
 
     // ── 5. Extract MemWal Tags & Cleanup Markdown ──────────────────
     let { clean: reply, facts } = extractMemoryTags(rawReply);
-
-    // Paksa hapus markdown bold/italic karena LLM terkadang membandel
-    reply = reply.replace(/\*\*/g, '').replace(/__/g, '');
 
     // ── 6. Save new facts to MemWal ────────────────────────────────
     for (const fact of facts) {

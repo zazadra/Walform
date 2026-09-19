@@ -10,6 +10,17 @@ type Message = {
   content: string;
 };
 
+// Helper untuk merender Markdown ringan (bold)
+const renderMessageContent = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 export function ChatWidget() {
   const account = useCurrentAccount();
   const [isOpen, setIsOpen] = useState(false);
@@ -188,7 +199,7 @@ export function ChatWidget() {
                   overflowWrap: 'break-word',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border, #1f2937)'
                 }}>
-                  {msg.content}
+                  {renderMessageContent(msg.content)}
                 </div>
               ))}
               {isLoading && (
