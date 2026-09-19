@@ -10,16 +10,7 @@ type Message = {
   content: string;
 };
 
-// Helper untuk merender Markdown ringan (bold)
-const renderMessageContent = (text: string) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
-  });
-};
+import ReactMarkdown from 'react-markdown';
 
 export function ChatWidget() {
   const account = useCurrentAccount();
@@ -48,7 +39,15 @@ export function ChatWidget() {
         .then((r) => r.json())
         .then((data) => {
           if (data.hasMemory && data.greeting) {
-            setMessages([{ role: 'model', content: data.greeting }]);
+            setMessages((prev) => {
+              const newMsgs = [...prev];
+              // Only replace the first message (the default greeting) 
+              // to prevent deleting any user messages sent while loading
+              if (newMsgs.length > 0 && newMsgs[0].role === 'model') {
+                newMsgs[0] = { role: 'model', content: data.greeting };
+              }
+              return newMsgs;
+            });
           }
         })
         .catch(() => {}); // silently fail — default greeting stays
@@ -199,7 +198,7 @@ export function ChatWidget() {
                   overflowWrap: 'break-word',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border, #1f2937)'
                 }}>
-                  {renderMessageContent(msg.content)}
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ))}
               {isLoading && (
