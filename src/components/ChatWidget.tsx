@@ -15,6 +15,7 @@ import ReactMarkdown from 'react-markdown';
 export function ChatWidget() {
   const account = useCurrentAccount();
   const [isOpen, setIsOpen] = useState(false);
+  const [provider, setProvider] = useState<'gemini' | 'openrouter'>('gemini');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', content: "Hey! 👋 I'm Walbot, your Walform AI assistant. Ask me anything about Walform, Walrus Protocol, or the Sui ecosystem!" }
   ]);
@@ -73,6 +74,7 @@ export function ChatWidget() {
         body: JSON.stringify({
           userId: account.address, // Use Sui address as userId
           messages: newMessages,
+          provider: provider,
         }),
       });
 
@@ -175,12 +177,31 @@ export function ChatWidget() {
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 <span style={{ fontWeight: 600, color: '#fff' }}>Walbot AI</span>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-2, #9ca3af)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <select
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as 'gemini' | 'openrouter')}
+                  style={{
+                    backgroundColor: 'var(--bg-2, #111827)',
+                    color: '#fff',
+                    border: '1px solid var(--border, #1f2937)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    fontSize: '12px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="gemini">Gemini</option>
+                  <option value="openrouter">OpenRouter</option>
+                </select>
+                <button 
+                  onClick={() => setIsOpen(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-2, #9ca3af)', cursor: 'pointer' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div style={{

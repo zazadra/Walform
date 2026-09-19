@@ -60,55 +60,92 @@ Sistem akan melupakan percakapan saat halaman di-refresh. Oleh karena itu, kamu 
 Contoh penggunaan:
 "Sure, I will remember that! <memwal>User is named Budi. We are currently discussing how to build a payment form.</memwal>"`;
 
-    // ── 3. Build Messages Array for OpenRouter ──────────────────────
-    // Map 'model' to 'assistant' for OpenAI compatibility
-    const openRouterMessages = messages.slice(0, -1).map((m) => ({
-      role: m.role === 'model' ? 'assistant' : m.role,
-      content: m.content,
-    }));
+    let rawReply = '';
+    const provider = body.provider || 'openrouter';
 
-    const promptWithMemories = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${latestMessage}`;
+    if (provider === 'gemini') {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error("GEMINI_API_KEY is missing in backend.");
 
-    openRouterMessages.push({
-      role: 'user',
-      content: promptWithMemories,
-    });
+      const geminiMessages = messages.map((m, idx) => {
+        let textContent = m.content;
+        // Inject memory into the final user message
+        if (idx === messages.length - 1 && m.role === 'user') {
+          textContent = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${textContent}`;
+        }
+        return {
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: textContent }]
+        };
+      });
 
-    const payload = {
-      model: 'inclusionai/ling-3.0-flash-vl:free',
-      messages: [
-        { role: 'system', content: systemInstruction },
-        ...openRouterMessages
-      ]
-    };
+      // Gemini REST API URL
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: { text: systemInstruction } },
+          contents: geminiMessages
+        })
+      });
 
-    // ── 4. Call OpenRouter API ───────────────────────────────────────
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterApiKey) {
-      throw new Error('OPENROUTER_API_KEY tidak dikonfigurasi di server.');
-    }
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openRouterApiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://walform.vercel.app',
-        'X-Title': 'Walform Chatbot'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      if (response.status === 429) {
-        throw new Error('RATE_LIMIT_EXCEEDED');
+      if (!response.ok) {
+        if (response.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+        throw new Error(`Gemini API Error: ${response.status}`);
       }
-      throw new Error(`API Error: ${response.status}`);
-    }
+      const data = await response.json();
+      rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else {
+      // ── 3. Build Messages Array for OpenRouter ──────────────────────
+      const openRouterMessages = messages.slice(0, -1).map((m) => ({
+        role: m.role === 'model' ? 'assistant' : m.role,
+        content: m.content,
+      }));
 
-    const result = await response.json();
-    const rawReply = result.choices?.[0]?.message?.content || '';
+      const promptWithMemories = `Konteks memori tambahan:\n${memoryContext}\n\nPesan User:\n${latestMessage}`;
+
+      openRouterMessages.push({
+        role: 'user',
+        content: promptWithMemories,
+      });
+
+      const payload = {
+        model: 'inclusionai/ling-3.0-flash-vl:free',
+        messages: [
+          { role: 'system', content: systemInstruction },
+          ...openRouterMessages
+        ]
+      };
+
+      // ── 4. Call OpenRouter API ───────────────────────────────────────
+      const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterApiKey) {
+        throw new Error('OPENROUTER_API_KEY tidak dikonfigurasi di server.');
+      }
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://walform.vercel.app',
+          'X-Title': 'Walform Chatbot'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        if (response.status === 429) {
+          throw new Error('RATE_LIMIT_EXCEEDED');
+        }
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      rawReply = result.choices?.[0]?.message?.content || '';
+    }
 
     // ── 5. Extract MemWal Tags & Cleanup Markdown ──────────────────
     let { clean: reply, facts } = extractMemoryTags(rawReply);
