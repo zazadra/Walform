@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { memwalRecall, memwalRemember } from '@/lib/memwal/client';
+import { BOT_CONFIG } from '@/lib/bot-config';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -84,7 +85,7 @@ Example: "Here are the steps to deploy: ... <memwal>User deployed a contract. Th
 
     // ── 4. Call Selected AI Provider ───────────────────────────────
     let rawReply = '';
-    const activeProvider = provider || 'openrouter';
+    const activeProvider = body.provider || 'openrouter';
 
     if (activeProvider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY;
