@@ -167,7 +167,11 @@ export function ChatWidget() {
         friendlyError = `⚠️ Gemini API error: ${detail.substring(0, 200)}`;
       } else if (errMsg.includes('GROQ_ERROR')) {
         const detail = errMsg.replace('GROQ_ERROR:', '');
-        friendlyError = `⚠️ Groq API error: ${detail.substring(0, 200)}`;
+        if (detail.includes('413') || detail.includes('request_too_large')) {
+          friendlyError = "⚠️ The conversation is getting too long for Groq's free tier. Try switching to another model or refreshing the chat.";
+        } else {
+          friendlyError = `⚠️ Groq API error: ${detail.substring(0, 200)}`;
+        }
       }
       setMessages((prev) => [...prev, { role: 'model', content: friendlyError }]);
     } finally {

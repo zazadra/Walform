@@ -84,9 +84,9 @@ Example: "Here are the steps to deploy: ... <memwal>User deployed a contract. Th
 
     // ── 4. Call Selected AI Provider ───────────────────────────────
     let rawReply = '';
-    const provider = body.provider || 'openrouter';
+    const activeProvider = provider || 'openrouter';
 
-    if (provider === 'gemini') {
+    if (activeProvider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("GEMINI_API_KEY is missing in backend.");
 
@@ -115,7 +115,7 @@ Example: "Here are the steps to deploy: ... <memwal>User deployed a contract. Th
       }
       const data = await geminiRes.json();
       rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } else if (provider === 'groq') {
+    } else if (activeProvider === 'groq') {
       const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error("GROQ_API_KEY is missing in backend.");
 
