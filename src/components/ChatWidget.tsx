@@ -158,21 +158,40 @@ export function ChatWidget() {
       setMessages((prev) => [...prev, { role: 'model', content: data.reply }]);
     } catch (error: any) {
       console.error(error);
-      let friendlyError = "I'm having a little trouble connecting to my brain right now. Please try again later. 🤖";
       const errMsg = error.message || '';
+
+      let friendlyError: string;
+
       if (errMsg.includes('RATE_LIMIT_EXCEEDED') || errMsg.includes('429')) {
-        friendlyError = "I'm receiving a very high volume of questions right now and need a short break! 🛌\n\nTip: You can add your own OpenRouter API key via the ⚙️ Settings button to bypass this limit.";
+        friendlyError = "I'm handling a high volume of requests right now. Please wait a moment and try again.\n\n**Tip:** You can add your own OpenRouter API key via the ⚙️ Settings button to bypass this limit.";
       } else if (errMsg.includes('GEMINI_ERROR')) {
-        const detail = errMsg.replace('GEMINI_ERROR:', '');
-        friendlyError = `⚠️ Gemini API error: ${detail.substring(0, 200)}`;
-      } else if (errMsg.includes('GROQ_ERROR')) {
-        const detail = errMsg.replace('GROQ_ERROR:', '');
-        if (detail.includes('413') || detail.includes('request_too_large')) {
-          friendlyError = "⚠️ The conversation is getting too long for Groq's free tier. Try switching to another model or refreshing the chat.";
+        const rawDetail = errMsg.replace(/GEMINI_ERROR:\d+:/,'');
+        let code = '503';
+        const codeMatch = errMsg.match(/GEMINI_ERROR:(\d+):/);
+        if (codeMatch) code = codeMatch[1];
+
+        if (code === '503' || rawDetail.includes('high demand') || rawDetail.includes('UNAVAILABLE')) {
+          friendlyError = "The Gemini service is temporarily experiencing high demand. Please try again in a moment, or switch to another model using the selector above.";
+        } else if (code === '400' || rawDetail.includes('API_KEY_INVALID')) {
+          friendlyError = "The Gemini API key appears to be invalid. Please check your `GEMINI_API_KEY` environment variable on Vercel.";
+        } else if (code === '429') {
+          friendlyError = "Gemini's free quota has been reached. Please try again later or switch to another model.";
         } else {
-          friendlyError = `⚠️ Groq API error: ${detail.substring(0, 200)}`;
+          friendlyError = `The Gemini service returned an error (code ${code}). Please try again or switch to another model.`;
         }
+      } else if (errMsg.includes('GROQ_ERROR')) {
+        const rawDetail = errMsg.replace(/GROQ_ERROR:\d+:/,'');
+        if (rawDetail.includes('413') || rawDetail.includes('request_too_large')) {
+          friendlyError = "The conversation is getting too long for Groq's free tier. Please refresh the chat to start a new session, or switch to another model.";
+        } else if (rawDetail.includes('404') || rawDetail.includes('model_not_found')) {
+          friendlyError = "The selected Groq model is not available on your account's plan. Please switch to another model.";
+        } else {
+          friendlyError = "The Groq service returned an error. Please try again or switch to another model.";
+        }
+      } else {
+        friendlyError = "Something went wrong while connecting to the AI service. Please try again in a moment.";
       }
+
       setMessages((prev) => [...prev, { role: 'model', content: friendlyError }]);
     } finally {
       setIsLoading(false);
